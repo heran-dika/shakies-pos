@@ -18,7 +18,7 @@ Aplikasi POS sederhana buat **Shakies** (toko roti) & **Dimsum Mentai Galaxy** �
 - 📝 Input orderan (nama, tanggal kirim, item, biaya ekspedisi opsional) — total kehitung otomatis
 - 🍞 Kelola menu (kategori & item) langsung dari app
 - 📅 Kalender 7 hari ke depan buat cek & checklist persiapan PO
-- 🗂️ Riwayat lengkap, bisa dicari & diedit
+- 🗂️ Riwayat lengkap, bisa dicari & diedit — default nampilin bulan berjalan aja (biar ringan), filter rentang tanggal (Dari–Sampai) buat cari di luar itu, plus total pendapatan yang ngikutin hasil filter
 - 💰 Status Lunas/Belum Lunas per orderan
 - 📱 Bisa di-"Add to Home Screen", jalan kayak app beneran
 - 🔒 Cuma HP terdaftar yang bisa nyimpen data beneran (HP lain bisa liat-liat & coba-coba doang)
@@ -47,3 +47,4 @@ Ringkas:
 ## Lisensi
 
 Proyek pribadi buat Shakies — bukan buat dipublikasiin/dijual ulang.
+
