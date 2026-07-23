@@ -115,6 +115,11 @@
   .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--jade-dark);color:#fff;padding:12px 18px;border-radius:18px;font-size:15.5px;font-weight:600;z-index:60;opacity:0;transition:all .25s ease;pointer-events:none;white-space:normal;text-align:center;max-width:85vw;line-height:1.4;}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
   .spinner{text-align:center;padding:30px;color:var(--ink-soft);font-size:13px;}
+  @keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+  .summary-pill.item-pill{cursor:pointer;border:1.5px solid transparent;}
+  .summary-pill.item-pill.active-filter{background:var(--gold);color:#fff;border-color:var(--gold);}
+  .order-card.flash-highlight{animation:flashcard 1.6s ease;}
+  @keyframes flashcard{0%{box-shadow:0 0 0 3px var(--gold);}100%{box-shadow:0 0 0 0 transparent;}}
 </style>
 </head>
 <body>
@@ -164,6 +169,7 @@
       </div>
       <div class="total-bar"><span class="lbl">Total</span><span class="val" id="orderTotal">Rp 0</span></div>
       <button class="primary" id="btnSubmitOrder" onclick="submitOrder()" disabled>Simpan Orderan</button>
+      <button class="secondary" id="btnDeleteOrder" onclick="deleteCurrentOrder()" style="display:none;margin-top:10px;border-color:var(--chili);color:var(--chili);">Hapus Orderan</button>
     </section>
 
     <!-- MENU -->
@@ -179,7 +185,10 @@
 
     <!-- BESOK -->
     <section class="tab" id="tab-besok">
-      <h2 class="section-title" style="margin-bottom:10px;">PO — Prep 7 Hari</h2>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <h2 class="section-title" style="margin-bottom:0;">PO — Prep 7 Hari</h2>
+        <svg id="prepSyncIcon" style="display:none;width:15px;height:15px;color:var(--gold);animation:spin 1s linear infinite;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+      </div>
       <div class="day-strip" id="dayStrip"></div>
       <div id="besokContent"><div class="spinner">Memuat orderan...</div></div>
     </section>
@@ -190,7 +199,7 @@
         <h2 class="section-title" style="margin-bottom:0;">Riwayat Orderan</h2>
         <span id="riwayatTotalRevenue" style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:600;color:var(--jade-dark);white-space:nowrap;flex-shrink:0;">Rp 0</span>
       </div>
-      <p class="section-sub" id="riwayatModeHint">Semua orderan yang pernah masuk. Tap buat edit.</p>
+      <p class="section-sub" id="riwayatModeHint">Isi nama atau tanggal buat cari orderan.</p>
       <div class="field"><input type="text" id="riwayatSearch" placeholder="Cari nama customer..." oninput="renderRiwayat()"></div>
       <div class="filter-row">
         <input type="date" id="riwayatDateFrom" onchange="renderRiwayat()" style="flex:1;min-width:0;">
@@ -262,7 +271,7 @@
 <script>
 // ==== KONFIGURASI ====
 const CONFIG = {
-    API_URL: 'https://script.google.com/macros/s/AKfycbzQfCfpzQRKTIFXQ5lVSRv4evJv44rOEkL2okoSgo4lw3Q7x9tdMG30eBFzKSsMppe9NQ/exec'
+    API_URL: 'https://script.google.com/macros/s/AKfycbxIbPfIPXvkzMYHzs0V19Id57PdaCeRoVeQIY3W-ZOcwOaz-v63JFr97xhxHmH4ueUoaQ/exec'
 };
 
 // ==== STATE ====
@@ -274,6 +283,10 @@ let editingOrderId = null;
 let editingOrderPrepared = false;
 let editingOrderPaid = false;
 let selectedBesokDate = null;
+let activeItemFilter = null; // nama item yang lagi difilter di tab Prep
+let pendingHighlightOrderId = null; // order_id yang mau disorot abis balik ke Prep
+const PREP_CACHE_KEY = 'prep-orders-cache-v1';
+const MENU_CACHE_KEY = 'menu-cache-v1';
 
 // ==== HELPERS ====
 function uid(p){ return p+'_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7); }
@@ -290,6 +303,42 @@ const DAY_ABBR = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
 function tomorrowISO(){ const d=new Date(); d.setDate(d.getDate()+1); return toLocalISODate(d); }
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(showToast._t); showToast._t=setTimeout(()=>t.classList.remove('show'),4500); }
 function escapeHtml(str){ const d=document.createElement('div'); d.textContent = str==null?'':String(str); return d.innerHTML; }
+
+// ==== CACHE (localStorage) ====
+// Cache orderan Prep dibatasi cuma window 7 hari (hari ini s/d +6), jadi ukurannya tetap kecil
+// walau bisnisnya udah jalan bertahun-tahun — bukan nyimpen seluruh riwayat.
+function prepWindowDates(){
+  const out = [];
+  for(let i=0;i<7;i++){ const d=new Date(); d.setDate(d.getDate()+i); out.push(toLocalISODate(d)); }
+  return out;
+}
+function loadPrepCache(){
+  try{
+    const raw = localStorage.getItem(PREP_CACHE_KEY);
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed.orders) ? parsed.orders : null;
+  } catch(e){ return null; }
+}
+function savePrepCache(orders){
+  try{
+    const win = prepWindowDates();
+    const bounded = orders.filter(o=>win.includes(o.delivery_date) && !o._demo);
+    localStorage.setItem(PREP_CACHE_KEY, JSON.stringify({ orders: bounded, cachedAt: Date.now() }));
+  } catch(e){ /* localStorage penuh/nggak ada — nggak fatal, cache aja dilewatin */ }
+}
+function loadMenuCache(){
+  try{
+    const raw = localStorage.getItem(MENU_CACHE_KEY);
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed.items) ? parsed.items : null;
+  } catch(e){ return null; }
+}
+function saveMenuCache(items){
+  try{ localStorage.setItem(MENU_CACHE_KEY, JSON.stringify({ items, cachedAt: Date.now() })); }
+  catch(e){ /* nggak fatal */ }
+}
 
 // ==== API ====
 async function apiGet(action){
@@ -346,11 +395,21 @@ function saveDeviceLabel(){
 
 // ==== MENU ====
 async function loadMenu(){
+  // Menu jarang berubah — tampilin cache dulu (kalau ada) biar nggak nunggu,
+  // baru refresh diam-diam di background.
+  const cached = loadMenuCache();
+  if(cached && cached.length){
+    menuItems = cached;
+    renderMenuPicker();
+    renderMenuManage();
+  }
   try{
-    menuItems = await apiGet('get_menu');
+    const fresh = await apiGet('get_menu');
+    menuItems = fresh;
+    saveMenuCache(fresh);
   } catch(e){
-    showToast('Gagal ambil data menu: ' + e.message);
-    menuItems = [];
+    if(!cached){ showToast('Gagal ambil data menu: ' + e.message); menuItems = []; }
+    // kalau ada cache, gagal refresh nggak masalah — tetep pakai yang lama diam-diam
   }
   renderMenuPicker();
   renderMenuManage();
@@ -495,9 +554,14 @@ async function deleteCategory(kategori){
 // ==== ORDERS ====
 async function loadOrders(){
   const demoOrders = allOrders.filter(o=>o._demo);
-  try{ allOrders = await apiGet('get_orders'); }
-  catch(e){ showToast('Gagal ambil orderan: ' + e.message); allOrders = []; }
-  allOrders = demoOrders.concat(allOrders); // orderan coba-coba tetep keliatan selama sesi ini, meski cuma lokal
+  const previousReal = allOrders.filter(o=>!o._demo);
+  try{
+    const fresh = await apiGet('get_orders');
+    allOrders = demoOrders.concat(fresh); // orderan coba-coba tetep keliatan selama sesi ini, meski cuma lokal
+  } catch(e){
+    showToast('Gagal ambil orderan: ' + e.message);
+    allOrders = demoOrders.concat(previousReal); // gagal fetch — tetep pake data lama drpd kosong
+  }
 }
 async function submitOrder(){
   const nameField = document.getElementById('custName').value.trim();
@@ -512,6 +576,8 @@ async function submitOrder(){
   const items_summary = items.map(i=>`${i.name} x${i.qty}`).join(', ');
 
   const btn = document.getElementById('btnSubmitOrder');
+  const wasEditing = !!editingOrderId;
+  const editedOrderId = editingOrderId;
   btn.disabled = true; btn.textContent = editingOrderId ? 'Menyimpan perubahan...' : 'Menyimpan...';
   try{
     if(editingOrderId){
@@ -530,6 +596,7 @@ async function submitOrder(){
     }
     await loadOrders();
     resetOrderForm();
+    if(wasEditing) goToPrepAndHighlight(editedOrderId, deliveryDate);
   } catch(e){
     if(e.status === 'not_registered'){
       if(editingOrderId){
@@ -551,6 +618,7 @@ async function submitOrder(){
         showToast('👀 Mode coba-coba — orderan ini CUMA keliatan di HP ini, nggak beneran kesimpen ke sistem');
       }
       resetOrderForm();
+      if(wasEditing) goToPrepAndHighlight(editedOrderId, deliveryDate);
     } else {
       showToast('Gagal simpan: ' + e.message);
     }
@@ -559,10 +627,46 @@ async function submitOrder(){
     updateOrderTotal();
   }
 }
+async function deleteCurrentOrder(){
+  if(!editingOrderId) return;
+  const order = allOrders.find(o=>o.order_id===editingOrderId);
+  const label = order ? order.customer_name : 'orderan ini';
+  if(!confirm(`Yakin mau hapus orderan "${label}"? Ini nggak bisa dibatalin.`)) return;
+  const deletedDate = order ? order.delivery_date : selectedBesokDate;
+  const targetId = editingOrderId;
+  const isDemo = order && order._demo;
+  const btnDel = document.getElementById('btnDeleteOrder');
+  btnDel.disabled = true; btnDel.textContent = 'Menghapus...';
+  try{
+    if(!isDemo){
+      await apiPost('delete_order', { order_id: targetId, device_label: deviceLabel });
+    }
+    allOrders = allOrders.filter(o=>o.order_id!==targetId);
+    savePrepCache(allOrders);
+    showToast('Orderan dihapus');
+    resetOrderForm();
+    selectedBesokDate = deletedDate;
+    switchTab('besok');
+  } catch(e){
+    if(e.status === 'not_registered'){
+      showToast('HP ini belum terdaftar buat hapus data beneran.');
+    } else {
+      showToast('Gagal hapus: ' + e.message);
+    }
+  } finally {
+    btnDel.disabled = false; btnDel.textContent = 'Hapus Orderan';
+  }
+}
+function goToPrepAndHighlight(orderId, deliveryDate){
+  pendingHighlightOrderId = orderId;
+  selectedBesokDate = deliveryDate;
+  switchTab('besok');
+}
 function resetOrderForm(){
   editingOrderId = null; editingOrderPrepared = false; editingOrderPaid = false;
   document.getElementById('editBanner').style.display = 'none';
   document.getElementById('btnSubmitOrder').textContent = 'Simpan Orderan';
+  document.getElementById('btnDeleteOrder').style.display = 'none';
   document.getElementById('custName').value = '';
   document.getElementById('orderNote').value = '';
   document.getElementById('shippingFee').value = '';
@@ -580,6 +684,7 @@ function openEditOrder(orderId){
   editingOrderPaid = order.paid;
   document.getElementById('editBanner').style.display = 'flex';
   document.getElementById('btnSubmitOrder').textContent = 'Update Orderan';
+  document.getElementById('btnDeleteOrder').style.display = 'block';
   document.getElementById('custName').value = order.customer_name;
   document.getElementById('deliveryDate').value = order.delivery_date;
   document.getElementById('orderNote').value = order.note || '';
@@ -648,10 +753,24 @@ function renderDayStrip(){
       </div>`;
   }).join('');
 }
-function selectBesokDate(iso){ selectedBesokDate = iso; renderDayStrip(); renderBesokList(); }
+function selectBesokDate(iso){ selectedBesokDate = iso; activeItemFilter = null; renderDayStrip(); renderBesokList(); }
+function toggleItemFilter(name){ activeItemFilter = (activeItemFilter === name) ? null : name; renderBesokList(); }
 async function renderBesok(){
-  document.getElementById('besokContent').innerHTML = `<div class="spinner">Memuat orderan...</div>`;
+  // Tampilin cache dulu (kalau ada) biar instan, baru refresh diam-diam di background
+  const cached = loadPrepCache();
+  if(cached && cached.length){
+    const demoOrders = allOrders.filter(o=>o._demo);
+    allOrders = demoOrders.concat(cached);
+    renderDayStrip();
+    renderBesokList();
+  } else {
+    document.getElementById('besokContent').innerHTML = `<div class="spinner">Memuat orderan...</div>`;
+  }
+  const syncIcon = document.getElementById('prepSyncIcon');
+  syncIcon.style.display = 'block';
   await loadOrders();
+  savePrepCache(allOrders);
+  syncIcon.style.display = 'none';
   renderDayStrip();
   renderBesokList();
 }
@@ -660,6 +779,7 @@ function renderBesokList(){
   const target = selectedBesokDate;
   const todays = allOrders.filter(o=>o.delivery_date===target);
   if(todays.length===0){
+    activeItemFilter = null;
     area.innerHTML = `<p class="section-sub" style="margin-top:0;">${formatDateLong(target)}</p><div class="empty-state"><div class="glyph">📭</div>Belum ada orderan buat tanggal ini.</div>`;
     return;
   }
@@ -667,13 +787,25 @@ function renderBesokList(){
   todays.forEach(o=>{ grandTotal += o.total; (o.items||[]).forEach(it=>{ agg[it.name]=(agg[it.name]||0)+it.qty; }); });
   const preparedCount = todays.filter(o=>o.prepared).length;
 
+  // Kalau item yang lagi difilter ternyata udah nggak ada di hari ini (mis. abis ganti hari), lepas filternya
+  if(activeItemFilter && !(activeItemFilter in agg)) activeItemFilter = null;
+
   let html = `<p class="section-sub" style="margin-top:0;">${formatDateLong(target)}</p><div class="summary-grid">`;
-  Object.keys(agg).forEach(name=>{ html += `<span class="summary-pill">${escapeHtml(name)} × ${agg[name]}</span>`; });
+  Object.keys(agg).forEach(name=>{
+    const isActive = activeItemFilter === name;
+    const safeName = escapeHtml(name).replace(/'/g,"\\'");
+    html += `<span class="summary-pill item-pill ${isActive?'active-filter':''}" onclick="toggleItemFilter('${safeName}')">${escapeHtml(name)} × ${agg[name]}</span>`;
+  });
   html += `<span class="summary-pill" style="background:var(--jade-tint);color:var(--jade-dark);">Total ${rupiah(grandTotal)}</span>`;
   html += `<span class="summary-pill" style="background:var(--chili-tint);color:var(--chili);">${preparedCount}/${todays.length} siap</span></div>`;
 
-  html += todays.map(o=>`
-    <div class="order-card ${o.prepared?'prepared':''} ${o.paid?'paid':'unpaid'}">
+  const cardsToShow = activeItemFilter ? todays.filter(o=>(o.items||[]).some(it=>it.name===activeItemFilter)) : todays;
+  if(activeItemFilter){
+    html += `<p class="section-sub" style="margin-top:-8px;">Nampilin ${cardsToShow.length} orderan yang pesen "${escapeHtml(activeItemFilter)}". Tap pill lagi buat lepas filter.</p>`;
+  }
+
+  html += cardsToShow.map(o=>`
+    <div class="order-card ${o.prepared?'prepared':''} ${o.paid?'paid':'unpaid'}" id="order-${o.order_id}">
       <div class="top-row">
         <div onclick="openEditOrder('${o.order_id}')" style="flex:1;">
           <div class="cust ${o.prepared?'done':''}">${escapeHtml(o.customer_name)}</div>
@@ -692,39 +824,51 @@ function renderBesokList(){
       </div>
     </div>`).join('');
   area.innerHTML = html;
+
+  if(pendingHighlightOrderId){
+    const targetOrderId = pendingHighlightOrderId;
+    pendingHighlightOrderId = null;
+    const el = document.getElementById('order-'+targetOrderId);
+    if(el){
+      el.scrollIntoView({behavior:'smooth', block:'center'});
+      el.classList.add('flash-highlight');
+      setTimeout(()=>el.classList.remove('flash-highlight'), 1700);
+    }
+  }
 }
 
 // ==== RIWAYAT ====
 async function renderRiwayat(){
-  document.getElementById('riwayatContent').innerHTML = `<div class="spinner">Memuat riwayat...</div>`;
-  await loadOrders();
-  renderRiwayatList();
+  await renderRiwayatList();
 }
-function renderRiwayatList(){
+async function renderRiwayatList(){
   const search = document.getElementById('riwayatSearch').value.trim().toLowerCase();
   const dateFrom = document.getElementById('riwayatDateFrom').value;
   const dateTo = document.getElementById('riwayatDateTo').value;
   const hasFilter = !!search || !!dateFrom || !!dateTo;
-  let filtered = allOrders;
   const hint = document.getElementById('riwayatModeHint');
-  if(hasFilter){
-    if(search) filtered = filtered.filter(o=>o.customer_name.toLowerCase().includes(search));
-    // format delivery_date udah YYYY-MM-DD, jadi perbandingan string aman (sortable secara leksikografis)
-    if(dateFrom) filtered = filtered.filter(o=>o.delivery_date >= dateFrom);
-    if(dateTo) filtered = filtered.filter(o=>o.delivery_date <= dateTo);
-    hint.textContent = 'Hasil pencarian dari seluruh riwayat.';
-  } else {
-    const { from, to } = getCurrentMonthRange();
-    filtered = filtered.filter(o=>o.delivery_date >= from && o.delivery_date <= to);
-    hint.textContent = 'Nampilin bulan ini aja. Cari nama atau atur tanggal buat lihat riwayat lengkap.';
+  const area = document.getElementById('riwayatContent');
+
+  if(!hasFilter){
+    hint.textContent = 'Isi nama atau tanggal buat cari orderan.';
+    document.getElementById('riwayatTotalRevenue').textContent = rupiah(0);
+    area.innerHTML = `<div class="empty-state"><div class="glyph">🔍</div>Isi nama customer atau atur tanggal dulu buat nampilin riwayat.</div>`;
+    return;
   }
+  area.innerHTML = `<div class="spinner">Memuat riwayat...</div>`;
+  await loadOrders();
+  let filtered = allOrders;
+  if(search) filtered = filtered.filter(o=>o.customer_name.toLowerCase().includes(search));
+  // format delivery_date udah YYYY-MM-DD, jadi perbandingan string aman (sortable secara leksikografis)
+  if(dateFrom) filtered = filtered.filter(o=>o.delivery_date >= dateFrom);
+  if(dateTo) filtered = filtered.filter(o=>o.delivery_date <= dateTo);
+  hint.textContent = 'Hasil pencarian dari seluruh riwayat.';
   filtered = filtered.slice().sort((a,b)=> (b.created_at||'').localeCompare(a.created_at||''));
 
   const revenueTotal = filtered.reduce((sum,o)=> sum + (Number(o.total)||0), 0);
   document.getElementById('riwayatTotalRevenue').textContent = rupiah(revenueTotal);
 
-  const area = document.getElementById('riwayatContent');
-  if(filtered.length===0){ area.innerHTML = `<div class="empty-state"><div class="glyph">🗂️</div>${hasFilter ? 'Nggak ada orderan yang cocok.' : 'Belum ada orderan bulan ini.'}</div>`; return; }
+  if(filtered.length===0){ area.innerHTML = `<div class="empty-state"><div class="glyph">🗂️</div>Nggak ada orderan yang cocok.</div>`; return; }
   area.innerHTML = filtered.map(o=>`
     <div class="order-card ${o.paid?'paid':'unpaid'}">
       <div class="top-row">
