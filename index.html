@@ -186,8 +186,11 @@
 
     <!-- RIWAYAT -->
     <section class="tab" id="tab-riwayat">
-      <h2 class="section-title">Riwayat Orderan</h2>
-      <p class="section-sub">Semua orderan yang pernah masuk. Tap buat edit.</p>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
+        <h2 class="section-title" style="margin-bottom:0;">Riwayat Orderan</h2>
+        <span id="riwayatTotalRevenue" style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:600;color:var(--jade-dark);white-space:nowrap;flex-shrink:0;">Rp 0</span>
+      </div>
+      <p class="section-sub" id="riwayatModeHint">Semua orderan yang pernah masuk. Tap buat edit.</p>
       <div class="field"><input type="text" id="riwayatSearch" placeholder="Cari nama customer..." oninput="renderRiwayat()"></div>
       <div class="filter-row">
         <input type="date" id="riwayatDateFrom" onchange="renderRiwayat()" style="flex:1;min-width:0;">
@@ -276,6 +279,12 @@ let selectedBesokDate = null;
 function uid(p){ return p+'_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7); }
 function rupiah(n){ return 'Rp ' + Math.round(n).toLocaleString('id-ID'); }
 function toLocalISODate(d){ const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; }
+function getCurrentMonthRange(){
+  const now = new Date();
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const last = new Date(now.getFullYear(), now.getMonth()+1, 0);
+  return { from: toLocalISODate(first), to: toLocalISODate(last) };
+}
 function formatDateLong(iso){ if(!iso) return ''; const [y,m,d]=iso.split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'}); }
 const DAY_ABBR = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
 function tomorrowISO(){ const d=new Date(); d.setDate(d.getDate()+1); return toLocalISODate(d); }
@@ -695,15 +704,27 @@ function renderRiwayatList(){
   const search = document.getElementById('riwayatSearch').value.trim().toLowerCase();
   const dateFrom = document.getElementById('riwayatDateFrom').value;
   const dateTo = document.getElementById('riwayatDateTo').value;
+  const hasFilter = !!search || !!dateFrom || !!dateTo;
   let filtered = allOrders;
-  if(search) filtered = filtered.filter(o=>o.customer_name.toLowerCase().includes(search));
-  // format delivery_date udah YYYY-MM-DD, jadi perbandingan string aman (sortable secara leksikografis)
-  if(dateFrom) filtered = filtered.filter(o=>o.delivery_date >= dateFrom);
-  if(dateTo) filtered = filtered.filter(o=>o.delivery_date <= dateTo);
+  const hint = document.getElementById('riwayatModeHint');
+  if(hasFilter){
+    if(search) filtered = filtered.filter(o=>o.customer_name.toLowerCase().includes(search));
+    // format delivery_date udah YYYY-MM-DD, jadi perbandingan string aman (sortable secara leksikografis)
+    if(dateFrom) filtered = filtered.filter(o=>o.delivery_date >= dateFrom);
+    if(dateTo) filtered = filtered.filter(o=>o.delivery_date <= dateTo);
+    hint.textContent = 'Hasil pencarian dari seluruh riwayat.';
+  } else {
+    const { from, to } = getCurrentMonthRange();
+    filtered = filtered.filter(o=>o.delivery_date >= from && o.delivery_date <= to);
+    hint.textContent = 'Nampilin bulan ini aja. Cari nama atau atur tanggal buat lihat riwayat lengkap.';
+  }
   filtered = filtered.slice().sort((a,b)=> (b.created_at||'').localeCompare(a.created_at||''));
 
+  const revenueTotal = filtered.reduce((sum,o)=> sum + (Number(o.total)||0), 0);
+  document.getElementById('riwayatTotalRevenue').textContent = rupiah(revenueTotal);
+
   const area = document.getElementById('riwayatContent');
-  if(filtered.length===0){ area.innerHTML = `<div class="empty-state"><div class="glyph">🗂️</div>Nggak ada orderan yang cocok.</div>`; return; }
+  if(filtered.length===0){ area.innerHTML = `<div class="empty-state"><div class="glyph">🗂️</div>${hasFilter ? 'Nggak ada orderan yang cocok.' : 'Belum ada orderan bulan ini.'}</div>`; return; }
   area.innerHTML = filtered.map(o=>`
     <div class="order-card ${o.paid?'paid':'unpaid'}">
       <div class="top-row">
