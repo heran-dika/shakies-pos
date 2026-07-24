@@ -96,7 +96,6 @@
   .order-card.prepared{opacity:.55;}
   .order-card .top-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
   .order-card .cust{font-family:'Fraunces',serif;font-weight:600;font-size:15.5px;}
-  .order-card .cust.done{text-decoration:line-through;}
   .order-card .items-list{font-size:13px;color:var(--ink-soft);margin:6px 0;}
   .order-card .bottom-row{display:flex;justify-content:space-between;align-items:center;margin-top:8px;}
   .order-card .price{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:14px;color:var(--jade-dark);}
@@ -118,6 +117,7 @@
   @keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
   .summary-pill.item-pill{cursor:pointer;border:1.5px solid transparent;}
   .summary-pill.item-pill.active-filter{background:var(--gold);color:#fff;border-color:var(--gold);}
+  .summary-pill.item-pill.stock-warn{background:var(--chili-tint);color:var(--chili);border-color:var(--chili);}
   .order-card.flash-highlight{animation:flashcard 1.6s ease;}
   @keyframes flashcard{0%{box-shadow:0 0 0 3px var(--gold);}100%{box-shadow:0 0 0 0 transparent;}}
 </style>
@@ -174,9 +174,11 @@
 
     <!-- MENU -->
     <section class="tab" id="tab-menu">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <h2 class="section-title" style="margin-bottom:0;">Menu</h2>
-        <button class="chili-sm" onclick="openAddMenuModal()">+ Tambah Menu</button>
+      <h2 class="section-title" style="margin-bottom:8px;">Menu</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+        <button class="chili-sm" style="background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark);" onclick="openAddMenuModal()">+ Tambah Menu</button>
+        <button class="chili-sm" id="btnToggleStokMode" onclick="toggleStokMode()" style="background:var(--gold-tint);border-color:var(--gold);color:var(--gold);">📦 Tambah Stok</button>
+        <button class="chili-sm" id="btnToggleDeleteMode" onclick="toggleDeleteMode()" style="background:#fff;margin-left:auto;">🗑️ Hapus</button>
       </div>
       <p class="section-sub">Kelola kategori &amp; item menu.</p>
       <div class="field"><input type="text" id="menuSearch" placeholder="Cari nama menu..." oninput="renderMenuManage()"></div>
@@ -196,10 +198,12 @@
     <!-- RIWAYAT -->
     <section class="tab" id="tab-riwayat">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
-        <h2 class="section-title" style="margin-bottom:0;">Riwayat Orderan</h2>
+        <h2 class="section-title" style="margin-bottom:0;display:flex;align-items:center;gap:6px;">Riwayat Orderan
+          <svg id="riwayatSyncIcon" style="display:none;width:14px;height:14px;color:var(--gold);animation:spin 1s linear infinite;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+        </h2>
         <span id="riwayatTotalRevenue" style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:600;color:var(--jade-dark);white-space:nowrap;flex-shrink:0;">Rp 0</span>
       </div>
-      <p class="section-sub" id="riwayatModeHint">Isi nama atau tanggal buat cari orderan.</p>
+      <p class="section-sub" id="riwayatModeHint">Nampilin yang belum lunas aja.</p>
       <div class="field"><input type="text" id="riwayatSearch" placeholder="Cari nama customer..." oninput="renderRiwayat()"></div>
       <div class="filter-row">
         <input type="date" id="riwayatDateFrom" onchange="renderRiwayat()" style="flex:1;min-width:0;">
@@ -271,11 +275,11 @@
 <script>
 // ==== KONFIGURASI ====
 const CONFIG = {
-    API_URL: 'https://script.google.com/macros/s/AKfycbxIbPfIPXvkzMYHzs0V19Id57PdaCeRoVeQIY3W-ZOcwOaz-v63JFr97xhxHmH4ueUoaQ/exec'
+    API_URL: 'https://script.google.com/macros/s/AKfycbwLmowhGm_KJB-JKVi2WuhMyUR5jPm5N-oVA6JE61oV7PbCHbU_FsDl-qg5VbK2ZQ4z7w/exec'
 };
 
 // ==== STATE ====
-let menuItems = [];      // [{row,kategori,nama,harga}]
+let menuItems = [];      // [{row,kategori,nama,harga,stok}]
 let allOrders = [];
 let deviceLabel = '';
 let orderSelections = {}; // nama_item -> qty
@@ -285,19 +289,19 @@ let editingOrderPaid = false;
 let selectedBesokDate = null;
 let activeItemFilter = null; // nama item yang lagi difilter di tab Prep
 let pendingHighlightOrderId = null; // order_id yang mau disorot abis balik ke Prep
+let stokMode = false; // lagi mode "Tambah Stok" di tab Menu?
+let deleteMode = false; // lagi mode "Hapus" di tab Menu?
+let pendingStok = {}; // row -> nilai stok baru yang belum disimpen ke server
 const PREP_CACHE_KEY = 'prep-orders-cache-v1';
 const MENU_CACHE_KEY = 'menu-cache-v1';
+const RIWAYAT_UNPAID_CACHE_KEY = 'riwayat-unpaid-cache-v1';
+let riwayatDefaultSnapshotLoaded = false; // udah pernah fetch snapshot "belum lunas" di sesi ini?
+let riwayatDefaultSnapshot = []; // list order belum-lunas yang lagi ditampilin (nggak refilter otomatis)
 
 // ==== HELPERS ====
 function uid(p){ return p+'_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7); }
 function rupiah(n){ return 'Rp ' + Math.round(n).toLocaleString('id-ID'); }
 function toLocalISODate(d){ const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; }
-function getCurrentMonthRange(){
-  const now = new Date();
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const last = new Date(now.getFullYear(), now.getMonth()+1, 0);
-  return { from: toLocalISODate(first), to: toLocalISODate(last) };
-}
 function formatDateLong(iso){ if(!iso) return ''; const [y,m,d]=iso.split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'}); }
 const DAY_ABBR = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
 function tomorrowISO(){ const d=new Date(); d.setDate(d.getDate()+1); return toLocalISODate(d); }
@@ -337,6 +341,20 @@ function loadMenuCache(){
 }
 function saveMenuCache(items){
   try{ localStorage.setItem(MENU_CACHE_KEY, JSON.stringify({ items, cachedAt: Date.now() })); }
+  catch(e){ /* nggak fatal */ }
+}
+// Cache "belum lunas" juga aman buat persisten — jumlahnya biasanya kecil (orderan lunas
+// nggak numpuk lama di daftar ini kalau ditagih rutin), jadi ukurannya nggak bakal membengkak.
+function loadRiwayatUnpaidCache(){
+  try{
+    const raw = localStorage.getItem(RIWAYAT_UNPAID_CACHE_KEY);
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed.orders) ? parsed.orders : null;
+  } catch(e){ return null; }
+}
+function saveRiwayatUnpaidCache(orders){
+  try{ localStorage.setItem(RIWAYAT_UNPAID_CACHE_KEY, JSON.stringify({ orders, cachedAt: Date.now() })); }
   catch(e){ /* nggak fatal */ }
 }
 
@@ -417,6 +435,65 @@ async function loadMenu(){
 function getCategories(){
   const seen = []; menuItems.forEach(i=>{ if(!seen.includes(i.kategori)) seen.push(i.kategori); }); return seen;
 }
+function getItemCategoryMap(){
+  const map = {}; menuItems.forEach(m=>{ map[m.nama] = m.kategori; }); return map;
+}
+function getStokMap(){
+  const map = {}; menuItems.forEach(m=>{ map[m.nama] = Number(m.stok)||0; }); return map;
+}
+
+// ==== MODE TOGGLE (Tambah Stok / Hapus) di tab Menu ====
+function updateStokButtonUI(){
+  const btn = document.getElementById('btnToggleStokMode');
+  btn.textContent = stokMode ? '✓ Selesai (simpan stok)' : '📦 Tambah Stok';
+  btn.style.background = stokMode ? 'var(--jade)' : 'var(--gold-tint)';
+  btn.style.color = stokMode ? '#fff' : 'var(--gold)';
+  btn.style.borderColor = stokMode ? 'var(--jade)' : 'var(--gold)';
+}
+function updateDeleteButtonUI(){
+  const btn = document.getElementById('btnToggleDeleteMode');
+  btn.style.background = deleteMode ? 'var(--chili-tint)' : '#fff';
+  btn.style.borderColor = deleteMode ? 'var(--chili)' : 'var(--border)';
+  btn.style.color = deleteMode ? 'var(--chili)' : 'var(--ink)';
+  btn.textContent = deleteMode ? '✓ Selesai Hapus' : '🗑️ Hapus';
+}
+function exitStokMode(){ stokMode = false; pendingStok = {}; updateStokButtonUI(); }
+function exitDeleteMode(){ deleteMode = false; updateDeleteButtonUI(); }
+function toggleStokMode(){
+  if(stokMode){ saveStokChanges(); return; }
+  if(deleteMode) exitDeleteMode();
+  stokMode = true; pendingStok = {};
+  updateStokButtonUI();
+  renderMenuManage();
+}
+function toggleDeleteMode(){
+  deleteMode = !deleteMode;
+  if(deleteMode && stokMode) exitStokMode();
+  updateDeleteButtonUI();
+  renderMenuManage();
+}
+function adjustPendingStok(row, currentStok, delta){
+  const base = (row in pendingStok) ? pendingStok[row] : currentStok;
+  const next = Math.max(0, base + delta);
+  pendingStok[row] = next;
+  const el = document.getElementById('stokval-'+row);
+  if(el) el.textContent = next;
+}
+async function saveStokChanges(){
+  const entries = Object.entries(pendingStok);
+  exitStokMode();
+  if(entries.length === 0){ renderMenuManage(); return; }
+  try{
+    for(const [row, stok] of entries){
+      await apiPost('update_stok', { row: Number(row), stok, device_label: deviceLabel });
+    }
+    showToast('Stok diupdate ✓');
+  } catch(e){
+    showToast('Gagal update stok: ' + e.message);
+  }
+  await loadMenu();
+}
+
 function renderMenuManage(){
   const area = document.getElementById('categoryListArea');
   const searchEl = document.getElementById('menuSearch');
@@ -433,14 +510,25 @@ function renderMenuManage(){
       <div class="card">
         <div class="cat-manage">
           <span class="cname">${escapeHtml(cat)}</span>
-          <button class="ghost-sm" onclick="deleteCategory('${escapeHtml(cat).replace(/'/g,"\\'")}')">Hapus kategori</button>
+          ${deleteMode ? `<button class="ghost-sm" onclick="deleteCategory('${escapeHtml(cat).replace(/'/g,"\\'")}')">Hapus kategori</button>` : ''}
         </div>
-        ${items.map(it=>`
+        ${items.map(it=>{
+          const stokVal = (it.row in pendingStok) ? pendingStok[it.row] : (it.stok || 0);
+          return `
           <div class="menu-item-manage">
-            <div><div class="name">${escapeHtml(it.nama)}</div><div class="price">${rupiah(it.harga)}</div></div>
-            <button class="ghost-sm" onclick="deleteMenuRow(${it.row})">Hapus</button>
-          </div>
-        `).join('')}
+            <div>
+              <div class="name">${escapeHtml(it.nama)}</div>
+              <div class="price">${rupiah(it.harga)}${stokMode ? '' : ` · Stok: ${it.stok || 0}`}</div>
+            </div>
+            ${stokMode ? `
+              <div class="stepper">
+                <button onclick="adjustPendingStok(${it.row}, ${it.stok||0}, -1)">−</button>
+                <span class="qty" id="stokval-${it.row}">${stokVal}</span>
+                <button onclick="adjustPendingStok(${it.row}, ${it.stok||0}, 1)">+</button>
+              </div>
+            ` : deleteMode ? `<button class="ghost-sm" onclick="deleteMenuRow(${it.row})">Hapus</button>` : ''}
+          </div>`;
+        }).join('')}
       </div>`;
   }).join('');
   area.innerHTML = anyMatch ? html : `<div class="empty-state"><div class="glyph">🔍</div>Nggak ada menu yang cocok.</div>`;
@@ -700,7 +788,7 @@ async function togglePrepared(orderId){
   if(!order) return;
   const prevState = order.prepared;
   order.prepared = !order.prepared;
-  renderBesok();
+  renderDayStrip(); renderBesokList();
   if(order._demo) return; // orderan coba-coba, nggak pernah ada di server
   try{
     await apiPost('update_order', {
@@ -708,8 +796,9 @@ async function togglePrepared(orderId){
       items_summary: order.items_summary, items: order.items, total: order.total, note: order.note,
       prepared: order.prepared, device_label: order.device_label, shipping_fee: order.shipping_fee, paid: order.paid
     });
+    savePrepCache(allOrders); // update cache diam-diam biar konsisten pas reload berikutnya
   } catch(e){
-    order.prepared = prevState; renderBesok(); showToast('Gagal update: ' + e.message);
+    order.prepared = prevState; renderDayStrip(); renderBesokList(); showToast('Gagal update: ' + e.message);
   }
 }
 
@@ -722,7 +811,7 @@ async function togglePaid(orderId){
   }
   const prevState = order.paid;
   order.paid = !order.paid;
-  renderBesokList(); renderRiwayatList();
+  renderBesokList(); patchRiwayatCardPaidState(orderId, order.paid);
   if(order._demo) return; // orderan coba-coba, nggak pernah ada di server
   try{
     await apiPost('update_order', {
@@ -731,8 +820,18 @@ async function togglePaid(orderId){
       prepared: order.prepared, device_label: order.device_label, shipping_fee: order.shipping_fee, paid: order.paid
     });
   } catch(e){
-    order.paid = prevState; renderBesokList(); renderRiwayatList(); showToast('Gagal update: ' + e.message);
+    order.paid = prevState; renderBesokList(); patchRiwayatCardPaidState(orderId, order.paid); showToast('Gagal update: ' + e.message);
   }
+}
+// Update tampilan kartu di Riwayat di tempat, TANPA nge-refilter listnya —
+// biar orderan yang baru dilunasin tetep keliatan sampe tab-nya di-refresh/app ditutup.
+function patchRiwayatCardPaidState(orderId, paid){
+  const el = document.querySelector(`#tab-riwayat [data-order-id="${orderId}"]`);
+  if(!el) return;
+  el.classList.toggle('paid', paid);
+  el.classList.toggle('unpaid', !paid);
+  const btn = el.querySelector('.pay-toggle');
+  if(btn){ btn.textContent = paid ? '✓ Lunas' : 'Belum Lunas'; btn.classList.toggle('paid', paid); }
 }
 
 // ==== BESOK — kalender 7 hari ====
@@ -783,23 +882,55 @@ function renderBesokList(){
     area.innerHTML = `<p class="section-sub" style="margin-top:0;">${formatDateLong(target)}</p><div class="empty-state"><div class="glyph">📭</div>Belum ada orderan buat tanggal ini.</div>`;
     return;
   }
+  // Pill produk cuma ngitung orderan yang BELUM dicentang (sisa yang masih perlu disiapin).
+  // Total harga & jumlah "siap" tetep ngitung semua orderan hari ini, terlepas dari itu.
   const agg = {}; let grandTotal = 0;
-  todays.forEach(o=>{ grandTotal += o.total; (o.items||[]).forEach(it=>{ agg[it.name]=(agg[it.name]||0)+it.qty; }); });
+  todays.forEach(o=>{ grandTotal += o.total; });
+  todays.filter(o=>!o.prepared).forEach(o=>{ (o.items||[]).forEach(it=>{ agg[it.name]=(agg[it.name]||0)+it.qty; }); });
   const preparedCount = todays.filter(o=>o.prepared).length;
 
-  // Kalau item yang lagi difilter ternyata udah nggak ada di hari ini (mis. abis ganti hari), lepas filternya
+  // Kalau item yang lagi difilter ternyata udah nggak ada di hari ini (mis. abis dicentang semua / ganti hari), lepas filternya
   if(activeItemFilter && !(activeItemFilter in agg)) activeItemFilter = null;
 
-  let html = `<p class="section-sub" style="margin-top:0;">${formatDateLong(target)}</p><div class="summary-grid">`;
+  // Cumulative demand dari hari ini s/d hari yang lagi dibuka (SEMUA orderan, dicentang maupun nggak —
+  // karena yang udah dicentang tetep make stok fisik), buat dibandingin ke stok yang ada.
+  const winDates = prepWindowDates();
+  const targetIdx = Math.max(0, winDates.indexOf(target));
+  const cumulativeQty = {};
+  for(let idx=0; idx<=targetIdx; idx++){
+    allOrders.filter(o=>o.delivery_date===winDates[idx]).forEach(o=>{
+      (o.items||[]).forEach(it=>{ cumulativeQty[it.name] = (cumulativeQty[it.name]||0) + it.qty; });
+    });
+  }
+  const stokMap = getStokMap();
+  const catMap = getItemCategoryMap();
+
+  // Kelompokin nama item per kategori biar pill-nya dempetan per kategori
+  const namesByCategory = {};
   Object.keys(agg).forEach(name=>{
-    const isActive = activeItemFilter === name;
-    const safeName = escapeHtml(name).replace(/'/g,"\\'");
-    html += `<span class="summary-pill item-pill ${isActive?'active-filter':''}" onclick="toggleItemFilter('${safeName}')">${escapeHtml(name)} × ${agg[name]}</span>`;
+    const cat = catMap[name] || 'Lainnya';
+    if(!namesByCategory[cat]) namesByCategory[cat] = [];
+    namesByCategory[cat].push(name);
+  });
+  const orderedCats = getCategories().filter(c=>namesByCategory[c]);
+  if(namesByCategory['Lainnya'] && !orderedCats.includes('Lainnya')) orderedCats.push('Lainnya');
+
+  let html = `<p class="section-sub" style="margin-top:0;">${formatDateLong(target)}</p><div class="summary-grid">`;
+  orderedCats.forEach(cat=>{
+    html += `<span style="display:inline-flex;flex-wrap:wrap;gap:8px;margin-right:14px;">`;
+    namesByCategory[cat].forEach(name=>{
+      const isActive = activeItemFilter === name;
+      const isWarn = cumulativeQty[name] > (stokMap[name]||0);
+      const safeName = escapeHtml(name).replace(/'/g,"\\'");
+      const classes = `summary-pill item-pill ${isActive?'active-filter':''} ${(!isActive && isWarn)?'stock-warn':''}`;
+      html += `<span class="${classes}" onclick="toggleItemFilter('${safeName}')">${escapeHtml(name)} × ${agg[name]}</span>`;
+    });
+    html += `</span>`;
   });
   html += `<span class="summary-pill" style="background:var(--jade-tint);color:var(--jade-dark);">Total ${rupiah(grandTotal)}</span>`;
   html += `<span class="summary-pill" style="background:var(--chili-tint);color:var(--chili);">${preparedCount}/${todays.length} siap</span></div>`;
 
-  const cardsToShow = activeItemFilter ? todays.filter(o=>(o.items||[]).some(it=>it.name===activeItemFilter)) : todays;
+  const cardsToShow = activeItemFilter ? todays.filter(o=>!o.prepared && (o.items||[]).some(it=>it.name===activeItemFilter)) : todays;
   if(activeItemFilter){
     html += `<p class="section-sub" style="margin-top:-8px;">Nampilin ${cardsToShow.length} orderan yang pesen "${escapeHtml(activeItemFilter)}". Tap pill lagi buat lepas filter.</p>`;
   }
@@ -808,7 +939,7 @@ function renderBesokList(){
     <div class="order-card ${o.prepared?'prepared':''} ${o.paid?'paid':'unpaid'}" id="order-${o.order_id}">
       <div class="top-row">
         <div onclick="openEditOrder('${o.order_id}')" style="flex:1;">
-          <div class="cust ${o.prepared?'done':''}">${escapeHtml(o.customer_name)}</div>
+          <div class="cust">${escapeHtml(o.customer_name)}</div>
           <span class="badge">${escapeHtml(o.device_label)}</span>
         </div>
         <div class="check-toggle ${o.prepared?'checked':''}" onclick="togglePrepared('${o.order_id}')">
@@ -848,29 +979,54 @@ async function renderRiwayatList(){
   const hasFilter = !!search || !!dateFrom || !!dateTo;
   const hint = document.getElementById('riwayatModeHint');
   const area = document.getElementById('riwayatContent');
+  const syncIcon = document.getElementById('riwayatSyncIcon');
 
-  if(!hasFilter){
-    hint.textContent = 'Isi nama atau tanggal buat cari orderan.';
-    document.getElementById('riwayatTotalRevenue').textContent = rupiah(0);
-    area.innerHTML = `<div class="empty-state"><div class="glyph">🔍</div>Isi nama customer atau atur tanggal dulu buat nampilin riwayat.</div>`;
+  if(hasFilter){
+    // Ada filter aktif — selalu fetch fresh & nampilin SEMUA (lunas maupun belum), lepas dari snapshot default.
+    area.innerHTML = `<div class="spinner">Memuat riwayat...</div>`;
+    await loadOrders();
+    let filtered = allOrders;
+    if(search) filtered = filtered.filter(o=>o.customer_name.toLowerCase().includes(search));
+    // format delivery_date udah YYYY-MM-DD, jadi perbandingan string aman (sortable secara leksikografis)
+    if(dateFrom) filtered = filtered.filter(o=>o.delivery_date >= dateFrom);
+    if(dateTo) filtered = filtered.filter(o=>o.delivery_date <= dateTo);
+    hint.textContent = 'Hasil pencarian dari seluruh riwayat.';
+    filtered = filtered.slice().sort((a,b)=> (b.created_at||'').localeCompare(a.created_at||''));
+    renderRiwayatCards(filtered);
     return;
   }
-  area.innerHTML = `<div class="spinner">Memuat riwayat...</div>`;
+
+  // Nggak ada filter — mode default: nampilin yang belum lunas aja.
+  // Snapshot cuma di-fetch SEKALI per sesi (nggak refetch tiap pindah tab), biar orderan yang
+  // baru dilunasin tetep keliatan sampe app di-refresh/ditutup.
+  hint.textContent = 'Nampilin yang belum lunas aja.';
+  if(riwayatDefaultSnapshotLoaded){
+    renderRiwayatCards(riwayatDefaultSnapshot);
+    return;
+  }
+
+  const cached = loadRiwayatUnpaidCache();
+  if(cached && cached.length){
+    riwayatDefaultSnapshot = cached;
+    renderRiwayatCards(riwayatDefaultSnapshot);
+  } else {
+    area.innerHTML = `<div class="spinner">Memuat riwayat...</div>`;
+  }
+  syncIcon.style.display = 'block';
   await loadOrders();
-  let filtered = allOrders;
-  if(search) filtered = filtered.filter(o=>o.customer_name.toLowerCase().includes(search));
-  // format delivery_date udah YYYY-MM-DD, jadi perbandingan string aman (sortable secara leksikografis)
-  if(dateFrom) filtered = filtered.filter(o=>o.delivery_date >= dateFrom);
-  if(dateTo) filtered = filtered.filter(o=>o.delivery_date <= dateTo);
-  hint.textContent = 'Hasil pencarian dari seluruh riwayat.';
-  filtered = filtered.slice().sort((a,b)=> (b.created_at||'').localeCompare(a.created_at||''));
-
-  const revenueTotal = filtered.reduce((sum,o)=> sum + (Number(o.total)||0), 0);
+  syncIcon.style.display = 'none';
+  riwayatDefaultSnapshot = allOrders.filter(o=>!o.paid).sort((a,b)=> (b.created_at||'').localeCompare(a.created_at||''));
+  riwayatDefaultSnapshotLoaded = true;
+  saveRiwayatUnpaidCache(riwayatDefaultSnapshot);
+  renderRiwayatCards(riwayatDefaultSnapshot);
+}
+function renderRiwayatCards(list){
+  const area = document.getElementById('riwayatContent');
+  const revenueTotal = list.reduce((sum,o)=> sum + (Number(o.total)||0), 0);
   document.getElementById('riwayatTotalRevenue').textContent = rupiah(revenueTotal);
-
-  if(filtered.length===0){ area.innerHTML = `<div class="empty-state"><div class="glyph">🗂️</div>Nggak ada orderan yang cocok.</div>`; return; }
-  area.innerHTML = filtered.map(o=>`
-    <div class="order-card ${o.paid?'paid':'unpaid'}">
+  if(list.length===0){ area.innerHTML = `<div class="empty-state"><div class="glyph">🗂️</div>Nggak ada orderan yang cocok.</div>`; return; }
+  area.innerHTML = list.map(o=>`
+    <div class="order-card ${o.paid?'paid':'unpaid'}" data-order-id="${o.order_id}">
       <div class="top-row">
         <div onclick="openEditOrder('${o.order_id}')" style="flex:1;">
           <div class="cust">${escapeHtml(o.customer_name)}</div>
