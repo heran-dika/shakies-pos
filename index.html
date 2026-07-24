@@ -249,10 +249,10 @@
   <div class="modal-overlay hidden" id="addMenuModal">
     <div class="modal-sheet">
       <div style="display:flex;justify-content:space-between;align-items:center;">
-        <h3 style="margin:0;">Tambah Menu</h3>
+        <h3 style="margin:0;" id="addMenuModalTitle">Tambah Menu</h3>
         <button onclick="closeAddMenuModal()" style="background:none;border:none;font-size:22px;color:var(--ink-soft);cursor:pointer;line-height:1;padding:4px;">×</button>
       </div>
-      <p>Pilih kategori yang udah ada, atau tambah kategori baru.</p>
+      <p id="addMenuModalDesc">Pilih kategori yang udah ada, atau tambah kategori baru.</p>
       <div class="field">
         <label class="field-label">Kategori</label>
         <select id="addMenuCatSelect" onchange="onCatSelectChange()"></select>
@@ -265,6 +265,10 @@
       <div class="field">
         <label class="field-label">Harga</label>
         <input type="number" id="addMenuPrice" placeholder="mis. 15000">
+      </div>
+      <div class="field">
+        <label class="field-label">Stok Ngikut Item Lain? (opsional)</label>
+        <select id="addMenuStokParent"><option value="">Tidak ada — stok sendiri</option></select>
       </div>
       <div id="addMenuError" style="display:none;color:var(--chili);font-size:12.5px;font-weight:600;margin-bottom:10px;"></div>
       <button class="primary" id="btnSubmitAddMenu" onclick="submitAddMenu()">Simpan Item</button>
@@ -294,6 +298,7 @@ let pendingHighlightOrderId = null; // order_id yang mau disorot abis balik ke P
 let stokMode = false; // lagi mode "Tambah Stok" di tab Menu?
 let deleteMode = false; // lagi mode "Hapus" di tab Menu?
 let pendingStok = {}; // row -> nilai stok baru yang belum disimpen ke server
+let editingMenuRow = null; // row yang lagi diedit di modal Tambah/Edit Menu (null = mode tambah)
 const PREP_CACHE_KEY = 'prep-orders-cache-v1';
 const MENU_CACHE_KEY = 'menu-cache-v1';
 const RIWAYAT_UNPAID_CACHE_KEY = 'riwayat-unpaid-cache-v1';
@@ -467,6 +472,28 @@ function computeDemandMap(dates){
   });
   return map;
 }
+// nama item (trimmed) -> nama item induk (trimmed) kalau dia numpang stok, atau nama dirinya sendiri kalau enggak.
+function getStockKeyMap(){
+  const map = {};
+  menuItems.forEach(m=>{
+    const nama = String(m.nama).trim();
+    const induk = String(m.stok_induk||'').trim();
+    map[nama] = induk || nama;
+  });
+  return map;
+}
+// Sama kayak computeDemandMap, tapi item anak digabung ke induknya sebelum dijumlah —
+// dipakai buat ngecek stok beneran (bukan buat nampilin pill per-item).
+function computeDemandByStockKey(dates){
+  const raw = computeDemandMap(dates);
+  const keyMap = getStockKeyMap();
+  const grouped = {};
+  Object.keys(raw).forEach(name=>{
+    const key = keyMap[name] || name; // item yang udah kehapus dari menu tetep kehitung pake nama aslinya
+    grouped[key] = (grouped[key]||0) + raw[name];
+  });
+  return grouped;
+}
 
 // ==== MODE TOGGLE (Tambah Stok / Hapus) di tab Menu ====
 function updateStokButtonUI(){
@@ -526,9 +553,11 @@ function renderMenuManage(){
   const search = searchEl ? searchEl.value.trim().toLowerCase() : '';
   const cats = getCategories();
   if(cats.length===0){ area.innerHTML = `<div class="empty-state"><div class="glyph">🍢</div>Belum ada menu.<br><button class="secondary" onclick="openAddMenuModal()">+ Tambah Menu</button></div>`; return; }
-  // Stok Prep = total qty dari SEMUA orderan (dicentang/nggak) dalam window 7 hari Prep — konsisten
-  // sama angka yang dipakai buat warna pill di tab Prep.
-  const prepMap = computeDemandMap(prepWindowDates());
+  // Stok Prep = total qty dari SEMUA orderan (dicentang/nggak) dalam window 7 hari Prep, item anak
+  // udah digabung ke induknya — konsisten sama warna pill di tab Prep.
+  const prepMap = computeDemandByStockKey(prepWindowDates());
+  const namaSet = new Set(menuItems.map(m=>String(m.nama).trim()));
+  const idleMode = !stokMode && !deleteMode;
   let anyMatch = false;
   const html = cats.map(cat=>{
     let items = menuItems.filter(i=>i.kategori===cat);
@@ -542,24 +571,35 @@ function renderMenuManage(){
           ${deleteMode ? `<button class="ghost-sm" onclick="deleteCategory('${escapeHtml(cat).replace(/'/g,"\\'")}')">Hapus kategori</button>` : ''}
         </div>
         ${items.map(it=>{
+          const namaTrim = String(it.nama).trim();
+          const induk = String(it.stok_induk||'').trim();
+          const isChild = !!induk;
+          const indukBroken = isChild && !namaSet.has(induk);
           const stokVal = (it.row in pendingStok) ? pendingStok[it.row] : (it.stok || 0);
-          const real = it.stok || 0;
-          const prep = prepMap[String(it.nama).trim()] || 0;
+          const stockKey = isChild ? induk : namaTrim;
+          const real = isChild ? (menuItems.find(m=>String(m.nama).trim()===induk)?.stok || 0) : (it.stok || 0);
+          const prep = prepMap[stockKey] || 0;
           const available = real - prep;
+          const breakdownHtml = isChild
+            ? (indukBroken
+                ? `<div class="stok-breakdown"><span class="stok-neg">⚠️ Induk "${escapeHtml(induk)}" nggak ketemu</span></div>`
+                : `<div class="stok-breakdown">Stok ngikut "${escapeHtml(induk)}"</div>`)
+            : `<div class="stok-breakdown">Real ${real} · Prep ${prep} · Tersedia <span class="${available<0?'stok-neg':''}">${available}</span></div>`;
           return `
           <div class="menu-item-manage">
-            <div>
+            <div ${idleMode ? `onclick="openEditMenuModal(${it.row})" style="cursor:pointer;"` : ''}>
               <div class="name">${escapeHtml(it.nama)}</div>
               <div class="price">${rupiah(it.harga)}</div>
-              ${stokMode ? '' : `<div class="stok-breakdown">Real ${real} · Prep ${prep} · Tersedia <span class="${available<0?'stok-neg':''}">${available}</span></div>`}
+              ${stokMode ? '' : breakdownHtml}
             </div>
-            ${stokMode ? `
+            ${stokMode ? (
+              isChild ? `<span style="font-size:11px;color:var(--ink-soft);white-space:nowrap;">ngikut induk</span>` : `
               <div class="stepper">
                 <button onclick="adjustPendingStok(${it.row}, ${it.stok||0}, -1)">−</button>
                 <span class="qty" id="stokval-${it.row}">${stokVal}</span>
                 <button onclick="adjustPendingStok(${it.row}, ${it.stok||0}, 1)">+</button>
-              </div>
-            ` : deleteMode ? `<button class="ghost-sm" onclick="deleteMenuRow(${it.row})">Hapus</button>` : ''}
+              </div>`
+            ) : deleteMode ? `<button class="ghost-sm" onclick="deleteMenuRow(${it.row})">Hapus</button>` : ''}
           </div>`;
         }).join('')}
       </div>`;
@@ -624,7 +664,16 @@ function updateOrderTotal(){
 }
 
 // Add menu modal
+function populateStokParentSelect(excludeRow){
+  const sel = document.getElementById('addMenuStokParent');
+  const opts = menuItems.filter(m=>m.row!==excludeRow).map(m=>`<option value="${escapeHtml(m.nama)}">${escapeHtml(m.nama)}</option>`).join('');
+  sel.innerHTML = `<option value="">Tidak ada — stok sendiri</option>` + opts;
+}
 function openAddMenuModal(){
+  editingMenuRow = null;
+  document.getElementById('addMenuModalTitle').textContent = 'Tambah Menu';
+  document.getElementById('addMenuModalDesc').textContent = 'Pilih kategori yang udah ada, atau tambah kategori baru.';
+  document.getElementById('btnSubmitAddMenu').textContent = 'Simpan Item';
   const sel = document.getElementById('addMenuCatSelect');
   const cats = getCategories();
   sel.innerHTML = cats.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('') + `<option value="__new__">+ Tambah kategori baru...</option>`;
@@ -632,9 +681,29 @@ function openAddMenuModal(){
   if(cats.length===0) sel.value='__new__';
   document.getElementById('addMenuName').value='';
   document.getElementById('addMenuPrice').value='';
+  populateStokParentSelect(null);
+  document.getElementById('addMenuStokParent').value = '';
   document.getElementById('addMenuModal').classList.remove('hidden');
 }
-function closeAddMenuModal(){ document.getElementById('addMenuModal').classList.add('hidden'); }
+function openEditMenuModal(row){
+  const item = menuItems.find(m=>m.row===row);
+  if(!item) return;
+  editingMenuRow = row;
+  document.getElementById('addMenuModalTitle').textContent = 'Edit Menu Item';
+  document.getElementById('addMenuModalDesc').textContent = 'Ubah kategori, nama, harga, atau link stok item ini.';
+  document.getElementById('btnSubmitAddMenu').textContent = 'Simpan Perubahan';
+  const sel = document.getElementById('addMenuCatSelect');
+  const cats = getCategories();
+  sel.innerHTML = cats.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('') + `<option value="__new__">+ Tambah kategori baru...</option>`;
+  sel.value = item.kategori;
+  document.getElementById('addMenuCatNew').style.display = 'none';
+  document.getElementById('addMenuName').value = item.nama;
+  document.getElementById('addMenuPrice').value = item.harga;
+  populateStokParentSelect(row);
+  document.getElementById('addMenuStokParent').value = item.stok_induk || '';
+  document.getElementById('addMenuModal').classList.remove('hidden');
+}
+function closeAddMenuModal(){ document.getElementById('addMenuModal').classList.add('hidden'); editingMenuRow = null; }
 function onCatSelectChange(){
   const sel = document.getElementById('addMenuCatSelect');
   document.getElementById('addMenuCatNew').style.display = sel.value==='__new__' ? 'block' : 'none';
@@ -644,21 +713,29 @@ async function submitAddMenu(){
   const kategori = sel.value==='__new__' ? document.getElementById('addMenuCatNew').value.trim() : sel.value;
   const nama = document.getElementById('addMenuName').value.trim();
   const harga = parseInt(document.getElementById('addMenuPrice').value, 10);
+  const stokInduk = document.getElementById('addMenuStokParent').value;
   const errBox = document.getElementById('addMenuError');
   const btn = document.getElementById('btnSubmitAddMenu');
   errBox.style.display = 'none';
   if(!kategori || !nama || !harga){ errBox.textContent = 'Isi semua field dulu ya.'; errBox.style.display='block'; return; }
+  if(stokInduk && stokInduk === nama){ errBox.textContent = 'Item nggak bisa nge-link stok ke dirinya sendiri.'; errBox.style.display='block'; return; }
   btn.disabled = true; btn.textContent = 'Menyimpan...';
   try{
-    await apiPost('add_menu_item', { kategori, nama, harga, device_label: deviceLabel });
+    if(editingMenuRow){
+      await apiPost('update_menu_item', { row: editingMenuRow, kategori, nama, harga, stok_induk: stokInduk, device_label: deviceLabel });
+      showToast('Item diupdate ✓');
+    } else {
+      await apiPost('add_menu_item', { kategori, nama, harga, stok_induk: stokInduk, device_label: deviceLabel });
+      showToast('Menu ditambahkan ✓');
+    }
     document.getElementById('addMenuModal').classList.add('hidden');
-    showToast('Menu ditambahkan ✓');
+    editingMenuRow = null;
     await loadMenu();
   } catch(e){
     errBox.textContent = 'Gagal simpan: ' + e.message;
     errBox.style.display = 'block';
   } finally {
-    btn.disabled = false; btn.textContent = 'Simpan Item';
+    btn.disabled = false; btn.textContent = editingMenuRow ? 'Simpan Perubahan' : 'Simpan Item';
   }
 }
 async function deleteMenuRow(row){
@@ -929,8 +1006,9 @@ function renderBesokList(){
   // karena yang udah dicentang tetep make stok fisik), buat dibandingin ke Stok Real yang ada.
   const winDates = prepWindowDates();
   const targetIdx = Math.max(0, winDates.indexOf(target));
-  const cumulativeQty = computeDemandMap(winDates.slice(0, targetIdx+1));
+  const cumulativeQty = computeDemandByStockKey(winDates.slice(0, targetIdx+1));
   const stokMap = getStokMap();
+  const stockKeyMap = getStockKeyMap();
   const catMap = getItemCategoryMap();
 
   // Kelompokin nama item per kategori biar pill-nya dempetan per kategori
@@ -948,7 +1026,7 @@ function renderBesokList(){
     html += `<span style="display:inline-flex;flex-wrap:wrap;gap:8px;margin-right:14px;">`;
     namesByCategory[cat].forEach(name=>{
       const isActive = activeItemFilter === name;
-      const isWarn = cumulativeQty[name] > (stokMap[name]||0);
+      const isWarn = cumulativeQty[stockKeyMap[name]||name] > (stokMap[stockKeyMap[name]||name]||0);
       const safeName = escapeHtml(name).replace(/'/g,"\\'");
       const classes = `summary-pill item-pill ${isActive?'active-filter':''} ${(!isActive && isWarn)?'stock-warn':''}`;
       html += `<span class="${classes}" onclick="toggleItemFilter('${safeName}')">${escapeHtml(name)} × ${agg[name]}</span>`;
