@@ -70,6 +70,8 @@
   .menu-item-manage:last-child{border-bottom:none;}
   .menu-item-manage .name{font-size:14px;font-weight:600;}
   .menu-item-manage .price{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink-soft);}
+  .stok-breakdown{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);margin-top:2px;}
+  .stok-breakdown .stok-neg{color:var(--chili);font-weight:700;}
   .cat-manage{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
   .cat-manage .cname{font-family:'Fraunces',serif;font-weight:600;color:var(--jade-dark);}
   .modal-overlay{position:fixed;inset:0;background:rgba(38,48,44,.5);z-index:50;display:flex;align-items:flex-end;justify-content:center;}
@@ -387,7 +389,19 @@ function switchTab(name){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
   if(name==='besok') renderBesok();
   if(name==='riwayat') renderRiwayat();
-  if(name==='menu') renderMenuManage();
+  if(name==='menu') { renderMenuManage(); refreshMenuStokContext(); }
+}
+async function refreshMenuStokContext(){
+  // Stok Prep butuh data orderan — muat diam-diam (pakai yang udah ke-cache Prep kalau ada, biar cepet),
+  // baru re-render angka Real/Prep/Available begitu data fresh dateng.
+  const cached = loadPrepCache();
+  if(cached && cached.length){
+    const demoOrders = allOrders.filter(o=>o._demo);
+    allOrders = demoOrders.concat(cached);
+    renderMenuManage();
+  }
+  await loadOrders();
+  renderMenuManage();
 }
 
 // ==== DEVICE LABEL (localStorage — app ini di luar Claude, jadi localStorage aman dipakai) ====
@@ -436,10 +450,22 @@ function getCategories(){
   const seen = []; menuItems.forEach(i=>{ if(!seen.includes(i.kategori)) seen.push(i.kategori); }); return seen;
 }
 function getItemCategoryMap(){
-  const map = {}; menuItems.forEach(m=>{ map[m.nama] = m.kategori; }); return map;
+  const map = {}; menuItems.forEach(m=>{ map[String(m.nama).trim()] = m.kategori; }); return map;
 }
 function getStokMap(){
-  const map = {}; menuItems.forEach(m=>{ map[m.nama] = Number(m.stok)||0; }); return map;
+  const map = {}; menuItems.forEach(m=>{ map[String(m.nama).trim()] = Number(m.stok)||0; }); return map;
+}
+// Total qty (SEMUA orderan, dicentang maupun nggak — udah kepake stok fisiknya) buat item tertentu
+// dalam sebuah rentang tanggal. Dipakai buat "Stok Prep" & buat warna pill di tab Prep.
+function computeDemandMap(dates){
+  const map = {};
+  allOrders.filter(o=>dates.includes(o.delivery_date)).forEach(o=>{
+    (o.items||[]).forEach(it=>{
+      const key = String(it.name).trim();
+      map[key] = (map[key]||0) + it.qty;
+    });
+  });
+  return map;
 }
 
 // ==== MODE TOGGLE (Tambah Stok / Hapus) di tab Menu ====
@@ -500,6 +526,9 @@ function renderMenuManage(){
   const search = searchEl ? searchEl.value.trim().toLowerCase() : '';
   const cats = getCategories();
   if(cats.length===0){ area.innerHTML = `<div class="empty-state"><div class="glyph">🍢</div>Belum ada menu.<br><button class="secondary" onclick="openAddMenuModal()">+ Tambah Menu</button></div>`; return; }
+  // Stok Prep = total qty dari SEMUA orderan (dicentang/nggak) dalam window 7 hari Prep — konsisten
+  // sama angka yang dipakai buat warna pill di tab Prep.
+  const prepMap = computeDemandMap(prepWindowDates());
   let anyMatch = false;
   const html = cats.map(cat=>{
     let items = menuItems.filter(i=>i.kategori===cat);
@@ -514,11 +543,15 @@ function renderMenuManage(){
         </div>
         ${items.map(it=>{
           const stokVal = (it.row in pendingStok) ? pendingStok[it.row] : (it.stok || 0);
+          const real = it.stok || 0;
+          const prep = prepMap[String(it.nama).trim()] || 0;
+          const available = real - prep;
           return `
           <div class="menu-item-manage">
             <div>
               <div class="name">${escapeHtml(it.nama)}</div>
-              <div class="price">${rupiah(it.harga)}${stokMode ? '' : ` · Stok: ${it.stok || 0}`}</div>
+              <div class="price">${rupiah(it.harga)}</div>
+              ${stokMode ? '' : `<div class="stok-breakdown">Real ${real} · Prep ${prep} · Tersedia <span class="${available<0?'stok-neg':''}">${available}</span></div>`}
             </div>
             ${stokMode ? `
               <div class="stepper">
@@ -886,22 +919,17 @@ function renderBesokList(){
   // Total harga & jumlah "siap" tetep ngitung semua orderan hari ini, terlepas dari itu.
   const agg = {}; let grandTotal = 0;
   todays.forEach(o=>{ grandTotal += o.total; });
-  todays.filter(o=>!o.prepared).forEach(o=>{ (o.items||[]).forEach(it=>{ agg[it.name]=(agg[it.name]||0)+it.qty; }); });
+  todays.filter(o=>!o.prepared).forEach(o=>{ (o.items||[]).forEach(it=>{ const key=String(it.name).trim(); agg[key]=(agg[key]||0)+it.qty; }); });
   const preparedCount = todays.filter(o=>o.prepared).length;
 
   // Kalau item yang lagi difilter ternyata udah nggak ada di hari ini (mis. abis dicentang semua / ganti hari), lepas filternya
   if(activeItemFilter && !(activeItemFilter in agg)) activeItemFilter = null;
 
   // Cumulative demand dari hari ini s/d hari yang lagi dibuka (SEMUA orderan, dicentang maupun nggak —
-  // karena yang udah dicentang tetep make stok fisik), buat dibandingin ke stok yang ada.
+  // karena yang udah dicentang tetep make stok fisik), buat dibandingin ke Stok Real yang ada.
   const winDates = prepWindowDates();
   const targetIdx = Math.max(0, winDates.indexOf(target));
-  const cumulativeQty = {};
-  for(let idx=0; idx<=targetIdx; idx++){
-    allOrders.filter(o=>o.delivery_date===winDates[idx]).forEach(o=>{
-      (o.items||[]).forEach(it=>{ cumulativeQty[it.name] = (cumulativeQty[it.name]||0) + it.qty; });
-    });
-  }
+  const cumulativeQty = computeDemandMap(winDates.slice(0, targetIdx+1));
   const stokMap = getStokMap();
   const catMap = getItemCategoryMap();
 
