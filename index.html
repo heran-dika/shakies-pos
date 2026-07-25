@@ -267,6 +267,17 @@
         <input type="number" id="addMenuPrice" placeholder="mis. 15000">
       </div>
       <div class="field">
+        <label class="field-label">Stok</label>
+        <div style="display:flex;gap:16px;padding:4px 0;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:14px;font-weight:500;cursor:pointer;">
+            <input type="radio" name="addMenuStokType" value="terbatas" id="addMenuStokTerbatas" onchange="onStokTypeChange()" checked> Terbatas
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:14px;font-weight:500;cursor:pointer;">
+            <input type="radio" name="addMenuStokType" value="unlimited" id="addMenuStokUnlimited" onchange="onStokTypeChange()"> Unlimited
+          </label>
+        </div>
+      </div>
+      <div class="field" id="addMenuStokParentField">
         <label class="field-label">Stok Ngikut Item Lain? (opsional)</label>
         <select id="addMenuStokParent"><option value="">Tidak ada — stok sendiri</option></select>
       </div>
@@ -460,17 +471,8 @@ function getItemCategoryMap(){
 function getStokMap(){
   const map = {}; menuItems.forEach(m=>{ map[String(m.nama).trim()] = Number(m.stok)||0; }); return map;
 }
-// Total qty (SEMUA orderan, dicentang maupun nggak — udah kepake stok fisiknya) buat item tertentu
-// dalam sebuah rentang tanggal. Dipakai buat "Stok Prep" & buat warna pill di tab Prep.
-function computeDemandMap(dates){
-  const map = {};
-  allOrders.filter(o=>dates.includes(o.delivery_date)).forEach(o=>{
-    (o.items||[]).forEach(it=>{
-      const key = String(it.name).trim();
-      map[key] = (map[key]||0) + it.qty;
-    });
-  });
-  return map;
+function getUnlimitedMap(){
+  const map = {}; menuItems.forEach(m=>{ map[String(m.nama).trim()] = m.unlimited === true; }); return map;
 }
 // nama item (trimmed) -> nama item induk (trimmed) kalau dia numpang stok, atau nama dirinya sendiri kalau enggak.
 function getStockKeyMap(){
@@ -482,14 +484,21 @@ function getStockKeyMap(){
   });
   return map;
 }
-// Sama kayak computeDemandMap, tapi item anak digabung ke induknya sebelum dijumlah —
-// dipakai buat ngecek stok beneran (bukan buat nampilin pill per-item).
-function computeDemandByStockKey(dates){
-  const raw = computeDemandMap(dates);
+// Total qty yang MASIH BELUM disiapin (semua tanggal, nggak dibatasin window) per stock key —
+// ini murni informasi "sisa kerja", nggak dipake buat ngitung Available lagi (Real udah auto-berkurang
+// tiap ada orderan masuk, lihat Code.gs addOrder/updateOrder/deleteOrder).
+function computeUnpreparedByStockKey(){
   const keyMap = getStockKeyMap();
+  const raw = {};
+  allOrders.filter(o=>!o.prepared).forEach(o=>{
+    (o.items||[]).forEach(it=>{
+      const name = String(it.name).trim();
+      raw[name] = (raw[name]||0) + it.qty;
+    });
+  });
   const grouped = {};
   Object.keys(raw).forEach(name=>{
-    const key = keyMap[name] || name; // item yang udah kehapus dari menu tetep kehitung pake nama aslinya
+    const key = keyMap[name] || name;
     grouped[key] = (grouped[key]||0) + raw[name];
   });
   return grouped;
@@ -553,9 +562,9 @@ function renderMenuManage(){
   const search = searchEl ? searchEl.value.trim().toLowerCase() : '';
   const cats = getCategories();
   if(cats.length===0){ area.innerHTML = `<div class="empty-state"><div class="glyph">🍢</div>Belum ada menu.<br><button class="secondary" onclick="openAddMenuModal()">+ Tambah Menu</button></div>`; return; }
-  // Stok Prep = total qty dari SEMUA orderan (dicentang/nggak) dalam window 7 hari Prep, item anak
-  // udah digabung ke induknya — konsisten sama warna pill di tab Prep.
-  const prepMap = computeDemandByStockKey(prepWindowDates());
+  // Prep = sisa yang belum disiapin (informasi doang). Real udah otomatis kepotong tiap ada
+  // orderan masuk/edit/hapus (lihat Code.gs), jadi Real = Tersedia, gak perlu dikurangin lagi di sini.
+  const prepMap = computeUnpreparedByStockKey();
   const namaSet = new Set(menuItems.map(m=>String(m.nama).trim()));
   const idleMode = !stokMode && !deleteMode;
   let anyMatch = false;
@@ -575,16 +584,21 @@ function renderMenuManage(){
           const induk = String(it.stok_induk||'').trim();
           const isChild = !!induk;
           const indukBroken = isChild && !namaSet.has(induk);
+          const isUnlimited = it.unlimited === true || (isChild && !indukBroken && (menuItems.find(m=>String(m.nama).trim()===induk)?.unlimited === true));
           const stokVal = (it.row in pendingStok) ? pendingStok[it.row] : (it.stok || 0);
           const stockKey = isChild ? induk : namaTrim;
           const real = isChild ? (menuItems.find(m=>String(m.nama).trim()===induk)?.stok || 0) : (it.stok || 0);
           const prep = prepMap[stockKey] || 0;
-          const available = real - prep;
-          const breakdownHtml = isChild
-            ? (indukBroken
-                ? `<div class="stok-breakdown"><span class="stok-neg">⚠️ Induk "${escapeHtml(induk)}" nggak ketemu</span></div>`
-                : `<div class="stok-breakdown">Stok ngikut "${escapeHtml(induk)}"</div>`)
-            : `<div class="stok-breakdown">Real ${real} · Prep ${prep} · Tersedia <span class="${available<0?'stok-neg':''}">${available}</span></div>`;
+          let breakdownHtml;
+          if(isUnlimited){
+            breakdownHtml = `<div class="stok-breakdown">♾️ Stok unlimited${isChild ? ` (ngikut "${escapeHtml(induk)}")` : ''}</div>`;
+          } else if(isChild){
+            breakdownHtml = indukBroken
+              ? `<div class="stok-breakdown"><span class="stok-neg">⚠️ Induk "${escapeHtml(induk)}" nggak ketemu</span></div>`
+              : `<div class="stok-breakdown">Stok ngikut "${escapeHtml(induk)}" · Perlu disiapin ${prep}</div>`;
+          } else {
+            breakdownHtml = `<div class="stok-breakdown">Stok <span class="${real<0?'stok-neg':''}">${real}</span> · Perlu disiapin ${prep}</div>`;
+          }
           return `
           <div class="menu-item-manage">
             <div ${idleMode ? `onclick="openEditMenuModal(${it.row})" style="cursor:pointer;"` : ''}>
@@ -593,7 +607,7 @@ function renderMenuManage(){
               ${stokMode ? '' : breakdownHtml}
             </div>
             ${stokMode ? (
-              isChild ? `<span style="font-size:11px;color:var(--ink-soft);white-space:nowrap;">ngikut induk</span>` : `
+              (isChild || isUnlimited) ? `<span style="font-size:11px;color:var(--ink-soft);white-space:nowrap;">${isUnlimited ? 'unlimited' : 'ngikut induk'}</span>` : `
               <div class="stepper">
                 <button onclick="adjustPendingStok(${it.row}, ${it.stok||0}, -1)">−</button>
                 <span class="qty" id="stokval-${it.row}">${stokVal}</span>
@@ -669,6 +683,11 @@ function populateStokParentSelect(excludeRow){
   const opts = menuItems.filter(m=>m.row!==excludeRow).map(m=>`<option value="${escapeHtml(m.nama)}">${escapeHtml(m.nama)}</option>`).join('');
   sel.innerHTML = `<option value="">Tidak ada — stok sendiri</option>` + opts;
 }
+function onStokTypeChange(){
+  const isUnlimited = document.getElementById('addMenuStokUnlimited').checked;
+  document.getElementById('addMenuStokParentField').style.display = isUnlimited ? 'none' : 'block';
+  if(isUnlimited) document.getElementById('addMenuStokParent').value = '';
+}
 function openAddMenuModal(){
   editingMenuRow = null;
   document.getElementById('addMenuModalTitle').textContent = 'Tambah Menu';
@@ -683,6 +702,8 @@ function openAddMenuModal(){
   document.getElementById('addMenuPrice').value='';
   populateStokParentSelect(null);
   document.getElementById('addMenuStokParent').value = '';
+  document.getElementById('addMenuStokTerbatas').checked = true;
+  onStokTypeChange();
   document.getElementById('addMenuModal').classList.remove('hidden');
 }
 function openEditMenuModal(row){
@@ -701,6 +722,8 @@ function openEditMenuModal(row){
   document.getElementById('addMenuPrice').value = item.harga;
   populateStokParentSelect(row);
   document.getElementById('addMenuStokParent').value = item.stok_induk || '';
+  document.getElementById(item.unlimited ? 'addMenuStokUnlimited' : 'addMenuStokTerbatas').checked = true;
+  onStokTypeChange();
   document.getElementById('addMenuModal').classList.remove('hidden');
 }
 function closeAddMenuModal(){ document.getElementById('addMenuModal').classList.add('hidden'); editingMenuRow = null; }
@@ -713,7 +736,8 @@ async function submitAddMenu(){
   const kategori = sel.value==='__new__' ? document.getElementById('addMenuCatNew').value.trim() : sel.value;
   const nama = document.getElementById('addMenuName').value.trim();
   const harga = parseInt(document.getElementById('addMenuPrice').value, 10);
-  const stokInduk = document.getElementById('addMenuStokParent').value;
+  const unlimited = document.getElementById('addMenuStokUnlimited').checked;
+  const stokInduk = unlimited ? '' : document.getElementById('addMenuStokParent').value;
   const errBox = document.getElementById('addMenuError');
   const btn = document.getElementById('btnSubmitAddMenu');
   errBox.style.display = 'none';
@@ -722,10 +746,10 @@ async function submitAddMenu(){
   btn.disabled = true; btn.textContent = 'Menyimpan...';
   try{
     if(editingMenuRow){
-      await apiPost('update_menu_item', { row: editingMenuRow, kategori, nama, harga, stok_induk: stokInduk, device_label: deviceLabel });
+      await apiPost('update_menu_item', { row: editingMenuRow, kategori, nama, harga, stok_induk: stokInduk, unlimited, device_label: deviceLabel });
       showToast('Item diupdate ✓');
     } else {
-      await apiPost('add_menu_item', { kategori, nama, harga, stok_induk: stokInduk, device_label: deviceLabel });
+      await apiPost('add_menu_item', { kategori, nama, harga, stok_induk: stokInduk, unlimited, device_label: deviceLabel });
       showToast('Menu ditambahkan ✓');
     }
     document.getElementById('addMenuModal').classList.add('hidden');
@@ -1002,12 +1026,10 @@ function renderBesokList(){
   // Kalau item yang lagi difilter ternyata udah nggak ada di hari ini (mis. abis dicentang semua / ganti hari), lepas filternya
   if(activeItemFilter && !(activeItemFilter in agg)) activeItemFilter = null;
 
-  // Cumulative demand dari hari ini s/d hari yang lagi dibuka (SEMUA orderan, dicentang maupun nggak —
-  // karena yang udah dicentang tetep make stok fisik), buat dibandingin ke Stok Real yang ada.
-  const winDates = prepWindowDates();
-  const targetIdx = Math.max(0, winDates.indexOf(target));
-  const cumulativeQty = computeDemandByStockKey(winDates.slice(0, targetIdx+1));
+  // Real udah otomatis kepotong tiap ada orderan (lihat Code.gs) — jadi warning pill cukup cek
+  // Real-nya minus atau nggak, gak perlu ngitung ulang cumulative per-hari lagi.
   const stokMap = getStokMap();
+  const unlimitedMap = getUnlimitedMap();
   const stockKeyMap = getStockKeyMap();
   const catMap = getItemCategoryMap();
 
@@ -1026,7 +1048,8 @@ function renderBesokList(){
     html += `<span style="display:inline-flex;flex-wrap:wrap;gap:8px;margin-right:14px;">`;
     namesByCategory[cat].forEach(name=>{
       const isActive = activeItemFilter === name;
-      const isWarn = cumulativeQty[stockKeyMap[name]||name] > (stokMap[stockKeyMap[name]||name]||0);
+      const key = stockKeyMap[name] || name;
+      const isWarn = !unlimitedMap[key] && (stokMap[key]||0) < 0;
       const safeName = escapeHtml(name).replace(/'/g,"\\'");
       const classes = `summary-pill item-pill ${isActive?'active-filter':''} ${(!isActive && isWarn)?'stock-warn':''}`;
       html += `<span class="${classes}" onclick="toggleItemFilter('${safeName}')">${escapeHtml(name)} × ${agg[name]}</span>`;
