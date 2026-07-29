@@ -402,7 +402,7 @@
 <script>
 // ==== KONFIGURASI ====
 const CONFIG = {
-    API_URL: 'https://script.google.com/macros/s/AKfycbyuaT-8iH4m8RcK28IgRa6S-GK0Hyk3d_9oker4yOyyMHr6gh7gZaBETWTOoQc4w-FpzA/exec'
+    API_URL: 'https://script.google.com/macros/s/AKfycbwfOYUtAPhnE_KP3ya07IPx3RNqNZwNQlxYEdd65y0dJFae1A9eVfG9gR-MzD02txZDeg/exec'
 };
 
 // ==== STATE ====
@@ -420,6 +420,8 @@ let stokMode = false; // lagi mode "Tambah Stok" di tab Menu?
 let deleteMode = false; // lagi mode "Hapus" di tab Menu?
 let pendingStok = {}; // row -> nilai stok baru yang belum disimpen ke server
 let editingMenuRow = null; // row yang lagi diedit di modal Tambah/Edit Menu (null = mode tambah)
+let ordersFetchSeq = 0; // nomor urut tiap loadOrders() dipanggil — biar fetch basi yg nyusul telat gak nimpa data baru
+let recentLocalToggles = {}; // order_id -> {prepared?, paid?, until} — proteksi sementara abis tap centang/lunas biar gak ketiban fetch background yang lagi nunggak
 const PREP_CACHE_KEY = 'prep-orders-cache-v1';
 const MENU_CACHE_KEY = 'menu-cache-v1';
 const RIWAYAT_UNPAID_CACHE_KEY = 'riwayat-unpaid-cache-v1';
@@ -757,6 +759,11 @@ function renderMenuPicker(){
     return;
   }
   let anyMatch = false;
+  // Sama kayak perhitungan Available di tab Menu: Real - total Prep window 7 hari, ngikutin mother/child & unlimited.
+  const stokMapPicker = getStokMap();
+  const unlimitedMapPicker = getUnlimitedMap();
+  const stockKeyMapPicker = getStockKeyMap();
+  const demandPicker = computeDemandByStockKey(prepWindowDates());
   const html = cats.map(cat=>{
     let items = menuItems.filter(i=>i.kategori===cat);
     if(search) items = items.filter(i=>i.nama.toLowerCase().includes(search));
@@ -768,9 +775,16 @@ function renderMenuPicker(){
         ${items.map(it=>{
           const key = it.nama;
           const qty = orderSelections[key] ? orderSelections[key].qty : 0;
+          const namaTrim = String(it.nama).trim();
+          const isUnlimited = unlimitedMapPicker[namaTrim] === true;
+          const stockKey = stockKeyMapPicker[namaTrim] || namaTrim;
+          const tersedia = (stokMapPicker[stockKey] || 0) - (demandPicker[stockKey] || 0);
+          const tersediaHtml = isUnlimited
+            ? `<div class="price" style="color:var(--jade-dark);">♾️ Tersedia</div>`
+            : `<div class="price" style="${tersedia<=0?'color:var(--chili);font-weight:700;':'color:var(--jade-dark);'}">Tersedia: ${tersedia}</div>`;
           return `
           <div class="item-row">
-            <div class="info"><div class="name">${escapeHtml(it.nama)}</div><div class="price">${rupiah(it.harga)}</div></div>
+            <div class="info"><div class="name">${escapeHtml(it.nama)}</div><div class="price">${rupiah(it.harga)}</div>${tersediaHtml}</div>
             <div class="stepper">
               <button onclick="changeQty('${escapeHtml(key).replace(/'/g,"\\'")}', ${it.harga}, -1)">−</button>
               <span class="qty" id="qty-${escapeHtml(key)}">${qty}</span>
@@ -901,15 +915,33 @@ async function deleteCategory(kategori){
 
 // ==== ORDERS ====
 async function loadOrders(){
+  const mySeq = ++ordersFetchSeq; // tandain request ini nomor berapa
   const demoOrders = allOrders.filter(o=>o._demo);
   const previousReal = allOrders.filter(o=>!o._demo);
   try{
     const fresh = await apiGet('get_orders');
+    if(mySeq !== ordersFetchSeq) return; // ada loadOrders() lain yg lebih baru nyusul — hasil ini basi, buang
+    applyRecentToggleGuards(fresh); // biar field yg baru aja di-tap gak ketiban data lama dari fetch ini
     allOrders = demoOrders.concat(fresh); // orderan coba-coba tetep keliatan selama sesi ini, meski cuma lokal
   } catch(e){
+    if(mySeq !== ordersFetchSeq) return; // sama — request ini udah basi, gak perlu ganggu state
     showToast('Gagal ambil orderan: ' + e.message);
     allOrders = demoOrders.concat(previousReal); // gagal fetch — tetep pake data lama drpd kosong
   }
+}
+// Terapin nilai prepared/paid dari toggle lokal yang masih dalam window proteksi ke data fresh dari server,
+// biar tap yang baru aja dilakuin gak "lompat balik" gara-gara ketiban fetch background yang lagi nunggak.
+function applyRecentToggleGuards(freshOrders){
+  const now = Date.now();
+  Object.keys(recentLocalToggles).forEach(id=>{
+    if(recentLocalToggles[id].until <= now) delete recentLocalToggles[id]; // udah kadaluarsa, bersihin
+  });
+  freshOrders.forEach(o=>{
+    const guard = recentLocalToggles[o.order_id];
+    if(!guard) return;
+    if('prepared' in guard) o.prepared = guard.prepared;
+    if('paid' in guard) o.paid = guard.paid;
+  });
 }
 async function submitOrder(){
   const nameField = document.getElementById('custName').value.trim();
@@ -1048,6 +1080,7 @@ async function togglePrepared(orderId){
   if(!order) return;
   const prevState = order.prepared;
   order.prepared = !order.prepared;
+  markRecentToggle(orderId, 'prepared', order.prepared); // proteksi 8 detik biar gak ketiban fetch background yg lagi nunggak
   renderDayStrip(); renderBesokList();
   if(order._demo) return; // orderan coba-coba, nggak pernah ada di server
   try{
@@ -1058,8 +1091,16 @@ async function togglePrepared(orderId){
     });
     savePrepCache(allOrders); // update cache diam-diam biar konsisten pas reload berikutnya
   } catch(e){
-    order.prepared = prevState; renderDayStrip(); renderBesokList(); showToast('Gagal update: ' + e.message);
+    order.prepared = prevState; markRecentToggle(orderId, 'prepared', order.prepared); renderDayStrip(); renderBesokList(); showToast('Gagal update: ' + e.message);
   }
+}
+// Catat perubahan field lokal (prepared/paid) biar loadOrders() gak nimpa nilai ini kalau ada fetch
+// background yang hasilnya nyampe dalam beberapa detik ke depan (durasi wajar tunggu Apps Script update).
+function markRecentToggle(orderId, field, value){
+  const existing = recentLocalToggles[orderId] || {};
+  existing[field] = value;
+  existing.until = Date.now() + 8000;
+  recentLocalToggles[orderId] = existing;
 }
 
 async function togglePaid(orderId){
@@ -1071,6 +1112,7 @@ async function togglePaid(orderId){
   }
   const prevState = order.paid;
   order.paid = !order.paid;
+  markRecentToggle(orderId, 'paid', order.paid); // proteksi 8 detik biar gak ketiban fetch background yg lagi nunggak
   renderBesokList(); patchRiwayatCardPaidState(orderId, order.paid);
   if(order._demo) return; // orderan coba-coba, nggak pernah ada di server
   try{
@@ -1080,7 +1122,7 @@ async function togglePaid(orderId){
       prepared: order.prepared, device_label: order.device_label, shipping_fee: order.shipping_fee, paid: order.paid
     });
   } catch(e){
-    order.paid = prevState; renderBesokList(); patchRiwayatCardPaidState(orderId, order.paid); showToast('Gagal update: ' + e.message);
+    order.paid = prevState; markRecentToggle(orderId, 'paid', order.paid); renderBesokList(); patchRiwayatCardPaidState(orderId, order.paid); showToast('Gagal update: ' + e.message);
   }
 }
 // Update tampilan kartu di Riwayat di tempat, TANPA nge-refilter listnya —
@@ -1608,6 +1650,15 @@ document.getElementById('deliveryDate').value = tomorrowISO();
   }
   loadDeviceLabel();
   await loadMenu();
+  // Prefetch orderan di background (gak di-await) begitu app dibuka, biar pas tab Prep/Riwayat
+  // ditap pertama kali datanya udah anget, gak nunggu fetch dari nol.
+  loadOrders().then(()=>{
+    savePrepCache(allOrders);
+    riwayatDefaultSnapshot = allOrders.filter(o=>!o.paid).sort((a,b)=> (b.created_at||'').localeCompare(a.created_at||''));
+    riwayatDefaultSnapshotLoaded = true;
+    saveRiwayatUnpaidCache(riwayatDefaultSnapshot);
+    renderMenuPicker(); // refresh angka Tersedia di tab Order begitu data orderan udah anget
+  });
 })();
 </script>
 </body>
