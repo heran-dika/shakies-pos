@@ -577,41 +577,41 @@ async function loadMenu(){
 function getCategories(){
   const seen = []; menuItems.forEach(i=>{ if(!seen.includes(i.kategori)) seen.push(i.kategori); }); return seen;
 }
-function getItemCategoryMap(){
-  const map = {}; menuItems.forEach(m=>{ map[String(m.nama).trim()] = m.kategori; }); return map;
-}
-function getStokMap(){
-  const map = {}; menuItems.forEach(m=>{ map[String(m.nama).trim()] = Number(m.stok)||0; }); return map;
-}
-function getUnlimitedMap(){
-  const map = {}; menuItems.forEach(m=>{ map[String(m.nama).trim()] = m.unlimited === true; }); return map;
-}
-// nama item (trimmed) -> nama item induk (trimmed) kalau dia numpang stok, atau nama dirinya sendiri kalau enggak.
-function getStockKeyMap(){
+// item_id -> objek menu item lengkap. Ini pengganti semua map yang dulu keyed by nama —
+// nama bisa berubah kapan aja (edit), item_id dibekukan sekali generate, jadi ini yang
+// dipake sebagai identitas asli tiap item di seluruh app.
+function buildMenuById(){
   const map = {};
-  menuItems.forEach(m=>{
-    const nama = String(m.nama).trim();
-    const induk = String(m.stok_induk||'').trim();
-    map[nama] = induk || nama;
-  });
+  menuItems.forEach(m=>{ if(m.item_id) map[m.item_id] = m; });
   return map;
 }
-// Total qty yang MASIH BELUM disiapin (semua tanggal, nggak dibatasin window) per stock key —
-// ini murni informasi "sisa kerja", nggak dipake buat ngitung Available lagi (Real udah auto-berkurang
-// tiap ada orderan masuk, lihat Code.gs addOrder/updateOrder/deleteOrder).
-// Total qty yang MASIH BELUM disiapin, dalam rentang tanggal tertentu (biasanya window 7 hari Prep) —
-// dipake buat Prep di tab Menu (window penuh) & warning pill di tab Prep (kumulatif per-hari).
-// Total qty dari SEMUA orderan (dicentang atau nggak — produknya udah dibooking begitu orderan
-// masuk) dalam rentang tanggal tertentu (window 7 hari halaman Prep). Cuma ilang dari hitungan ini
-// kalau orderannya beneran DIHAPUS (dibatalin) — bukan pas dicentang.
-// Demand mentah per NAMA ITEM sendiri, TANPA digabung ke mother/child — dipake buat nampilin
-// angka Prep per-item di tab Menu (tiap varian nunjukin pesenan dirinya sendiri doang).
-function computeDemandByItemName(dates){
+// Cari objek menu item yang cocok buat satu item DI DALAM ORDER (yang cuma nyimpen nama,
+// dan utk order baru juga item_id). Order baru (dibuat setelah backend v2) udah punya
+// item_id sendiri yang di-backfill server-side, jadi match-nya presisi & tahan rename.
+// Order lama (sebelum migrasi ini) belum punya item_id — fallback ke match by nama,
+// sama kayak behavior lama (masih bisa keliru kalau namanya sempat diganti, tapi itu
+// cuma soal order lama yang emang udah nggak dianggap "aktif" lagi).
+function resolveMenuItemForOrderItem(it, menuById){
+  if(it.item_id && menuById[it.item_id]) return menuById[it.item_id];
+  const namaTrim = String(it.name||'').trim();
+  return menuItems.find(m=>String(m.nama).trim()===namaTrim) || null;
+}
+// Stock key buat SATU objek menu item (dari menuItems langsung, bukan dari order):
+// item_id induk kalau dia child, item_id dirinya sendiri kalau standalone.
+function stockKeyOfMenuItem(m){
+  const induk = String(m.stok_induk||'').trim();
+  return induk || m.item_id;
+}
+// Demand mentah per ITEM ID sendiri, TANPA digabung ke mother/child — dipake buat nampilin
+// angka Prep per-varian di tab Menu (tiap varian nunjukin pesenan dirinya sendiri doang).
+function computeDemandByItemId(dates){
+  const menuById = buildMenuById();
   const raw = {};
   allOrders.filter(o=>dates.includes(o.delivery_date)).forEach(o=>{
     (o.items||[]).forEach(it=>{
-      const name = String(it.name).trim();
-      raw[name] = (raw[name]||0) + it.qty;
+      const m = resolveMenuItemForOrderItem(it, menuById);
+      const key = m ? m.item_id : ('unmatched:' + String(it.name||'').trim());
+      raw[key] = (raw[key]||0) + it.qty;
     });
   });
   return raw;
@@ -619,12 +619,15 @@ function computeDemandByItemName(dates){
 // Demand digabung per stock key (mother menyerap semua child) — dipake buat hitung Tersedia
 // (mother) & warning pill di tab Prep, karena itu soal stok fisik keluarga produk yang sama.
 function computeDemandByStockKey(dates){
-  const keyMap = getStockKeyMap();
-  const raw = computeDemandByItemName(dates);
+  const menuById = buildMenuById();
   const grouped = {};
-  Object.keys(raw).forEach(name=>{
-    const key = keyMap[name] || name;
-    grouped[key] = (grouped[key]||0) + raw[name];
+  allOrders.filter(o=>dates.includes(o.delivery_date)).forEach(o=>{
+    (o.items||[]).forEach(it=>{
+      const m = resolveMenuItemForOrderItem(it, menuById);
+      if(!m) return; // item udah dihapus dari menu & nggak ketemu lagi by nama — nggak bisa ditentukan stock key-nya
+      const key = stockKeyOfMenuItem(m);
+      grouped[key] = (grouped[key]||0) + it.qty;
+    });
   });
   return grouped;
 }
@@ -690,8 +693,8 @@ function renderMenuManage(){
   // Prep = total yang belum disiapin dalam window 7 hari yang sama kayak tab Prep (biar konsisten,
   // gak bikin bingung "kok prep kosong tapi di sini ada angkanya"). Available = Real - Prep.
   const prepMapPooled = computeDemandByStockKey(prepWindowDates()); // buat hitung Tersedia (mother)
-  const prepMapItem = computeDemandByItemName(prepWindowDates()); // buat nampilin Prep per-item sendiri
-  const namaSet = new Set(menuItems.map(m=>String(m.nama).trim()));
+  const prepMapItem = computeDemandByItemId(prepWindowDates()); // buat nampilin Prep per-item sendiri
+  const menuById = buildMenuById();
   const idleMode = !stokMode && !deleteMode;
   let anyMatch = false;
   const html = cats.map(cat=>{
@@ -706,24 +709,24 @@ function renderMenuManage(){
           ${deleteMode ? `<button class="ghost-sm" onclick="deleteCategory('${escapeHtml(cat).replace(/'/g,"\\'")}')">Hapus kategori</button>` : ''}
         </div>
         ${items.map(it=>{
-          const namaTrim = String(it.nama).trim();
           const induk = String(it.stok_induk||'').trim();
           const isChild = !!induk;
-          const indukBroken = isChild && !namaSet.has(induk);
-          const isUnlimited = it.unlimited === true || (isChild && !indukBroken && (menuItems.find(m=>String(m.nama).trim()===induk)?.unlimited === true));
+          const indukBroken = isChild && !menuById[induk];
+          const isUnlimited = it.unlimited === true || (isChild && !indukBroken && menuById[induk].unlimited === true);
           const stokVal = (it.row in pendingStok) ? pendingStok[it.row] : (it.stok || 0);
-          const stockKey = isChild ? induk : namaTrim;
-          const real = isChild ? (menuItems.find(m=>String(m.nama).trim()===induk)?.stok || 0) : (it.stok || 0);
+          const stockKey = isChild ? induk : it.item_id;
+          const real = isChild ? (indukBroken ? 0 : (menuById[induk].stok || 0)) : (it.stok || 0);
           const pooledPrep = prepMapPooled[stockKey] || 0; // dipake buat Tersedia — gabungan sekeluarga
-          const itemPrep = prepMapItem[namaTrim] || 0; // dipake buat ditampilin — punya item ini doang
+          const itemPrep = prepMapItem[it.item_id] || 0; // dipake buat ditampilin — punya item ini doang
           const available = real - pooledPrep;
+          const indukNama = isChild && !indukBroken ? menuById[induk].nama : '';
           let breakdownHtml;
           if(isUnlimited){
-            breakdownHtml = `<div class="stok-breakdown">♾️ Stok unlimited${isChild ? ` (ngikut "${escapeHtml(induk)}")` : ''}</div>`;
+            breakdownHtml = `<div class="stok-breakdown">♾️ Stok unlimited${isChild ? ` (ngikut "${escapeHtml(indukNama)}")` : ''}</div>`;
           } else if(isChild){
             breakdownHtml = indukBroken
-              ? `<div class="stok-breakdown"><span class="stok-neg">⚠️ Induk "${escapeHtml(induk)}" nggak ketemu</span></div>`
-              : `<div class="stok-breakdown">Stok ngikut "${escapeHtml(induk)}" · Prep ${itemPrep}</div>`;
+              ? `<div class="stok-breakdown"><span class="stok-neg">⚠️ Item induk nggak ketemu (mungkin udah dihapus)</span></div>`
+              : `<div class="stok-breakdown">Stok ngikut "${escapeHtml(indukNama)}" · Prep ${itemPrep}</div>`;
           } else {
             breakdownHtml = `<div class="stok-breakdown">Real ${real} · Prep ${itemPrep} · Tersedia <span class="${available<0?'stok-neg':''}">${available}</span></div>`;
           }
@@ -760,9 +763,7 @@ function renderMenuPicker(){
   }
   let anyMatch = false;
   // Sama kayak perhitungan Available di tab Menu: Real - total Prep window 7 hari, ngikutin mother/child & unlimited.
-  const stokMapPicker = getStokMap();
-  const unlimitedMapPicker = getUnlimitedMap();
-  const stockKeyMapPicker = getStockKeyMap();
+  const menuByIdPicker = buildMenuById();
   const demandPicker = computeDemandByStockKey(prepWindowDates());
   const html = cats.map(cat=>{
     let items = menuItems.filter(i=>i.kategori===cat);
@@ -775,10 +776,11 @@ function renderMenuPicker(){
         ${items.map(it=>{
           const key = it.nama;
           const qty = orderSelections[key] ? orderSelections[key].qty : 0;
-          const namaTrim = String(it.nama).trim();
-          const isUnlimited = unlimitedMapPicker[namaTrim] === true;
-          const stockKey = stockKeyMapPicker[namaTrim] || namaTrim;
-          const tersedia = (stokMapPicker[stockKey] || 0) - (demandPicker[stockKey] || 0);
+          const induk = String(it.stok_induk||'').trim();
+          const indukBroken = !!induk && !menuByIdPicker[induk];
+          const isUnlimited = it.unlimited === true || (!!induk && !indukBroken && menuByIdPicker[induk].unlimited === true);
+          const stockKey = induk || it.item_id;
+          const tersedia = indukBroken ? 0 : ((it.item_id === stockKey ? it.stok : (menuByIdPicker[stockKey]?.stok || 0)) - (demandPicker[stockKey] || 0));
           const tersediaHtml = isUnlimited
             ? `<div class="price" style="color:var(--jade-dark);">♾️ Tersedia</div>`
             : `<div class="price" style="${tersedia<=0?'color:var(--chili);font-weight:700;':'color:var(--jade-dark);'}">Tersedia: ${tersedia}</div>`;
@@ -820,7 +822,7 @@ function updateOrderTotal(){
 // Add menu modal
 function populateStokParentSelect(excludeRow){
   const sel = document.getElementById('addMenuStokParent');
-  const opts = menuItems.filter(m=>m.row!==excludeRow).map(m=>`<option value="${escapeHtml(m.nama)}">${escapeHtml(m.nama)}</option>`).join('');
+  const opts = menuItems.filter(m=>m.row!==excludeRow).map(m=>`<option value="${escapeHtml(m.item_id)}">${escapeHtml(m.nama)}</option>`).join('');
   sel.innerHTML = `<option value="">Tidak ada — stok sendiri</option>` + opts;
 }
 function onStokTypeChange(){
@@ -882,7 +884,8 @@ async function submitAddMenu(){
   const btn = document.getElementById('btnSubmitAddMenu');
   errBox.style.display = 'none';
   if(!kategori || !nama || !harga){ errBox.textContent = 'Isi semua field dulu ya.'; errBox.style.display='block'; return; }
-  if(stokInduk && stokInduk === nama){ errBox.textContent = 'Item nggak bisa nge-link stok ke dirinya sendiri.'; errBox.style.display='block'; return; }
+  const currentEditItem = editingMenuRow ? menuItems.find(m=>m.row===editingMenuRow) : null;
+  if(stokInduk && currentEditItem && stokInduk === currentEditItem.item_id){ errBox.textContent = 'Item nggak bisa nge-link stok ke dirinya sendiri.'; errBox.style.display='block'; return; }
   btn.disabled = true; btn.textContent = 'Menyimpan...';
   try{
     if(editingMenuRow){
@@ -1155,6 +1158,30 @@ function renderDayStrip(){
   }).join('');
 }
 function selectBesokDate(iso){ selectedBesokDate = iso; activeItemFilter = null; renderDayStrip(); renderBesokList(); }
+// Total harga LIVE — pakai harga TERBARU dari Menu buat item yang masih ketemu (via item_id,
+// fallback nama buat order lama), item yang udah dihapus dari Menu tetep pakai harga beku
+// yang kesimpen di order (nggak ada tempat lain buat ambil harganya). Dipake di tab Prep aja;
+// Riwayat sengaja tetep pakai o.total yang beku, gak disentuh fungsi ini.
+// Sama kayak computeLiveOrderTotal, tapi buat teks ringkasan item ("2x Nama, 1x Nama2") —
+// dipake di tab Prep biar nama yang ditampilin selalu yang TERKINI, bukan nama beku dari
+// pas order dibuat. Riwayat sengaja tetep pakai o.items_summary yang asli, gak disentuh ini.
+function computeLiveItemsSummary(o, menuById){
+  return (o.items||[]).map(it=>{
+    const m = resolveMenuItemForOrderItem(it, menuById);
+    const nama = m ? m.nama : String(it.name||'');
+    return `${nama} x${it.qty}`;
+  }).join(', ');
+}
+function computeLiveOrderTotal(o, menuById){
+  let total = 0;
+  (o.items||[]).forEach(it=>{
+    const m = resolveMenuItemForOrderItem(it, menuById);
+    const price = m ? m.harga : (Number(it.price)||0);
+    total += price * (Number(it.qty)||0);
+  });
+  total += Number(o.shipping_fee)||0;
+  return total;
+}
 function toggleItemFilter(name){ activeItemFilter = (activeItemFilter === name) ? null : name; renderBesokList(); }
 async function renderBesok(){
   // Tampilin cache dulu (kalau ada) biar instan, baru refresh diam-diam di background
@@ -1185,10 +1212,23 @@ function renderBesokList(){
     return;
   }
   // Pill produk cuma ngitung orderan yang BELUM dicentang (sisa yang masih perlu disiapin).
-  // Total harga & jumlah "siap" tetep ngitung semua orderan hari ini, terlepas dari itu.
+  // Dikelompokin per item_id (identitas asli), bukan per nama — biar tahan kalau item pernah
+  // di-rename setelah order dibuat. agg[key] = { qty, nama (nama TERKINI buat ditampilin), kategori }.
+  const menuByIdBesok = buildMenuById();
+  // Total harga di Prep dihitung LIVE pakai harga terbaru di Menu (bukan harga beku
+  // pas order dibuat) — beda sama Riwayat yang emang sengaja dibiarin harga lama.
   const agg = {}; let grandTotal = 0;
-  todays.forEach(o=>{ grandTotal += o.total; });
-  todays.filter(o=>!o.prepared).forEach(o=>{ (o.items||[]).forEach(it=>{ const key=String(it.name).trim(); agg[key]=(agg[key]||0)+it.qty; }); });
+  todays.forEach(o=>{ grandTotal += computeLiveOrderTotal(o, menuByIdBesok); });
+  todays.filter(o=>!o.prepared).forEach(o=>{
+    (o.items||[]).forEach(it=>{
+      const m = resolveMenuItemForOrderItem(it, menuByIdBesok);
+      const key = m ? m.item_id : ('unmatched:' + String(it.name||'').trim());
+      const displayName = m ? m.nama : String(it.name||'').trim();
+      const kategori = m ? m.kategori : 'Lainnya';
+      if(!agg[key]) agg[key] = { qty: 0, nama: displayName, kategori };
+      agg[key].qty += it.qty;
+    });
+  });
   const preparedCount = todays.filter(o=>o.prepared).length;
 
   // Kalau item yang lagi difilter ternyata udah nggak ada di hari ini (mis. abis dicentang semua / ganti hari), lepas filternya
@@ -1200,43 +1240,49 @@ function renderBesokList(){
   const winDates = prepWindowDates();
   const targetIdx = Math.max(0, winDates.indexOf(target));
   const cumulativeDemand = computeDemandByStockKey(winDates.slice(0, targetIdx+1));
-  const stokMap = getStokMap();
-  const unlimitedMap = getUnlimitedMap();
-  const stockKeyMap = getStockKeyMap();
-  const catMap = getItemCategoryMap();
 
-  // Kelompokin nama item per kategori biar pill-nya dempetan per kategori
-  const namesByCategory = {};
-  Object.keys(agg).forEach(name=>{
-    const cat = catMap[name] || 'Lainnya';
-    if(!namesByCategory[cat]) namesByCategory[cat] = [];
-    namesByCategory[cat].push(name);
+  // Kelompokin per kategori (pakai kategori TERKINI item, bukan yang nyantol di order lama)
+  const keysByCategory = {};
+  Object.keys(agg).forEach(key=>{
+    const cat = agg[key].kategori || 'Lainnya';
+    if(!keysByCategory[cat]) keysByCategory[cat] = [];
+    keysByCategory[cat].push(key);
   });
-  const orderedCats = getCategories().filter(c=>namesByCategory[c]);
-  if(namesByCategory['Lainnya'] && !orderedCats.includes('Lainnya')) orderedCats.push('Lainnya');
+  const orderedCats = getCategories().filter(c=>keysByCategory[c]);
+  if(keysByCategory['Lainnya'] && !orderedCats.includes('Lainnya')) orderedCats.push('Lainnya');
 
   let html = `<p class="section-sub" style="margin-top:0;">${formatDateLong(target)}</p><div class="summary-grid">`;
   orderedCats.forEach(cat=>{
     html += `<span style="display:inline-flex;flex-wrap:wrap;gap:8px;margin-right:14px;">`;
-    namesByCategory[cat].forEach(name=>{
-      const isActive = activeItemFilter === name;
-      const key = stockKeyMap[name] || name;
-      const isWarn = !unlimitedMap[key] && (stokMap[key]||0) - (cumulativeDemand[key]||0) < 0;
-      const safeName = escapeHtml(name).replace(/'/g,"\\'");
+    keysByCategory[cat].forEach(key=>{
+      const isActive = activeItemFilter === key;
+      const m = menuByIdBesok[key];
+      const stockKey = m ? stockKeyOfMenuItem(m) : key;
+      const owner = menuByIdBesok[stockKey];
+      const isUnlimited = m ? (m.unlimited === true || (owner && owner.unlimited === true)) : false;
+      const isWarn = !isUnlimited && ((owner ? owner.stok : 0) - (cumulativeDemand[stockKey]||0)) < 0;
+      const safeKey = escapeHtml(key).replace(/'/g,"\\'");
       const classes = `summary-pill item-pill ${isActive?'active-filter':''} ${(!isActive && isWarn)?'stock-warn':''}`;
-      html += `<span class="${classes}" onclick="toggleItemFilter('${safeName}')">${escapeHtml(name)} × ${agg[name]}</span>`;
+      html += `<span class="${classes}" onclick="toggleItemFilter('${safeKey}')">${escapeHtml(agg[key].nama)} × ${agg[key].qty}</span>`;
     });
     html += `</span>`;
   });
   html += `<span class="summary-pill" style="background:var(--jade-tint);color:var(--jade-dark);">Total ${rupiah(grandTotal)}</span>`;
   html += `<span class="summary-pill" style="background:var(--chili-tint);color:var(--chili);">${preparedCount}/${todays.length} siap</span></div>`;
 
-  const cardsToShow = activeItemFilter ? todays.filter(o=>!o.prepared && (o.items||[]).some(it=>it.name===activeItemFilter)) : todays;
+  const cardsToShow = activeItemFilter ? todays.filter(o=>!o.prepared && (o.items||[]).some(it=>{
+    const m = resolveMenuItemForOrderItem(it, menuByIdBesok);
+    const key = m ? m.item_id : ('unmatched:' + String(it.name||'').trim());
+    return key === activeItemFilter;
+  })) : todays;
   if(activeItemFilter){
-    html += `<p class="section-sub" style="margin-top:-8px;">Nampilin ${cardsToShow.length} orderan yang pesen "${escapeHtml(activeItemFilter)}". Tap pill lagi buat lepas filter.</p>`;
+    const filterLabel = agg[activeItemFilter] ? agg[activeItemFilter].nama : activeItemFilter;
+    html += `<p class="section-sub" style="margin-top:-8px;">Nampilin ${cardsToShow.length} orderan yang pesen "${escapeHtml(filterLabel)}". Tap pill lagi buat lepas filter.</p>`;
   }
 
-  html += cardsToShow.map(o=>`
+  html += cardsToShow.map(o=>{
+    const liveTotal = computeLiveOrderTotal(o, menuByIdBesok);
+    return `
     <div class="order-card ${o.prepared?'prepared':''} ${o.paid?'paid':'unpaid'}" id="order-${o.order_id}">
       <div class="top-row">
         <div onclick="openEditOrder('${o.order_id}')" style="flex:1;">
@@ -1247,14 +1293,15 @@ function renderBesokList(){
           <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M5 13l4 4L19 7"/></svg>
         </div>
       </div>
-      <div class="items-list" onclick="openEditOrder('${o.order_id}')">${escapeHtml(o.items_summary)}</div>
+      <div class="items-list" onclick="openEditOrder('${o.order_id}')">${escapeHtml(computeLiveItemsSummary(o, menuByIdBesok))}</div>
       ${o.note ? `<div class="items-list" style="font-style:italic;">"${escapeHtml(o.note)}"</div>` : ''}
       ${o.shipping_fee ? `<div class="items-list">Ongkir: ${rupiah(o.shipping_fee)}</div>` : ''}
       <div class="bottom-row">
-        <span class="price">${rupiah(o.total)}</span>
+        <span class="price">${rupiah(liveTotal)}</span>
         <button class="pay-toggle ${o.paid?'paid':''}" onclick="togglePaid('${o.order_id}')">${o.paid?'✓ Lunas':'Belum Lunas'}</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   area.innerHTML = html;
 
   if(pendingHighlightOrderId){
@@ -1454,10 +1501,7 @@ function shareItemKey(kat, nama){ return kat + '|||' + nama; }
 // Item mana aja yang boleh dipajang: unlimited selalu masuk, item biasa Tersedia>0,
 // child ngikut status Tersedia induknya, induk yang linknya putus di-exclude (status nggak bisa ditentukan).
 function computeShareableMenu(){
-  const stockKeyMap = getStockKeyMap();
-  const unlimitedMap = getUnlimitedMap();
-  const stokMap = getStokMap();
-  const namaSet = new Set(menuItems.map(m=>String(m.nama).trim()));
+  const menuById = buildMenuById();
   const demand = computeDemandByStockKey(prepWindowDates());
   const cats = getCategories();
   const result = [];
@@ -1465,19 +1509,18 @@ function computeShareableMenu(){
     const items = menuItems.filter(i=>i.kategori===cat);
     const list = [];
     items.forEach(it=>{
-      const namaTrim = String(it.nama).trim();
       const induk = String(it.stok_induk||'').trim();
       const isChild = !!induk;
-      const indukBroken = isChild && !namaSet.has(induk);
-      const key = stockKeyMap[namaTrim] || namaTrim;
-      const isUnlimited = unlimitedMap[namaTrim] === true;
+      const indukBroken = isChild && !menuById[induk];
+      const key = isChild ? induk : it.item_id;
+      const isUnlimited = it.unlimited === true || (isChild && !indukBroken && menuById[induk].unlimited === true);
       let tersedia;
       if(indukBroken){
         tersedia = false; // status nggak bisa ditentukan -> jangan auto-centang
       } else if(isUnlimited){
         tersedia = true;
       } else {
-        const real = stokMap[key] || 0;
+        const real = isChild ? (menuById[induk].stok || 0) : (it.stok || 0);
         const dem = demand[key] || 0;
         tersedia = (real - dem) > 0;
       }
