@@ -489,8 +489,14 @@ function saveRiwayatUnpaidCache(orders){
 }
 
 // ==== API ====
-async function apiGet(action){
-  const res = await fetch(CONFIG.API_URL + '?action=' + encodeURIComponent(action));
+async function apiGet(action, params){
+  let url = CONFIG.API_URL + '?action=' + encodeURIComponent(action);
+  if(params){
+    Object.keys(params).forEach(k=>{
+      if(params[k]) url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+    });
+  }
+  const res = await fetch(url);
   const json = await res.json();
   if(json.status !== 'ok') throw new Error(json.message || 'Error');
   return json.data;
@@ -916,6 +922,18 @@ async function deleteCategory(kategori){
   catch(e){ showToast('Gagal: ' + e.message); }
 }
 
+// Gabungin hasil get_orders_search ke allOrders — bukan ganti total kayak loadOrders(),
+// biar order dari sheet aktif yg lagi ke-render di tab lain nggak keganggu. Perlu ini karena
+// togglePaid/openEditOrder/openReceiptView semua cari order lewat allOrders.find(), termasuk
+// buat order yang cuma ada di sheet Archive (nggak pernah ditarik sama loadOrders() biasa).
+function mergeSearchResultsIntoAllOrders(orders){
+  orders.forEach(o=>{
+    const idx = allOrders.findIndex(x=>x.order_id===o.order_id);
+    if(idx>-1) allOrders[idx] = Object.assign({}, allOrders[idx], o);
+    else allOrders.push(o);
+  });
+}
+
 // ==== ORDERS ====
 async function loadOrders(){
   const mySeq = ++ordersFetchSeq; // tandain request ini nomor berapa
@@ -1330,14 +1348,18 @@ async function renderRiwayatList(){
   const syncIcon = document.getElementById('riwayatSyncIcon');
 
   if(hasFilter){
-    // Ada filter aktif — selalu fetch fresh & nampilin SEMUA (lunas maupun belum), lepas dari snapshot default.
+    // Ada filter aktif — query LANGSUNG ke server (get_orders_search), yang nyakup sheet aktif
+    // + Archive sekaligus. Jauh lebih ringan drpd narik seluruh get_orders lalu filter di HP,
+    // apalagi begitu order lama mulai kepindah ke Archive.
     area.innerHTML = `<div class="spinner">Memuat riwayat...</div>`;
-    await loadOrders();
-    let filtered = allOrders;
-    if(search) filtered = filtered.filter(o=>o.customer_name.toLowerCase().includes(search));
-    // format delivery_date udah YYYY-MM-DD, jadi perbandingan string aman (sortable secara leksikografis)
-    if(dateFrom) filtered = filtered.filter(o=>o.delivery_date >= dateFrom);
-    if(dateTo) filtered = filtered.filter(o=>o.delivery_date <= dateTo);
+    let filtered;
+    try{
+      filtered = await apiGet('get_orders_search', { name: search, date_from: dateFrom, date_to: dateTo });
+    } catch(e){
+      area.innerHTML = `<div class="empty-state"><div class="glyph">⚠️</div>Gagal cari riwayat: ${escapeHtml(e.message)}</div>`;
+      return;
+    }
+    mergeSearchResultsIntoAllOrders(filtered); // biar tombol Lunas/Edit/Struk tetep jalan walau orderannya dari Archive
     hint.textContent = 'Hasil pencarian dari seluruh riwayat.';
     filtered = filtered.slice().sort((a,b)=> (b.created_at||'').localeCompare(a.created_at||''));
     renderRiwayatCards(filtered);
