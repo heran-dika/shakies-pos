@@ -1361,7 +1361,7 @@ async function renderRiwayatList(){
     }
     mergeSearchResultsIntoAllOrders(filtered); // biar tombol Lunas/Edit/Struk tetep jalan walau orderannya dari Archive
     hint.textContent = 'Hasil pencarian dari seluruh riwayat.';
-    filtered = filtered.slice().sort((a,b)=> (b.created_at||'').localeCompare(a.created_at||''));
+    filtered = filtered.slice().sort((a,b)=> (a.delivery_date||'').localeCompare(b.delivery_date||''));
     renderRiwayatCards(filtered);
     return;
   }
@@ -1385,7 +1385,7 @@ async function renderRiwayatList(){
   syncIcon.style.display = 'block';
   await loadOrders();
   syncIcon.style.display = 'none';
-  riwayatDefaultSnapshot = allOrders.filter(o=>!o.paid).sort((a,b)=> (b.created_at||'').localeCompare(a.created_at||''));
+  riwayatDefaultSnapshot = allOrders.filter(o=>!o.paid).sort((a,b)=> (a.delivery_date||'').localeCompare(b.delivery_date||''));
   riwayatDefaultSnapshotLoaded = true;
   saveRiwayatUnpaidCache(riwayatDefaultSnapshot);
   renderRiwayatCards(riwayatDefaultSnapshot);
@@ -1719,7 +1719,7 @@ document.getElementById('deliveryDate').value = tomorrowISO();
   // ditap pertama kali datanya udah anget, gak nunggu fetch dari nol.
   loadOrders().then(()=>{
     savePrepCache(allOrders);
-    riwayatDefaultSnapshot = allOrders.filter(o=>!o.paid).sort((a,b)=> (b.created_at||'').localeCompare(a.created_at||''));
+    riwayatDefaultSnapshot = allOrders.filter(o=>!o.paid).sort((a,b)=> (a.delivery_date||'').localeCompare(b.delivery_date||''));
     riwayatDefaultSnapshotLoaded = true;
     saveRiwayatUnpaidCache(riwayatDefaultSnapshot);
     renderMenuPicker(); // refresh angka Tersedia di tab Order begitu data orderan udah anget
