@@ -220,7 +220,8 @@
 
       <div class="field">
         <label class="field-label">Nama Customer</label>
-        <input type="text" id="custName" placeholder="Nama pemesan (kosongin = pakai nama HP)">
+        <input type="text" id="custName" list="customerList" autocomplete="off" placeholder="Nama pemesan (kosongin = pakai nama HP)">
+        <datalist id="customerList"></datalist>
       </div>
       <div class="field">
         <label class="field-label">Tanggal Kirim</label>
@@ -621,6 +622,15 @@ async function loadMenu(){
   }
   renderMenuPicker();
   renderMenuManage();
+}
+async function loadCustomers(){
+  try{
+    const names = await apiGet('get_customers');
+    const datalist = document.getElementById('customerList');
+    datalist.innerHTML = names.map(n=>`<option value="${escapeHtml(n)}">`).join('');
+  } catch(e){
+    // Gagal ambil daftar customer bukan hal fatal — input nama tetep bisa dipakai manual tanpa saran.
+  }
 }
 function getCategories(){
   const seen = []; menuItems.forEach(i=>{ if(!seen.includes(i.kategori)) seen.push(i.kategori); }); return seen;
@@ -1050,6 +1060,7 @@ async function submitOrder(){
       showToast('Orderan disimpan ✓');
     }
     await loadOrders();
+    loadCustomers();
     resetOrderForm();
     if(wasEditing) goToPrepAndHighlight(editedOrderId, deliveryDate);
   } catch(e){
@@ -1817,6 +1828,7 @@ document.getElementById('deliveryDate').value = tomorrowISO();
   }
   loadStaffSession();
   await loadMenu();
+  loadCustomers();
   // Prefetch orderan di background (gak di-await) begitu app dibuka, biar pas tab Prep/Riwayat
   // ditap pertama kali datanya udah anget, gak nunggu fetch dari nol.
   loadOrders().then(()=>{
