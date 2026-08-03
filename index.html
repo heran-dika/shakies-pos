@@ -723,17 +723,24 @@ function adjustPendingStok(row, currentStok, delta){
 }
 async function saveStokChanges(){
   const entries = Object.entries(pendingStok);
-  exitStokMode();
-  if(entries.length === 0){ renderMenuManage(); return; }
+  if(entries.length === 0){ exitStokMode(); renderMenuManage(); return; }
   try{
     for(const [row, stok] of entries){
       await apiPost('update_stok', { row: Number(row), stok, device_label: deviceLabel });
     }
+    // Sukses semua — baru sekarang aman keluar mode & buang perubahan pending (udah kesimpen di server).
+    exitStokMode();
     showToast('Stok diupdate ✓');
+    await loadMenu();
   } catch(e){
-    showToast('Gagal update stok: ' + e.message);
+    // Gagal (termasuk sesi login expired) — JANGAN keluar mode, JANGAN reload dari server,
+    // biar angka yang udah diketuk-ketuk tadi nggak ketimpa balik ke data lama.
+    if(e.status === 'not_registered'){
+      showToast('⚠️ Sesi login habis — stok BELUM tersimpan. Sign in ulang, angka yang udah diubah tetep ada, tinggal tap "✓ Selesai" lagi.');
+    } else {
+      showToast('Gagal update stok: ' + e.message + ' — angka yang udah diubah tetep ada, coba lagi.');
+    }
   }
-  await loadMenu();
 }
 
 function renderMenuManage(){
@@ -951,7 +958,11 @@ async function submitAddMenu(){
     editingMenuRow = null;
     await loadMenu();
   } catch(e){
-    errBox.textContent = 'Gagal simpan: ' + e.message;
+    if(e.status === 'not_registered'){
+      errBox.textContent = '⚠️ Sesi login habis. Isian di form ini masih aman — sign in ulang dulu, baru tap Simpan lagi.';
+    } else {
+      errBox.textContent = 'Gagal simpan: ' + e.message;
+    }
     errBox.style.display = 'block';
   } finally {
     btn.disabled = false; btn.textContent = editingMenuRow ? 'Simpan Perubahan' : 'Simpan Item';
@@ -960,12 +971,12 @@ async function submitAddMenu(){
 async function deleteMenuRow(row){
   if(!confirm('Hapus item ini?')) return;
   try{ await apiPost('delete_menu_row', { row, device_label: deviceLabel }); showToast('Item dihapus'); await loadMenu(); }
-  catch(e){ showToast('Gagal: ' + e.message); }
+  catch(e){ showToast(e.status === 'not_registered' ? '⚠️ Sesi login habis — item BELUM dihapus. Sign in ulang dulu.' : 'Gagal: ' + e.message); }
 }
 async function deleteCategory(kategori){
   if(!confirm(`Hapus kategori "${kategori}" beserta semua itemnya?`)) return;
   try{ await apiPost('delete_category', { kategori, device_label: deviceLabel }); showToast('Kategori dihapus'); await loadMenu(); }
-  catch(e){ showToast('Gagal: ' + e.message); }
+  catch(e){ showToast(e.status === 'not_registered' ? '⚠️ Sesi login habis — kategori BELUM dihapus. Sign in ulang dulu.' : 'Gagal: ' + e.message); }
 }
 
 // Gabungin hasil get_orders_search ke allOrders — bukan ganti total kayak loadOrders(),
@@ -1025,6 +1036,7 @@ async function submitOrder(){
   const btn = document.getElementById('btnSubmitOrder');
   const wasEditing = !!editingOrderId;
   const editedOrderId = editingOrderId;
+  const hadRealSession = !!staffSession; // sebelum request — dipake buat bedain "sesi expired" vs "emang HP belum terdaftar"
   btn.disabled = true; btn.textContent = editingOrderId ? 'Menyimpan perubahan...' : 'Menyimpan...';
   try{
     if(editingOrderId){
@@ -1045,9 +1057,15 @@ async function submitOrder(){
     resetOrderForm();
     if(wasEditing) goToPrepAndHighlight(editedOrderId, deliveryDate);
   } catch(e){
-    if(e.status === 'not_registered'){
+    if(e.status === 'not_registered' && hadRealSession){
+      // Ini BUKAN "HP belum terdaftar" — ini sesi login yang tadinya valid terus expired
+      // di tengah jalan. Order ini BELUM tersimpan ke server. Form SENGAJA nggak direset
+      // biar isian nggak hilang — user tinggal sign in ulang, lalu tap Simpan lagi.
+      showToast('⚠️ Sesi login habis — orderan ini BELUM tersimpan. Sign in ulang dulu (form nggak hilang), baru tap Simpan lagi.');
+    } else if(e.status === 'not_registered'){
+      // HP/akun ini emang beneran belum pernah sign in / belum terdaftar — mode coba-coba
+      // (fitur yang disengaja, biar orang bisa liat-liat app tanpa akun).
       if(editingOrderId){
-        // Edit orderan demo yang emang cuma lokal
         const idx = allOrders.findIndex(o=>o.order_id===editingOrderId);
         if(idx>-1){
           allOrders[idx] = { ...allOrders[idx], delivery_date: deliveryDate, customer_name: customerName,
@@ -1096,7 +1114,7 @@ async function deleteCurrentOrder(){
     switchTab('besok');
   } catch(e){
     if(e.status === 'not_registered'){
-      showToast('HP ini belum terdaftar buat hapus data beneran.');
+      showToast('⚠️ Sesi login habis — orderan BELUM dihapus. Sign in ulang dulu.');
     } else {
       showToast('Gagal hapus: ' + e.message);
     }
