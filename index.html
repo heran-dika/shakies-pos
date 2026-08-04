@@ -275,7 +275,7 @@
         <span id="riwayatTotalRevenue" style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:600;color:var(--jade-dark);white-space:nowrap;flex-shrink:0;">Rp 0</span>
       </div>
       <p class="section-sub" id="riwayatModeHint">Nampilin yang belum lunas aja.</p>
-      <div class="field"><input type="text" id="riwayatSearch" placeholder="Cari nama customer..." oninput="renderRiwayat()"></div>
+      <div class="field"><input type="text" id="riwayatSearch" list="customerList" autocomplete="off" placeholder="Cari nama customer..." oninput="renderRiwayat()"></div>
       <div class="filter-row">
         <input type="date" id="riwayatDateFrom" onchange="renderRiwayat()" style="flex:1;min-width:0;">
         <input type="date" id="riwayatDateTo" onchange="renderRiwayat()" style="flex:1;min-width:0;">
