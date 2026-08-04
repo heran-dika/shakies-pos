@@ -417,6 +417,7 @@ let staffSession = null; // {session_token, alias, email} — null kalau belum l
 const STAFF_SESSION_KEY = 'staff-session-v1';
 let orderSelections = {}; // nama_item -> qty
 let editingOrderId = null;
+let isSubmittingOrder = false; // dipake updateOrderTotal() biar gak diem-diem nge-enable tombol Simpan pas masih ada request nyangkut
 let editingOrderPrepared = false;
 let editingOrderPaid = false;
 let selectedBesokDate = null;
@@ -502,8 +503,14 @@ async function apiGet(action, params){
       if(params[k]) url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
     });
   }
-  const res = await fetch(url);
-  const json = await res.json();
+  const res = await fetch(url, { cache: 'no-store' });
+  const text = await res.text();
+  let json;
+  try{
+    json = JSON.parse(text);
+  } catch(e){
+    throw new Error('Server lagi bermasalah, coba lagi sebentar');
+  }
   if(json.status !== 'ok') throw new Error(json.message || 'Error');
   return json.data;
 }
@@ -516,7 +523,13 @@ async function apiPost(action, payload){
     headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // hindari CORS preflight
     body: JSON.stringify({ action, payload: mergedPayload })
   });
-  const json = await res.json();
+  const text = await res.text();
+  let json;
+  try{
+    json = JSON.parse(text);
+  } catch(e){
+    throw new Error('Server lagi bermasalah, coba lagi sebentar');
+  }
   if(json.status !== 'ok'){
     if(json.status === 'not_registered' && action !== 'verify_login' && staffSession){
       // Sesi login udah nggak valid lagi di server (expired/dihapus) — bersihin biar kepampang "Sign in" lagi
@@ -629,6 +642,7 @@ async function loadCustomers(){
     const datalist = document.getElementById('customerList');
     datalist.innerHTML = names.map(n=>`<option value="${escapeHtml(n)}">`).join('');
   } catch(e){
+    console.error('Gagal ambil daftar customer:', e);
     // Gagal ambil daftar customer bukan hal fatal — input nama tetep bisa dipakai manual tanpa saran.
   }
 }
@@ -880,7 +894,7 @@ function updateOrderTotal(){
   total += shipping;
   document.getElementById('orderTotal').textContent = rupiah(total);
   const hasItems = Object.keys(orderSelections).length > 0;
-  document.getElementById('btnSubmitOrder').disabled = !hasItems;
+  document.getElementById('btnSubmitOrder').disabled = !hasItems || isSubmittingOrder;
   return total;
 }
 
@@ -1043,6 +1057,7 @@ async function submitOrder(){
   const wasEditing = !!editingOrderId;
   const editedOrderId = editingOrderId;
   const hadRealSession = !!staffSession; // sebelum request — dipake buat bedain "sesi expired" vs "emang HP belum terdaftar"
+  isSubmittingOrder = true;
   btn.disabled = true; btn.textContent = editingOrderId ? 'Menyimpan perubahan...' : 'Menyimpan...';
   try{
     if(editingOrderId){
@@ -1095,6 +1110,7 @@ async function submitOrder(){
       showToast('Gagal simpan: ' + e.message);
     }
   } finally {
+    isSubmittingOrder = false;
     btn.textContent = editingOrderId ? 'Update Orderan' : 'Simpan Orderan';
     updateOrderTotal();
   }
