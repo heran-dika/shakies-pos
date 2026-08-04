@@ -418,6 +418,7 @@ const STAFF_SESSION_KEY = 'staff-session-v1';
 let orderSelections = {}; // nama_item -> qty
 let editingOrderId = null;
 let isSubmittingOrder = false; // dipake updateOrderTotal() biar gak diem-diem nge-enable tombol Simpan pas masih ada request nyangkut
+let pendingOrderClientId = null; // idempotency key add_order — dibikin sekali per sesi isi form, dipake ulang kalau di-retry (manual/otomatis), biar gak dobel kalau respon gagal balik padahal sheet udah ketulis
 let editingOrderPrepared = false;
 let editingOrderPaid = false;
 let selectedBesokDate = null;
@@ -429,9 +430,12 @@ let pendingStok = {}; // row -> nilai stok baru yang belum disimpen ke server
 let editingMenuRow = null; // row yang lagi diedit di modal Tambah/Edit Menu (null = mode tambah)
 let ordersFetchSeq = 0; // nomor urut tiap loadOrders() dipanggil — biar fetch basi yg nyusul telat gak nimpa data baru
 let recentLocalToggles = {}; // order_id -> {prepared?, paid?, until} — proteksi sementara abis tap centang/lunas biar gak ketiban fetch background yang lagi nunggak
+let lastOrdersFetchAt = 0; // kapan loadOrders() terakhir SUKSES — dipake guard biar gak fetch ulang tiap ganti tab kalau datanya masih anget
+const ORDERS_STALE_MS = 15000; // 15 detik — di bawah ini, buka tab Prep/Menu gak nembak get_orders baru, langsung pake data yg ada
 const PREP_CACHE_KEY = 'prep-orders-cache-v1';
 const MENU_CACHE_KEY = 'menu-cache-v1';
 const RIWAYAT_UNPAID_CACHE_KEY = 'riwayat-unpaid-cache-v1';
+const CUSTOMER_CACHE_KEY = 'customer-cache-v1';
 let riwayatDefaultSnapshotLoaded = false; // udah pernah fetch snapshot "belum lunas" di sesi ini?
 let riwayatDefaultSnapshot = []; // list order belum-lunas yang lagi ditampilin (nggak refilter otomatis)
 
@@ -478,6 +482,21 @@ function loadMenuCache(){
 }
 function saveMenuCache(items){
   try{ localStorage.setItem(MENU_CACHE_KEY, JSON.stringify({ items, cachedAt: Date.now() })); }
+  catch(e){ /* nggak fatal */ }
+}
+// Cache daftar nama customer buat autocomplete — sebelumnya nggak ada cache sama sekali,
+// jadi kalau fetch get_customers pas init gagal sekali aja, saran dropdown kosong sepanjang
+// sesi itu (efeknya kerasa kayak "kadang nyala kadang engga"). Sekarang persisten di HP.
+function loadCustomerCache(){
+  try{
+    const raw = localStorage.getItem(CUSTOMER_CACHE_KEY);
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed.names) ? parsed.names : null;
+  } catch(e){ return null; }
+}
+function saveCustomerCache(names){
+  try{ localStorage.setItem(CUSTOMER_CACHE_KEY, JSON.stringify({ names, cachedAt: Date.now() })); }
   catch(e){ /* nggak fatal */ }
 }
 // Cache "belum lunas" juga aman buat persisten — jumlahnya biasanya kecil (orderan lunas
@@ -560,6 +579,8 @@ async function refreshMenuStokContext(){
     allOrders = demoOrders.concat(cached);
     renderMenuManage();
   }
+  // Sama kayak Prep — skip fetch ulang kalau data masih anget.
+  if(Date.now() - lastOrdersFetchAt < ORDERS_STALE_MS) return;
   await loadOrders();
   renderMenuManage();
 }
@@ -637,13 +658,19 @@ async function loadMenu(){
   renderMenuManage();
 }
 async function loadCustomers(){
+  const datalist = document.getElementById('customerList');
+  const cached = loadCustomerCache();
+  if(cached && cached.length){
+    datalist.innerHTML = cached.map(n=>`<option value="${escapeHtml(n)}">`).join('');
+  }
   try{
     const names = await apiGet('get_customers');
-    const datalist = document.getElementById('customerList');
     datalist.innerHTML = names.map(n=>`<option value="${escapeHtml(n)}">`).join('');
+    saveCustomerCache(names);
   } catch(e){
     console.error('Gagal ambil daftar customer:', e);
-    // Gagal ambil daftar customer bukan hal fatal — input nama tetep bisa dipakai manual tanpa saran.
+    // Gagal ambil daftar customer bukan hal fatal — kalau ada cache lama, itu tetep kepake dari atas;
+    // kalau nggak ada cache, input nama tetep bisa dipakai manual tanpa saran.
   }
 }
 function getCategories(){
@@ -1021,6 +1048,7 @@ async function loadOrders(){
     if(mySeq !== ordersFetchSeq) return; // ada loadOrders() lain yg lebih baru nyusul — hasil ini basi, buang
     applyRecentToggleGuards(fresh); // biar field yg baru aja di-tap gak ketiban data lama dari fetch ini
     allOrders = demoOrders.concat(fresh); // orderan coba-coba tetep keliatan selama sesi ini, meski cuma lokal
+    lastOrdersFetchAt = Date.now(); // dipake guard staleness di renderBesok()/refreshMenuStokContext() biar gak fetch ulang tiap ganti tab
   } catch(e){
     if(mySeq !== ordersFetchSeq) return; // sama — request ini udah basi, gak perlu ganggu state
     showToast('Gagal ambil orderan: ' + e.message);
@@ -1057,6 +1085,11 @@ async function submitOrder(){
   const wasEditing = !!editingOrderId;
   const editedOrderId = editingOrderId;
   const hadRealSession = !!staffSession; // sebelum request — dipake buat bedain "sesi expired" vs "emang HP belum terdaftar"
+  // Idempotency key — dibikin SEKALI aja pas order baru pertama kali disubmit dalam sesi isi form ini.
+  // Kalau submit ini gagal/timeout terus di-retry (manual ataupun nanti otomatis), ID yang sama dikirim
+  // ulang, jadi backend bisa tau "ini request yang sama" dan gak nulis baris dobel walau request
+  // sebelumnya sebenarnya udah sukses nulis ke Sheet tapi responnya yang gagal balik.
+  if(!editingOrderId && !pendingOrderClientId) pendingOrderClientId = crypto.randomUUID();
   isSubmittingOrder = true;
   btn.disabled = true; btn.textContent = editingOrderId ? 'Menyimpan perubahan...' : 'Menyimpan...';
   try{
@@ -1070,7 +1103,7 @@ async function submitOrder(){
     } else {
       await apiPost('add_order', {
         delivery_date: deliveryDate, customer_name: customerName, items_summary, items, total, note,
-        device_label: deviceLabel || 'Tanpa label', shipping_fee: shippingFee
+        device_label: deviceLabel || 'Tanpa label', shipping_fee: shippingFee, client_order_id: pendingOrderClientId
       });
       showToast('Orderan disimpan ✓');
     }
@@ -1152,6 +1185,7 @@ function goToPrepAndHighlight(orderId, deliveryDate){
 }
 function resetOrderForm(){
   editingOrderId = null; editingOrderPrepared = false; editingOrderPaid = false;
+  pendingOrderClientId = null; // sesi isi order ini beres/dibatalin — key berikutnya digenerate baru
   document.getElementById('editBanner').style.display = 'none';
   document.getElementById('btnSubmitOrder').textContent = 'Simpan Orderan';
   document.getElementById('btnDeleteOrder').style.display = 'none';
@@ -1298,6 +1332,15 @@ async function renderBesok(){
     renderBesokList();
   } else {
     document.getElementById('besokContent').innerHTML = `<div class="spinner">Memuat orderan...</div>`;
+  }
+  // Cuma fetch ulang kalau data terakhir udah agak basi — sebelumnya tiap tab Prep dibuka
+  // PASTI fetch baru (3-4 detik), jadi mondar-mandir tab cepat nembak get_orders berkali-kali
+  // beruntun (ini juga yang bikin toast "server error" kerasa lebih sering — makin banyak
+  // panggilan, makin gede peluang kena hiccup random GAS).
+  if(Date.now() - lastOrdersFetchAt < ORDERS_STALE_MS){
+    renderDayStrip();
+    renderBesokList();
+    return;
   }
   const syncIcon = document.getElementById('prepSyncIcon');
   syncIcon.style.display = 'block';
@@ -1446,6 +1489,9 @@ async function renderRiwayatList(){
       area.innerHTML = `<div class="empty-state"><div class="glyph">⚠️</div>Gagal cari riwayat: ${escapeHtml(e.message)}</div>`;
       return;
     }
+    // Guard yang sama kayak loadOrders() — kalau ada tap Lunas/centang yg baru aja kejadian (<8 detik),
+    // jangan biar hasil search ini (yang mungkin diambil SEBELUM tap itu kekirim) nimpa balik ke nilai lama.
+    applyRecentToggleGuards(filtered);
     mergeSearchResultsIntoAllOrders(filtered); // biar tombol Lunas/Edit/Struk tetep jalan walau orderannya dari Archive
     hint.textContent = 'Hasil pencarian dari seluruh riwayat.';
     filtered = filtered.slice().sort((a,b)=> (a.delivery_date||'').localeCompare(b.delivery_date||''));
