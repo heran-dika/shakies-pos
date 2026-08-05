@@ -24,10 +24,10 @@
     --border:#E7E1D6; --radius:16px; --radius-sm:10px;
   }
   *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;overflow-x:hidden;touch-action:pan-x pan-y;}
+  html,body{margin:0;padding:0;touch-action:pan-x pan-y;}
   body{background:var(--bg);color:var(--ink);font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh;padding-bottom:78px;}
   .wrap{max-width:480px;margin:0 auto;position:relative;}
-  header{padding:calc(env(safe-area-inset-top,0px) + 18px) 18px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:20;gap:8px;}
+  header{padding:calc(env(safe-area-inset-top,0px) + 8px) 18px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:20;gap:8px;}
   .brand{display:flex;align-items:center;gap:10px;min-width:0;}
   .brand-mark{width:36px;height:36px;border-radius:50%;background:var(--jade);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
   .brand-mark svg{width:19px;height:19px;}
@@ -115,7 +115,7 @@
   .check-toggle.checked svg{display:block;}
   .filter-row{display:flex;gap:8px;margin-bottom:14px;}
   .filter-row input{flex:1;} .filter-row input[type=date]{flex:0 0 130px;}
-  nav.tabbar{position:fixed;bottom:0;left:0;right:0;z-index:30;background:var(--surface);border-top:1px solid var(--border);display:flex;padding:6px 4px calc(6px + env(safe-area-inset-bottom));}
+  nav.tabbar{position:fixed;bottom:0;left:0;right:0;z-index:30;background:var(--surface);border-top:1px solid var(--border);display:flex;padding:6px 4px calc(4px + env(safe-area-inset-bottom));}
   nav.tabbar .wrap-inner{max-width:480px;margin:0 auto;display:flex;width:100%;}
   nav.tabbar button{flex:1;background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;color:var(--ink-soft);font-family:'DM Sans',sans-serif;font-size:10.5px;font-weight:600;cursor:pointer;border-radius:10px;}
   nav.tabbar button svg{width:20px;height:20px;}
