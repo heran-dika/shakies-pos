@@ -133,6 +133,25 @@
   .order-card .edit-icon-btn{background:none;border:none;padding:2px;line-height:0;cursor:pointer;color:var(--jade-dark);opacity:.5;}
   .order-card .edit-icon-btn:active{opacity:.9;}
   .order-card .edit-icon-btn svg{width:15px;height:15px;}
+  .saldo-icon-btn{background:var(--jade-tint);border:1px solid var(--border);border-radius:12px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--jade-dark);flex-shrink:0;}
+  .saldo-icon-btn svg{width:19px;height:19px;}
+  .saldo-icon-btn:active{opacity:.75;}
+  .saldo-list-row{display:flex;justify-content:space-between;align-items:center;padding:11px 4px;border-bottom:1px solid var(--border);cursor:pointer;}
+  .saldo-list-row:active{background:var(--jade-tint);}
+  .saldo-list-row .nama{font-weight:600;font-size:14px;}
+  .saldo-list-row .saldo{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink-soft);}
+  .saldo-list-row .saldo.has-saldo{color:var(--jade-dark);font-weight:600;}
+  .saldo-detail-back{background:none;border:none;color:var(--jade-dark);font-size:13px;padding:4px 0 12px;cursor:pointer;}
+  .saldo-breakdown{display:flex;justify-content:space-between;background:var(--jade-tint);border-radius:var(--radius-sm);padding:12px;margin-bottom:14px;}
+  .saldo-breakdown .col{text-align:center;flex:1;}
+  .saldo-breakdown .col .label{font-size:10.5px;color:var(--ink-soft);margin-bottom:2px;}
+  .saldo-breakdown .col .val{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:13.5px;color:var(--jade-dark);}
+  .saldo-topup-row{display:flex;gap:8px;margin-bottom:16px;}
+  .saldo-topup-row input{flex:1;}
+  .saldo-history-item{display:flex;justify-content:space-between;font-size:12.5px;padding:8px 4px;border-bottom:1px solid var(--border);color:var(--ink-soft);}
+  .order-card .saldo-hint{font-size:11.5px;margin:-2px 0 6px;font-family:'IBM Plex Mono',monospace;}
+  .order-card .saldo-hint.ok{color:var(--jade-dark);}
+  .order-card .saldo-hint.short{color:var(--chili);}
 
   /* ==== STRUK ORDER ==== */
   .receipt-sheet{max-width:380px;}
@@ -225,7 +244,12 @@
 
       <div class="field">
         <label class="field-label">Nama Customer</label>
-        <input type="text" id="custName" list="customerList" autocomplete="off" placeholder="Nama pemesan (kosongin = pakai nama HP)">
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="text" id="custName" list="customerList" autocomplete="off" placeholder="Nama pemesan (kosongin = pakai nama HP)" style="flex:1;">
+          <button type="button" class="saldo-icon-btn" onclick="openSaldoPanel()" aria-label="Saldo customer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </button>
+        </div>
         <datalist id="customerList"></datalist>
       </div>
       <div class="field">
@@ -334,6 +358,35 @@
         <button class="btn-copy" onclick="copyReceiptText()">Copy Teks</button>
       </div>
       <button onclick="closeReceiptView()" style="width:100%;margin-top:10px;background:none;border:none;color:var(--ink-soft);font-size:13px;padding:8px 0;">Tutup</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="saldoModal">
+    <div class="modal-sheet">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h3 style="margin:0;" id="saldoModalTitle">Saldo Customer</h3>
+        <button onclick="closeSaldoPanel()" style="background:none;border:none;font-size:22px;color:var(--ink-soft);cursor:pointer;line-height:1;padding:4px;">×</button>
+      </div>
+      <div id="saldoListView">
+        <p>Tap nama buat lihat/isi saldo.</p>
+        <div id="saldoListArea"><div class="spinner">Memuat...</div></div>
+      </div>
+      <div id="saldoDetailView" style="display:none;">
+        <button class="saldo-detail-back" onclick="showSaldoListView()">← Balik ke daftar</button>
+        <p style="margin-top:-6px;font-weight:600;color:var(--jade-dark);" id="saldoDetailNama"></p>
+        <div class="saldo-breakdown">
+          <div class="col"><div class="label">Saldo Awal</div><div class="val" id="saldoDetailAwal">-</div></div>
+          <div class="col"><div class="label">Saldo Jajan</div><div class="val" id="saldoDetailJajan">-</div></div>
+          <div class="col"><div class="label">Saldo Sisa</div><div class="val" id="saldoDetailSisa">-</div></div>
+        </div>
+        <label class="field-label">Top Up (isi negatif buat koreksi salah input)</label>
+        <div class="saldo-topup-row">
+          <input type="number" id="saldoTopupAmount" placeholder="misal 100000 atau -20000">
+          <button onclick="submitTopupSaldo()">Top Up</button>
+        </div>
+        <label class="field-label">Histori order pake saldo</label>
+        <div id="saldoHistoryArea"><p class="section-sub">Belum ada.</p></div>
+      </div>
     </div>
   </div>
 
@@ -678,6 +731,160 @@ async function loadCustomers(){
     // kalau nggak ada cache, input nama tetep bisa dipakai manual tanpa saran.
   }
 }
+
+// ==== SALDO CUSTOMER ====
+// customerSaldoMap: nama (lowercase) -> {nama, customer_id, saldo_real, saldo_prep, saldo_sisa}
+// Dipake buat: (1) isi panel Saldo, (2) nentuin order mana yang perlu diliatin baris
+// "Saldo tersedia"/"Kurang" di card, (3) nyari customer_id mana aja yang perlu di-sync
+// (reconcile) abis orderan ke-load.
+let customerSaldoMap = {};
+let saldoDetailCustomerId = null; // customer_id yang lagi kebuka di detail view panel
+
+async function loadCustomerSaldoMap(){
+  try{
+    const list = await apiGet('get_customers_saldo');
+    const map = {};
+    list.forEach(c=>{ map[c.nama.toLowerCase()] = c; });
+    customerSaldoMap = map;
+  } catch(e){
+    console.error('Gagal ambil saldo customer:', e);
+    // Non-fatal — panel/hint saldo cuma nggak keupdate, order tetep jalan normal.
+  }
+}
+
+function openSaldoPanel(){
+  document.getElementById('saldoModal').classList.remove('hidden');
+  showSaldoListView();
+  renderSaldoList();
+}
+function closeSaldoPanel(){ document.getElementById('saldoModal').classList.add('hidden'); }
+function showSaldoListView(){
+  document.getElementById('saldoListView').style.display = 'block';
+  document.getElementById('saldoDetailView').style.display = 'none';
+  saldoDetailCustomerId = null;
+}
+async function renderSaldoList(){
+  const area = document.getElementById('saldoListArea');
+  area.innerHTML = `<div class="spinner">Memuat...</div>`;
+  await loadCustomerSaldoMap();
+  const list = Object.values(customerSaldoMap).sort((a,b)=> a.nama.localeCompare(b.nama, 'id'));
+  if(list.length === 0){
+    area.innerHTML = `<p class="section-sub">Belum ada customer tercatat.</p>`;
+    return;
+  }
+  area.innerHTML = list.map(c=>`
+    <div class="saldo-list-row" onclick="openSaldoDetailByName('${escapeHtml(c.nama).replace(/'/g,"\\'")}')">
+      <span class="nama">${escapeHtml(c.nama)}</span>
+      <span class="saldo ${c.saldo_real>0?'has-saldo':''}">${rupiah(c.saldo_real)}</span>
+    </div>`).join('');
+}
+function openSaldoDetailByName(nama){
+  const c = customerSaldoMap[nama.toLowerCase()];
+  openSaldoDetail(nama, c ? c.customer_id : '');
+}
+async function openSaldoDetail(nama, customerId){
+  document.getElementById('saldoListView').style.display = 'none';
+  document.getElementById('saldoDetailView').style.display = 'block';
+  document.getElementById('saldoDetailNama').textContent = nama;
+  saldoDetailCustomerId = customerId || null;
+  document.getElementById('saldoTopupAmount').value = '';
+
+  if(!customerId){
+    // Belum pernah top up — belum ada Customer ID, jadi belum ada apa-apa buat ditampilin selain 0.
+    document.getElementById('saldoDetailAwal').textContent = rupiah(0);
+    document.getElementById('saldoDetailJajan').textContent = rupiah(0);
+    document.getElementById('saldoDetailSisa').textContent = rupiah(0);
+    document.getElementById('saldoHistoryArea').innerHTML = `<p class="section-sub">Belum pernah nitip saldo. Top Up buat mulai.</p>`;
+    return;
+  }
+  try{
+    const detail = await apiGet('get_customer_saldo_detail', { customer_id: customerId });
+    document.getElementById('saldoDetailAwal').textContent = rupiah(detail.saldo_real);
+    document.getElementById('saldoDetailJajan').textContent = rupiah(detail.saldo_prep);
+    document.getElementById('saldoDetailSisa').textContent = rupiah(detail.saldo_sisa);
+    document.getElementById('saldoHistoryArea').innerHTML = detail.history.length === 0
+      ? `<p class="section-sub">Belum ada order yang pake saldo.</p>`
+      : detail.history.map(h=>`
+        <div class="saldo-history-item">
+          <span>${formatDateLong(h.delivery_date)} · ${rupiah(h.total)}</span>
+          <span>-${rupiah(h.saldo_used)} → sisa ${h.saldo_sisa_after===null?'-':rupiah(h.saldo_sisa_after)}</span>
+        </div>`).join('');
+  } catch(e){
+    showToast('Gagal ambil detail saldo: ' + e.message);
+  }
+}
+async function submitTopupSaldo(){
+  const nama = document.getElementById('saldoDetailNama').textContent.trim();
+  const amountRaw = document.getElementById('saldoTopupAmount').value.trim();
+  const amount = Number(amountRaw);
+  if(!nama || !amountRaw || isNaN(amount) || amount === 0){ showToast('Isi nominal top up dulu'); return; }
+  try{
+    const result = await apiPost('topup_saldo', { nama, amount });
+    showToast('Saldo diupdate: ' + rupiah(result.saldo_real));
+    // Abis top up, langsung coba alokasiin ke order belum lunas yang mungkin sekarang udah kecukup.
+    await apiPost('reconcile_saldo', { customer_id: result.customer_id });
+    await loadCustomerSaldoMap();
+    await openSaldoDetail(nama, result.customer_id);
+    // Order yang barusan auto-lunas via saldo perlu keliatan di Prep/Riwayat — refresh data + re-render tab aktif.
+    await loadOrders();
+    refreshActiveTabAfterSaldoChange();
+  } catch(e){
+    showToast('Gagal top up: ' + e.message);
+  }
+}
+function refreshActiveTabAfterSaldoChange(){
+  const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab;
+  if(activeTab === 'besok') renderBesok();
+  if(activeTab === 'riwayat') renderRiwayat();
+}
+
+// Dipanggil abis orders di-load (Prep/Riwayat) — cek semua order BELUM LUNAS yang customernya
+// punya Customer ID, coba alokasiin saldo (FIFO, ditangani backend). Kalau ada yang berhasil
+// dialokasiin (jadi Lunas), reload data biar card-nya keupdate. Skala kecil (5-10 orang nitip
+// saldo) jadi ini murah — paling banter beberapa POST tiap kali tab dibuka.
+let saldoSyncInFlight = false;
+async function syncSaldoForUnpaidOrders(orders){
+  if(saldoSyncInFlight) return; // cegah numpuk kalau kepanggil beberapa kali beruntun
+  if(Object.keys(customerSaldoMap).length === 0) await loadCustomerSaldoMap();
+  const customerIdsToSync = new Set();
+  (orders || []).forEach(o=>{
+    if(o.paid) return;
+    const c = customerSaldoMap[String(o.customer_name||'').trim().toLowerCase()];
+    if(c && c.customer_id) customerIdsToSync.add(c.customer_id);
+  });
+  if(customerIdsToSync.size === 0) return;
+  saldoSyncInFlight = true;
+  let anyAllocated = false;
+  try{
+    for(const customerId of customerIdsToSync){
+      try{
+        const r = await apiPost('reconcile_saldo', { customer_id: customerId });
+        if(r.allocated_count > 0) anyAllocated = true;
+      } catch(e){ /* 1 customer gagal sync — lanjut ke yang lain, jangan berhentiin semua */ }
+    }
+    if(anyAllocated){
+      await loadCustomerSaldoMap();
+      await loadOrders();
+      refreshActiveTabAfterSaldoChange();
+    }
+  } finally {
+    saldoSyncInFlight = false;
+  }
+}
+
+// Baris kecil di card order Belum Lunas — "Saldo tersedia: Rp X" / "Kurang Rp Y".
+// Cuma muncul kalau customer-nya punya Customer ID (pernah nitip saldo).
+function saldoLineHtml(o){
+  if(o.paid) return '';
+  const c = customerSaldoMap[String(o.customer_name||'').trim().toLowerCase()];
+  if(!c || !c.customer_id) return '';
+  const sisa = c.saldo_sisa;
+  if(sisa >= o.total){
+    return `<div class="saldo-hint ok">Saldo tersedia: ${rupiah(sisa)}</div>`;
+  }
+  return `<div class="saldo-hint short">Kurang ${rupiah(o.total - sisa)} dari saldo</div>`;
+}
+
 function getCategories(){
   const seen = []; menuItems.forEach(i=>{ if(!seen.includes(i.kategori)) seen.push(i.kategori); }); return seen;
 }
@@ -1347,6 +1554,7 @@ async function renderBesok(){
   if(Date.now() - lastOrdersFetchAt < ORDERS_STALE_MS){
     renderDayStrip();
     renderBesokList();
+    syncSaldoForUnpaidOrders(allOrders); // fire-and-forget, re-render sendiri kalau ada yg keupdate
     return;
   }
   const syncIcon = document.getElementById('prepSyncIcon');
@@ -1356,6 +1564,7 @@ async function renderBesok(){
   syncIcon.style.display = 'none';
   renderDayStrip();
   renderBesokList();
+  syncSaldoForUnpaidOrders(allOrders); // fire-and-forget, re-render sendiri kalau ada yg keupdate
 }
 function renderBesokList(){
   const area = document.getElementById('besokContent');
@@ -1451,6 +1660,7 @@ function renderBesokList(){
       <div class="items-list" onclick="openEditOrder('${o.order_id}')">${escapeHtml(computeLiveItemsSummary(o, menuByIdBesok))}</div>
       ${o.note ? `<div class="items-list" style="font-style:italic;">"${escapeHtml(o.note)}"</div>` : ''}
       ${o.shipping_fee ? `<div class="items-list">Ongkir: ${rupiah(o.shipping_fee)}</div>` : ''}
+      ${saldoLineHtml(o)}
       <div class="bottom-row">
         <span class="price">${rupiah(liveTotal)}</span>
         <button class="pay-toggle ${o.paid?'paid':''}" onclick="togglePaid('${o.order_id}')">${o.paid?'✓ Lunas':'Belum Lunas'}</button>
@@ -1503,6 +1713,7 @@ async function renderRiwayatList(){
     hint.textContent = 'Hasil pencarian dari seluruh riwayat.';
     filtered = filtered.slice().sort((a,b)=> (a.delivery_date||'').localeCompare(b.delivery_date||''));
     renderRiwayatCards(filtered);
+    syncSaldoForUnpaidOrders(filtered);
     return;
   }
 
@@ -1512,6 +1723,7 @@ async function renderRiwayatList(){
   hint.textContent = 'Nampilin yang belum lunas aja.';
   if(riwayatDefaultSnapshotLoaded){
     renderRiwayatCards(riwayatDefaultSnapshot);
+    syncSaldoForUnpaidOrders(riwayatDefaultSnapshot);
     return;
   }
 
@@ -1535,6 +1747,7 @@ async function renderRiwayatList(){
   riwayatDefaultSnapshotLoaded = true;
   saveRiwayatUnpaidCache(riwayatDefaultSnapshot);
   renderRiwayatCards(riwayatDefaultSnapshot);
+  syncSaldoForUnpaidOrders(riwayatDefaultSnapshot);
 }
 function renderRiwayatCards(list){
   const area = document.getElementById('riwayatContent');
@@ -1553,6 +1766,7 @@ function renderRiwayatCards(list){
       </div>
       <div class="items-list" onclick="openReceiptView('${o.order_id}')">${escapeHtml(o.items_summary)}</div>
       ${o.shipping_fee ? `<div class="items-list" onclick="openReceiptView('${o.order_id}')">Ongkir: ${rupiah(o.shipping_fee)}</div>` : ''}
+      ${saldoLineHtml(o)}
       <div class="bottom-row">
         <span class="price">${rupiah(o.total)}</span>
         <span class="prep-status">
@@ -1904,6 +2118,7 @@ document.getElementById('deliveryDate').value = tomorrowISO();
   loadStaffSession();
   await loadMenu();
   loadCustomers();
+  loadCustomerSaldoMap();
   // Prefetch orderan di background (gak di-await) begitu app dibuka, biar pas tab Prep/Riwayat
   // ditap pertama kali datanya udah anget, gak nunggu fetch dari nol.
   loadOrders().then((ok)=>{
