@@ -15,7 +15,7 @@ Aplikasi POS sederhana buat **Shakies** (toko roti) & **Dimsum Mentai Galaxy** �
 
 ## Fitur
 
-- 📝 Input orderan (nama, tanggal kirim, item, biaya ekspedisi opsional) — total kehitung otomatis
+- 📝 Input orderan (nama, tanggal kirim, item, biaya ekspedisi opsional) — total kehitung otomatis 
 - 🍞 Kelola menu (kategori & item) langsung dari app, tiap item punya ID permanen jadi aman diubah nama/harga kapan aja
 - 📦 Stok per item — **Real** (fisik di dapur, isi manual), **Prep** (kebooking dari orderan 7 hari ke depan), **Tersedia** (Real − Prep) dihitung otomatis; varian produk bisa numpang stok ke item induk (mother/child), item tak terbatas bisa ditandai unlimited
 - 📅 Kalender 7 hari ke depan buat cek & checklist persiapan PO, dengan warning warna kalau stok mepet
