@@ -141,7 +141,8 @@
   .saldo-list-row .nama{font-weight:600;font-size:14px;}
   .saldo-list-row .saldo{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink-soft);}
   .saldo-list-row .saldo.has-saldo{color:var(--jade-dark);font-weight:600;}
-  .saldo-detail-back{background:none;border:none;color:var(--jade-dark);font-size:13px;padding:4px 0 12px;cursor:pointer;}
+  .saldo-detail-back{display:inline-flex;align-items:center;gap:4px;background:var(--jade-tint);border:1px solid var(--border);border-radius:999px;color:var(--jade-dark);font-size:12.5px;font-weight:600;padding:7px 13px;margin-bottom:14px;cursor:pointer;}
+  .saldo-detail-back:active{opacity:.7;}
   .saldo-breakdown{display:flex;justify-content:space-between;background:var(--jade-tint);border-radius:var(--radius-sm);padding:12px;margin-bottom:14px;}
   .saldo-breakdown .col{text-align:center;flex:1;}
   .saldo-breakdown .col .label{font-size:10.5px;color:var(--ink-soft);margin-bottom:2px;}
@@ -361,7 +362,7 @@
     </div>
   </div>
 
-  <div class="modal-overlay hidden" id="saldoModal">
+  <div class="modal-overlay hidden" id="saldoModal" onclick="if(event.target===this) closeSaldoPanel()">
     <div class="modal-sheet">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <h3 style="margin:0;" id="saldoModalTitle">Saldo Customer</h3>
@@ -495,6 +496,7 @@ const MENU_CACHE_KEY = 'menu-cache-v1';
 const RIWAYAT_UNPAID_CACHE_KEY = 'riwayat-unpaid-cache-v1';
 const CUSTOMER_CACHE_KEY = 'customer-cache-v1';
 const SALDO_CACHE_KEY = 'saldo-cache-v1';
+const ACTIVE_TAB_KEY = 'active-tab-v1';
 let riwayatDefaultSnapshotLoaded = false; // udah pernah fetch snapshot "belum lunas" di sesi ini?
 let riwayatDefaultSnapshot = []; // list order belum-lunas yang lagi ditampilin (nggak refilter otomatis)
 
@@ -625,6 +627,7 @@ function switchTab(name){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
+  try{ localStorage.setItem(ACTIVE_TAB_KEY, name); } catch(e){ /* nggak fatal */ }
   if(name==='besok') renderBesok();
   if(name==='riwayat') renderRiwayat();
   if(name==='menu') { renderMenuManage(); refreshMenuStokContext(); }
@@ -2187,6 +2190,11 @@ document.getElementById('deliveryDate').value = tomorrowISO();
     saveRiwayatUnpaidCache(riwayatDefaultSnapshot);
     renderMenuPicker(); // refresh angka Tersedia di tab Order begitu data orderan udah anget
   });
+
+  // Balikin ke tab terakhir yang lagi dibuka sebelum refresh (bukan selalu ke tab Order).
+  let lastTab = 'order';
+  try{ lastTab = localStorage.getItem(ACTIVE_TAB_KEY) || 'order'; } catch(e){ /* nggak fatal */ }
+  if(lastTab !== 'order') switchTab(lastTab);
 })();
 </script>
 </body>
