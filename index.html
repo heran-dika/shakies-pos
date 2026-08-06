@@ -368,7 +368,7 @@
         <button onclick="closeSaldoPanel()" style="background:none;border:none;font-size:22px;color:var(--ink-soft);cursor:pointer;line-height:1;padding:4px;">×</button>
       </div>
       <div id="saldoListView">
-        <p>Tap nama buat lihat/isi saldo.</p>
+        <input type="text" id="saldoSearchInput" placeholder="Cari nama customer..." oninput="filterSaldoList(this.value)" style="margin-bottom:10px;">
         <div id="saldoListArea"><div class="spinner">Memuat...</div></div>
       </div>
       <div id="saldoDetailView" style="display:none;">
@@ -494,6 +494,7 @@ const PREP_CACHE_KEY = 'prep-orders-cache-v1';
 const MENU_CACHE_KEY = 'menu-cache-v1';
 const RIWAYAT_UNPAID_CACHE_KEY = 'riwayat-unpaid-cache-v1';
 const CUSTOMER_CACHE_KEY = 'customer-cache-v1';
+const SALDO_CACHE_KEY = 'saldo-cache-v1';
 let riwayatDefaultSnapshotLoaded = false; // udah pernah fetch snapshot "belum lunas" di sesi ini?
 let riwayatDefaultSnapshot = []; // list order belum-lunas yang lagi ditampilin (nggak refilter otomatis)
 
@@ -737,23 +738,57 @@ async function loadCustomers(){
 // Dipake buat: (1) isi panel Saldo, (2) nentuin order mana yang perlu diliatin baris
 // "Saldo tersedia"/"Kurang" di card, (3) nyari customer_id mana aja yang perlu di-sync
 // (reconcile) abis orderan ke-load.
+// Cache-first, SAMA POLA kayak Customer/Menu/Prep (loadXCache/saveXCache di localStorage) —
+// biar kalau fetch gagal, HP tetep punya data lama buat ditampilin, gak balik kosong total.
 let customerSaldoMap = {};
 let saldoDetailCustomerId = null; // customer_id yang lagi kebuka di detail view panel
+let saldoSearchQuery = '';
+let saldoFetchFailCount = 0;
+let saldoFetchCooldownUntil = 0; // timestamp — sebelum ini, skip fetch baru (anti nembak API berkali-kali pas lagi gagal terus)
+
+function loadSaldoCache(){
+  try{
+    const raw = localStorage.getItem(SALDO_CACHE_KEY);
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    return (parsed && typeof parsed.map === 'object') ? parsed.map : null;
+  } catch(e){ return null; }
+}
+function saveSaldoCache(map){
+  try{ localStorage.setItem(SALDO_CACHE_KEY, JSON.stringify({ map, cachedAt: Date.now() })); }
+  catch(e){ /* nggak fatal */ }
+}
+// Isi customerSaldoMap dari cache lokal SEKETIKA (sinkron, gak nunggu network) — dipanggil
+// pas init & sebelum card Prep/Riwayat digambar, biar baris "Saldo tersedia/Kurang" langsung
+// ada dari awal (fix bug: sebelumnya map baru keisi SETELAH card digambar, jadi hint-nya
+// selalu ketinggalan 1 langkah).
+function loadSaldoMapFromCache(){
+  const cached = loadSaldoCache();
+  if(cached) customerSaldoMap = cached;
+}
 
 async function loadCustomerSaldoMap(){
+  if(Date.now() < saldoFetchCooldownUntil) return; // masih cooldown dari kegagalan sebelumnya — skip, jangan nembak lagi
   try{
     const list = await apiGet('get_customers_saldo');
     const map = {};
     list.forEach(c=>{ map[c.nama.toLowerCase()] = c; });
     customerSaldoMap = map;
+    saveSaldoCache(map);
+    saldoFetchFailCount = 0;
   } catch(e){
     console.error('Gagal ambil saldo customer:', e);
-    // Non-fatal — panel/hint saldo cuma nggak keupdate, order tetep jalan normal.
+    saldoFetchFailCount++;
+    // Backoff: 5 detik, 10, 20, 40... maks 60 detik — biar kalau backend lagi bermasalah,
+    // app gak nembak get_customers_saldo berkali-kali tiap kali Prep/Riwayat dibuka.
+    saldoFetchCooldownUntil = Date.now() + Math.min(60000, 5000 * Math.pow(2, saldoFetchFailCount - 1));
   }
 }
 
 function openSaldoPanel(){
   document.getElementById('saldoModal').classList.remove('hidden');
+  saldoSearchQuery = '';
+  document.getElementById('saldoSearchInput').value = '';
   showSaldoListView();
   renderSaldoList();
 }
@@ -765,18 +800,35 @@ function showSaldoListView(){
 }
 async function renderSaldoList(){
   const area = document.getElementById('saldoListArea');
-  area.innerHTML = `<div class="spinner">Memuat...</div>`;
+  loadSaldoMapFromCache(); // tampilin cache dulu (instan), sambil fetch fresh di belakang
+  drawSaldoListRows();
   await loadCustomerSaldoMap();
-  const list = Object.values(customerSaldoMap).sort((a,b)=> a.nama.localeCompare(b.nama, 'id'));
+  drawSaldoListRows();
+}
+function filterSaldoList(query){
+  saldoSearchQuery = query;
+  drawSaldoListRows();
+}
+function drawSaldoListRows(){
+  const area = document.getElementById('saldoListArea');
+  const q = saldoSearchQuery.trim().toLowerCase();
+  const list = Object.values(customerSaldoMap)
+    .filter(c => !q || c.nama.toLowerCase().includes(q))
+    .sort((a,b)=> a.nama.localeCompare(b.nama, 'id'));
   if(list.length === 0){
-    area.innerHTML = `<p class="section-sub">Belum ada customer tercatat.</p>`;
+    area.innerHTML = `<p class="section-sub">${q ? 'Gak ketemu nama itu.' : 'Belum ada customer tercatat.'}</p>`;
     return;
   }
   area.innerHTML = list.map(c=>`
-    <div class="saldo-list-row" onclick="openSaldoDetailByName('${escapeHtml(c.nama).replace(/'/g,"\\'")}')">
-      <span class="nama">${escapeHtml(c.nama)}</span>
-      <span class="saldo ${c.saldo_real>0?'has-saldo':''}">${rupiah(c.saldo_real)}</span>
+    <div class="saldo-list-row">
+      <span class="nama" onclick="pickCustomerNameForOrder('${escapeHtml(c.nama).replace(/'/g,"\\'")}')">${escapeHtml(c.nama)}</span>
+      <span class="saldo ${c.saldo_real>0?'has-saldo':''}" onclick="event.stopPropagation(); openSaldoDetailByName('${escapeHtml(c.nama).replace(/'/g,"\\'")}')">${rupiah(c.saldo_real)}</span>
     </div>`).join('');
+}
+// Tap NAMA di panel -> isi form order (bukan buka detail saldo) + tutup panel.
+function pickCustomerNameForOrder(nama){
+  document.getElementById('custName').value = nama;
+  closeSaldoPanel();
 }
 function openSaldoDetailByName(nama){
   const c = customerSaldoMap[nama.toLowerCase()];
@@ -823,6 +875,7 @@ async function submitTopupSaldo(){
     showToast('Saldo diupdate: ' + rupiah(result.saldo_real));
     // Abis top up, langsung coba alokasiin ke order belum lunas yang mungkin sekarang udah kecukup.
     await apiPost('reconcile_saldo', { customer_id: result.customer_id });
+    saldoFetchCooldownUntil = 0; // topup barusan sukses -> reset cooldown, biar refresh berikutnya gak ketahan
     await loadCustomerSaldoMap();
     await openSaldoDetail(nama, result.customer_id);
     // Order yang barusan auto-lunas via saldo perlu keliatan di Prep/Riwayat — refresh data + re-render tab aktif.
@@ -845,7 +898,6 @@ function refreshActiveTabAfterSaldoChange(){
 let saldoSyncInFlight = false;
 async function syncSaldoForUnpaidOrders(orders){
   if(saldoSyncInFlight) return; // cegah numpuk kalau kepanggil beberapa kali beruntun
-  if(Object.keys(customerSaldoMap).length === 0) await loadCustomerSaldoMap();
   const customerIdsToSync = new Set();
   (orders || []).forEach(o=>{
     if(o.paid) return;
@@ -863,6 +915,7 @@ async function syncSaldoForUnpaidOrders(orders){
       } catch(e){ /* 1 customer gagal sync — lanjut ke yang lain, jangan berhentiin semua */ }
     }
     if(anyAllocated){
+      saldoFetchCooldownUntil = 0;
       await loadCustomerSaldoMap();
       await loadOrders();
       refreshActiveTabAfterSaldoChange();
@@ -1537,6 +1590,7 @@ function computeLiveOrderTotal(o, menuById){
 }
 function toggleItemFilter(name){ activeItemFilter = (activeItemFilter === name) ? null : name; renderBesokList(); }
 async function renderBesok(){
+  loadSaldoMapFromCache(); // sinkron, instan — biar saldoLineHtml() punya data begitu card pertama digambar
   // Tampilin cache dulu (kalau ada) biar instan, baru refresh diam-diam di background
   const cached = loadPrepCache();
   if(cached && cached.length){
@@ -1560,11 +1614,12 @@ async function renderBesok(){
   const syncIcon = document.getElementById('prepSyncIcon');
   syncIcon.style.display = 'block';
   await loadOrders();
+  await loadCustomerSaldoMap(); // refresh fresh (cooldown otomatis ngerem kalau lagi gagal terus)
   savePrepCache(allOrders);
   syncIcon.style.display = 'none';
   renderDayStrip();
   renderBesokList();
-  syncSaldoForUnpaidOrders(allOrders); // fire-and-forget, re-render sendiri kalau ada yg keupdate
+  syncSaldoForUnpaidOrders(allOrders); // fire-and-forget, cuma buat coba auto-lunas FIFO
 }
 function renderBesokList(){
   const area = document.getElementById('besokContent');
@@ -1686,6 +1741,7 @@ async function renderRiwayat(){
   await renderRiwayatList();
 }
 async function renderRiwayatList(){
+  loadSaldoMapFromCache(); // sinkron, instan — biar saldoLineHtml() punya data begitu card pertama digambar
   const search = document.getElementById('riwayatSearch').value.trim().toLowerCase();
   const dateFrom = document.getElementById('riwayatDateFrom').value;
   const dateTo = document.getElementById('riwayatDateTo').value;
@@ -1736,6 +1792,7 @@ async function renderRiwayatList(){
   }
   syncIcon.style.display = 'block';
   const ok = await loadOrders();
+  await loadCustomerSaldoMap(); // refresh fresh (cooldown otomatis ngerem kalau lagi gagal terus)
   syncIcon.style.display = 'none';
   if(!ok){
     // Fetch gagal — JANGAN kunci riwayatDefaultSnapshotLoaded, biar next kali Riwayat dibuka
@@ -2116,6 +2173,7 @@ document.getElementById('deliveryDate').value = tomorrowISO();
     return;
   }
   loadStaffSession();
+  loadSaldoMapFromCache();
   await loadMenu();
   loadCustomers();
   loadCustomerSaldoMap();
