@@ -951,6 +951,14 @@ function saldoLineHtml(o){
     const sisaText = (o.saldo_sisa_after === null || o.saldo_sisa_after === undefined) ? '-' : rupiah(o.saldo_sisa_after);
     return `<div class="saldo-hint ok">Dibayar via saldo: ${rupiah(o.saldo_used)} · sisa saat itu ${sisaText}</div>`;
   }
+  // Belum Lunas tapi udah punya saldo_used kebekukan (misal data dari sebelum fix reconcile,
+  // atau order sempet di-"Belum Bayar"-in manual sebelum aturan lock ini ada) — tampilin nilai
+  // yang UDAH DIBEKUKAN, jangan hitung ulang "Kurang" dari saldo LIVE (itu yang bikin salah,
+  // soalnya saldo yang udah dipesan order ini gak lagi kehitung tersedia buat order lain).
+  if(o.saldo_used > 0){
+    const sisaText = (o.saldo_sisa_after === null || o.saldo_sisa_after === undefined) ? '-' : rupiah(o.saldo_sisa_after);
+    return `<div class="saldo-hint ok">Udah pernah kepake saldo: ${rupiah(o.saldo_used)} · sisa saat itu ${sisaText}</div>`;
+  }
   const c = customerSaldoMap[String(o.customer_name||'').trim().toLowerCase()];
   if(!c || !c.customer_id) return '';
   const sisa = c.saldo_sisa;
@@ -1538,8 +1546,27 @@ async function togglePaid(orderId){
   const order = allOrders.find(o=>o.order_id===orderId);
   if(!order) return;
   if(order.paid){
+    // Order yang lunas KARENA SALDO dikunci — gak boleh di-"Belum Bayar"-in dari card.
+    // Alasan: begitu dibalik jadi Belum Lunas, hint saldo di card ngitung ulang dari nol
+    // (padahal saldo_used-nya udah kepake/kebekukan), hasilnya nunjukin "Kurang" yang salah
+    // dan bikin bingung. Kalau emang ada kesalahan, koreksi lewat Top Up (isi negatif) di
+    // panel Saldo, bukan dari toggle Lunas di card.
+    if(order.saldo_used > 0){
+      showToast('Order ini lunas pake saldo customer — gak bisa dibatalin dari sini. Kalau ada salah, koreksi lewat Top Up (isi negatif) di panel Saldo.');
+      return;
+    }
     const ok = confirm(`Yakin mau ubah "${order.customer_name}" jadi BELUM LUNAS? Pastiin ini bukan salah pencet.`);
     if(!ok) return;
+  } else {
+    // Mau ditandain Lunas manual — kalau customernya punya saldo tapi KURANG (belum kecukupan
+    // buat auto-lunas), ingetin dulu: kalau emang mau pake saldo, mestinya Top Up dulu (biar
+    // auto-lunas sendiri lewat FIFO), bukan langsung di-manual-Lunas-in (yang berarti dianggap
+    // cash, saldo_used tetep 0, saldo customer gak kepotong sama sekali).
+    const c = customerSaldoMap[String(order.customer_name||'').trim().toLowerCase()];
+    if(c && c.customer_id && c.saldo_sisa < order.total && c.saldo_sisa > 0){
+      const ok = confirm(`Saldo ${order.customer_name} cuma cukup ${rupiah(c.saldo_sisa)} dari ${rupiah(order.total)} (kurang ${rupiah(order.total - c.saldo_sisa)}).\n\nKalau ditandain Lunas manual sekarang, ini dianggap DIBAYAR CASH — saldo customer TIDAK kepotong sama sekali.\n\nKalau maunya pake saldo, batalin dulu, lalu Top Up sisa kurangnya lewat panel Saldo (icon di sebelah nama) — order ini bakal auto-Lunas sendiri.\n\nLanjut tandain Lunas manual (cash)?`);
+      if(!ok) return;
+    }
   }
   const prevState = order.paid;
   order.paid = !order.paid;
