@@ -136,7 +136,8 @@
   .saldo-icon-btn{background:var(--jade-tint);border:1px solid var(--border);border-radius:12px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--jade-dark);flex-shrink:0;}
   .saldo-icon-btn svg{width:19px;height:19px;}
   .saldo-icon-btn:active{opacity:.75;}
-  .saldo-list-row{display:flex;justify-content:space-between;align-items:center;padding:11px 4px;border-bottom:1px solid var(--border);cursor:pointer;}
+  .saldo-list-row{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-bottom:1px solid var(--border);cursor:pointer;border-radius:8px;}
+  .saldo-list-row:nth-child(even){background:var(--jade-tint);}
   .saldo-list-row:active{background:var(--jade-tint);}
   .saldo-list-row .nama{font-weight:600;font-size:14px;}
   .saldo-list-row .saldo{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink-soft);}
@@ -151,9 +152,12 @@
   .saldo-topup-row input{flex:1;}
   .saldo-history-item{display:flex;justify-content:space-between;font-size:12.5px;padding:8px 4px;border-bottom:1px solid var(--border);color:var(--ink-soft);}
   .saldo-history-item.topup span:last-child{color:var(--jade-dark);font-weight:600;}
-  @keyframes historySlideIn{from{opacity:0;transform:translateY(-10px);background:var(--jade-tint);}to{opacity:1;transform:translateY(0);background:transparent;}}
-  .history-enter{animation:historySlideIn .45s ease-out;}
+  @keyframes historySlideIn{0%{opacity:0;transform:translateY(-14px) scale(.97);background:var(--jade);}55%{opacity:1;transform:translateY(0) scale(1);background:var(--jade-tint);}100%{background:transparent;}}
+  .history-enter{animation:historySlideIn 1.1s ease-out;}
   .saldo-topup-row button:disabled,.saldo-topup-row input:disabled{opacity:.5;cursor:not-allowed;}
+  .btn-spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(30,61,53,.25);border-top-color:var(--jade-dark);border-radius:50%;animation:btnSpin .7s linear infinite;vertical-align:middle;}
+  .btn-spinner.hidden{display:none;}
+  @keyframes btnSpin{to{transform:rotate(360deg);}}
   .order-card .saldo-hint{font-size:11.5px;margin:-2px 0 6px;font-family:'IBM Plex Mono',monospace;}
   .order-card .saldo-hint.ok{color:var(--jade-dark);}
   .order-card .saldo-hint.short{color:var(--chili);}
@@ -387,7 +391,7 @@
         <label class="field-label">Top Up (isi negatif buat koreksi salah input)</label>
         <div class="saldo-topup-row">
           <input type="number" id="saldoTopupAmount" placeholder="misal 100000 atau -20000">
-          <button id="saldoTopupBtn" onclick="submitTopupSaldo()">Top Up</button>
+          <button id="saldoTopupBtn" onclick="submitTopupSaldo()"><span id="saldoTopupBtnLabel">Top Up</span><span id="saldoTopupBtnSpinner" class="btn-spinner hidden"></span></button>
         </div>
         <label class="field-label">Histori order pake saldo</label>
         <div id="saldoHistoryArea"><p class="section-sub">Belum ada.</p></div>
@@ -855,7 +859,7 @@ function saveSaldoDetailCache(customerId, detail){
 // Kunci unik per entri histori — dipake buat deteksi "ini entri baru yang belum pernah
 // dirender" biar bisa dikasih animasi masuk, tanpa perlu nebak-nebak dari urutan/index.
 function historyItemKey(h){
-  return h.type === 'topup' ? `topup|${h.date}|${h.amount}|${h.saldo_after}` : `spend|${h.order_id}`;
+  return h.type === 'topup' ? `topup|${h.sort_key||h.date}|${h.amount}|${h.saldo_after}` : `spend|${h.order_id}`;
 }
 let saldoHistoryTopKey = null; // key entri paling atas yang lagi kerender — buat bandingin pas render ulang
 function renderSaldoHistory(history){
@@ -865,7 +869,12 @@ function renderSaldoHistory(history){
     saldoHistoryTopKey = null;
     return;
   }
-  const sorted = history.slice().sort((a,b) => a.date < b.date ? 1 : (a.date > b.date ? -1 : 0)); // terbaru di atas
+  // Sort pake sort_key (presisi jam:menit:detik), BUKAN date (cuma harian) — kalau cuma
+  // date, beberapa entri di hari yang sama gak bisa dibedain urutannya, jadi entri baru bisa
+  // "nyangkut" di tengah-tengah bukan di paling atas. h.sort_key||h.date buat jaga-jaga cache
+  // lama (localStorage) yang belum punya field sort_key.
+  const keyOf = h => h.sort_key || h.date;
+  const sorted = history.slice().sort((a,b) => keyOf(a) < keyOf(b) ? 1 : (keyOf(a) > keyOf(b) ? -1 : 0)); // terbaru di atas
   const topKey = historyItemKey(sorted[0]);
   const isFreshEntry = saldoHistoryTopKey !== null && topKey !== saldoHistoryTopKey;
   area.innerHTML = sorted.map((h, idx)=>{
@@ -935,9 +944,10 @@ async function submitTopupSaldo(){
   const amount = Number(amountRaw);
   if(!nama || !amountRaw || isNaN(amount) || amount === 0){ showToast('Isi nominal top up dulu'); return; }
   const btn = document.getElementById('saldoTopupBtn');
+  const label = document.getElementById('saldoTopupBtnLabel');
+  const spinner = document.getElementById('saldoTopupBtnSpinner');
   const input = document.getElementById('saldoTopupAmount');
-  const originalBtnText = btn.textContent;
-  btn.disabled = true; input.disabled = true; btn.textContent = '...'; // cegah dobel pencet + nunjukin lagi proses
+  btn.disabled = true; input.disabled = true; label.classList.add('hidden'); spinner.classList.remove('hidden'); // cegah dobel pencet + nunjukin lagi proses
   try{
     const result = await apiPost('topup_saldo', { nama, amount });
     input.value = '';
@@ -952,7 +962,7 @@ async function submitTopupSaldo(){
   } catch(e){
     showToast('Gagal top up: ' + e.message);
   } finally {
-    btn.disabled = false; input.disabled = false; btn.textContent = originalBtnText;
+    btn.disabled = false; input.disabled = false; label.classList.remove('hidden'); spinner.classList.add('hidden');
   }
 }
 function refreshActiveTabAfterSaldoChange(){
