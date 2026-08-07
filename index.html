@@ -305,7 +305,7 @@
         <span id="riwayatTotalRevenue" style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:600;color:var(--jade-dark);white-space:nowrap;flex-shrink:0;">Rp 0</span>
       </div>
       <p class="section-sub" id="riwayatModeHint">Nampilin yang belum lunas aja.</p>
-      <div class="field"><input type="text" id="riwayatSearch" list="customerList" autocomplete="off" placeholder="Cari nama customer..." oninput="renderRiwayat()"></div>
+      <div class="field"><input type="text" id="riwayatSearch" list="customerList" autocomplete="off" placeholder="Cari nama customer..." oninput="debouncedRenderRiwayat()"></div>
       <div class="filter-row">
         <input type="date" id="riwayatDateFrom" onchange="renderRiwayat()" style="flex:1;min-width:0;">
         <input type="date" id="riwayatDateTo" onchange="renderRiwayat()" style="flex:1;min-width:0;">
@@ -852,6 +852,15 @@ async function openSaldoDetail(nama, customerId){
     document.getElementById('saldoHistoryArea').innerHTML = `<p class="section-sub">Belum pernah nitip saldo. Top Up buat mulai.</p>`;
     return;
   }
+  // Isi angka dari cache dulu (instan, dari customerSaldoMap yang udah ke-load) — histori
+  // tetep nunggu fetch (gak ke-cache), tapi minimal Awal/Jajan/Sisa gak keliatan kosong pas loading.
+  const cachedEntry = Object.values(customerSaldoMap).find(c => c.customer_id === customerId);
+  if(cachedEntry){
+    document.getElementById('saldoDetailAwal').textContent = rupiah(cachedEntry.saldo_real);
+    document.getElementById('saldoDetailJajan').textContent = rupiah(cachedEntry.saldo_prep);
+    document.getElementById('saldoDetailSisa').textContent = rupiah(cachedEntry.saldo_sisa);
+  }
+  document.getElementById('saldoHistoryArea').innerHTML = `<div class="spinner">Memuat histori...</div>`;
   try{
     const detail = await apiGet('get_customer_saldo_detail', { customer_id: customerId });
     document.getElementById('saldoDetailAwal').textContent = rupiah(detail.saldo_real);
@@ -865,6 +874,9 @@ async function openSaldoDetail(nama, customerId){
           <span>-${rupiah(h.saldo_used)} → sisa ${h.saldo_sisa_after===null?'-':rupiah(h.saldo_sisa_after)}</span>
         </div>`).join('');
   } catch(e){
+    // Fetch gagal — BIARIN angka cache yang udah ketampil di atas (jangan balikin ke kosong),
+    // cuma histori-nya yang nunjukin gagal.
+    document.getElementById('saldoHistoryArea').innerHTML = `<p class="section-sub">Gagal ambil histori: ${escapeHtml(e.message)}</p>`;
     showToast('Gagal ambil detail saldo: ' + e.message);
   }
 }
@@ -1747,6 +1759,19 @@ function renderBesokList(){
 }
 
 // ==== RIWAYAT ====
+// Debounce: nunggu 400ms jeda ketikan sebelum manggil API — biar ngetik "dika" gak nembak
+// 4 request terpisah (d/di/dik/dika) yang bisa balik gak berurutan (race condition, hasil
+// lama nimpa hasil baru).
+let riwayatSearchDebounceTimer = null;
+function debouncedRenderRiwayat(){
+  clearTimeout(riwayatSearchDebounceTimer);
+  riwayatSearchDebounceTimer = setTimeout(()=>{ renderRiwayat(); }, 400);
+}
+// Cache pencarian per sesi (bukan localStorage — hasil order gampang basi kalau disimpen
+// lama, jadi cukup diinget selama app masih kebuka). Nyari nama yang sama 2x dalam 1 sesi
+// (misal balik ketik nama abis liat tab lain) langsung tampil dari sini, gak nembak API lagi.
+const riwayatSearchCache = {};
+let riwayatSearchSeq = 0; // penanda urutan request — hasil yg lebih tua diabaikan kalau ada yg lebih baru udah balik duluan
 async function renderRiwayat(){
   await renderRiwayatList();
 }
@@ -1764,14 +1789,29 @@ async function renderRiwayatList(){
     // Ada filter aktif — query LANGSUNG ke server (get_orders_search), yang nyakup sheet aktif
     // + Archive sekaligus. Jauh lebih ringan drpd narik seluruh get_orders lalu filter di HP,
     // apalagi begitu order lama mulai kepindah ke Archive.
-    area.innerHTML = `<div class="spinner">Memuat riwayat...</div>`;
+    const cacheKey = search + '|' + dateFrom + '|' + dateTo;
+    const mySeq = ++riwayatSearchSeq; // nomor urut request INI — dipake buat cek di bawah
     let filtered;
-    try{
-      filtered = await apiGet('get_orders_search', { name: search, date_from: dateFrom, date_to: dateTo });
-    } catch(e){
-      area.innerHTML = `<div class="empty-state"><div class="glyph">⚠️</div>Gagal cari riwayat: ${escapeHtml(e.message)}</div>`;
-      return;
+    const cachedResult = riwayatSearchCache[cacheKey];
+    if(cachedResult && (Date.now() - cachedResult.cachedAt) < 60000){
+      // Query yang sama persis udah pernah dicari <60 detik lalu dalam sesi ini — pake itu,
+      // gak usah nembak API lagi.
+      filtered = cachedResult.data;
+    } else {
+      area.innerHTML = `<div class="spinner">Memuat riwayat...</div>`;
+      try{
+        filtered = await apiGet('get_orders_search', { name: search, date_from: dateFrom, date_to: dateTo });
+      } catch(e){
+        if(mySeq !== riwayatSearchSeq) return; // udah ada ketikan baru lagi setelah ini, hasil error ini gak relevan lagi
+        area.innerHTML = `<div class="empty-state"><div class="glyph">⚠️</div>Gagal cari riwayat: ${escapeHtml(e.message)}</div>`;
+        return;
+      }
+      riwayatSearchCache[cacheKey] = { data: filtered, cachedAt: Date.now() };
     }
+    // PENTING: kalau udah ada request search yang LEBIH BARU (user ngetik lagi setelah request
+    // ini dikirim) balik duluan atau masih diproses, hasil request YANG LEBIH TUA ini diabaikan —
+    // ini yang nyegah "lompat ke nama lain dulu baru bener" (hasil lama nimpa hasil baru).
+    if(mySeq !== riwayatSearchSeq) return;
     // Guard yang sama kayak loadOrders() — kalau ada tap Lunas/centang yg baru aja kejadian (<8 detik),
     // jangan biar hasil search ini (yang mungkin diambil SEBELUM tap itu kekirim) nimpa balik ke nilai lama.
     applyRecentToggleGuards(filtered);
@@ -2184,6 +2224,13 @@ document.getElementById('deliveryDate').value = tomorrowISO();
   }
   loadStaffSession();
   loadSaldoMapFromCache();
+
+  // Balikin ke tab terakhir yang lagi dibuka sebelum refresh — PALING AWAL, sebelum nunggu
+  // network apa pun, biar instan (gak ada jeda keliatan tab Order dulu baru pindah).
+  let lastTab = 'order';
+  try{ lastTab = localStorage.getItem(ACTIVE_TAB_KEY) || 'order'; } catch(e){ /* nggak fatal */ }
+  if(lastTab !== 'order') switchTab(lastTab);
+
   await loadMenu();
   loadCustomers();
   loadCustomerSaldoMap();
@@ -2197,11 +2244,6 @@ document.getElementById('deliveryDate').value = tomorrowISO();
     saveRiwayatUnpaidCache(riwayatDefaultSnapshot);
     renderMenuPicker(); // refresh angka Tersedia di tab Order begitu data orderan udah anget
   });
-
-  // Balikin ke tab terakhir yang lagi dibuka sebelum refresh (bukan selalu ke tab Order).
-  let lastTab = 'order';
-  try{ lastTab = localStorage.getItem(ACTIVE_TAB_KEY) || 'order'; } catch(e){ /* nggak fatal */ }
-  if(lastTab !== 'order') switchTab(lastTab);
 })();
 </script>
 </body>
