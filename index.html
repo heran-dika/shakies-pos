@@ -150,6 +150,7 @@
   .saldo-topup-row{display:flex;gap:8px;margin-bottom:16px;}
   .saldo-topup-row input{flex:1;}
   .saldo-history-item{display:flex;justify-content:space-between;font-size:12.5px;padding:8px 4px;border-bottom:1px solid var(--border);color:var(--ink-soft);}
+  .saldo-history-item.topup span:last-child{color:var(--jade-dark);font-weight:600;}
   .order-card .saldo-hint{font-size:11.5px;margin:-2px 0 6px;font-family:'IBM Plex Mono',monospace;}
   .order-card .saldo-hint.ok{color:var(--jade-dark);}
   .order-card .saldo-hint.short{color:var(--chili);}
@@ -867,12 +868,16 @@ async function openSaldoDetail(nama, customerId){
     document.getElementById('saldoDetailJajan').textContent = rupiah(detail.saldo_prep);
     document.getElementById('saldoDetailSisa').textContent = rupiah(detail.saldo_sisa);
     document.getElementById('saldoHistoryArea').innerHTML = detail.history.length === 0
-      ? `<p class="section-sub">Belum ada order yang pake saldo.</p>`
-      : detail.history.map(h=>`
-        <div class="saldo-history-item">
-          <span>${formatDateLong(h.delivery_date)} · ${rupiah(h.total)}</span>
-          <span>-${rupiah(h.saldo_used)} → sisa ${h.saldo_sisa_after===null?'-':rupiah(h.saldo_sisa_after)}</span>
-        </div>`).join('');
+      ? `<p class="section-sub">Belum ada histori.</p>`
+      : detail.history.map(h => h.type === 'topup'
+        ? `<div class="saldo-history-item topup">
+            <span>${formatDateLong(h.date)} · Top Up</span>
+            <span>${h.amount>=0?'+':''}${rupiah(h.amount)} → saldo ${rupiah(h.saldo_after)}</span>
+          </div>`
+        : `<div class="saldo-history-item">
+            <span>${formatDateLong(h.date)} · ${rupiah(h.total)}</span>
+            <span>-${rupiah(h.saldo_used)} → sisa ${h.saldo_sisa_after===null?'-':rupiah(h.saldo_sisa_after)}</span>
+          </div>`).join('');
   } catch(e){
     // Fetch gagal — BIARIN angka cache yang udah ketampil di atas (jangan balikin ke kosong),
     // cuma histori-nya yang nunjukin gagal.
