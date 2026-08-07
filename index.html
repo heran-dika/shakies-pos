@@ -133,33 +133,33 @@
   .order-card .edit-icon-btn{background:none;border:none;padding:2px;line-height:0;cursor:pointer;color:var(--jade-dark);opacity:.5;}
   .order-card .edit-icon-btn:active{opacity:.9;}
   .order-card .edit-icon-btn svg{width:15px;height:15px;}
-  .saldo-icon-btn{background:var(--jade-tint);border:1px solid var(--border);border-radius:12px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--jade-dark);flex-shrink:0;}
+  .saldo-icon-btn{background:var(--chili-tint);border:1px solid var(--border);border-radius:12px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--chili);flex-shrink:0;}
   .saldo-icon-btn svg{width:19px;height:19px;}
   .saldo-icon-btn:active{opacity:.75;}
   .saldo-list-row{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-bottom:1px solid var(--border);cursor:pointer;border-radius:8px;}
-  .saldo-list-row:nth-child(even){background:var(--jade-tint);}
-  .saldo-list-row:active{background:var(--jade-tint);}
-  .saldo-list-row .nama{font-weight:600;font-size:14px;}
+  .saldo-list-row:nth-child(even){background:var(--chili-tint);}
+  .saldo-list-row:active{background:var(--chili-tint);}
+  .saldo-list-row .nama{font-weight:600;font-size:14px;color:var(--ink);}
   .saldo-list-row .saldo{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink-soft);}
-  .saldo-list-row .saldo.has-saldo{color:var(--jade-dark);font-weight:600;}
-  .saldo-detail-back{display:inline-flex;align-items:center;gap:4px;background:var(--jade-tint);border:1px solid var(--border);border-radius:999px;color:var(--jade-dark);font-size:12.5px;font-weight:600;padding:7px 13px;margin-bottom:14px;cursor:pointer;}
+  .saldo-list-row .saldo.has-saldo{color:var(--chili);font-weight:600;}
+  .saldo-detail-back{display:inline-flex;align-items:center;gap:4px;background:var(--chili-tint);border:1px solid var(--border);border-radius:999px;color:var(--chili);font-size:12.5px;font-weight:600;padding:7px 13px;margin-bottom:14px;cursor:pointer;}
   .saldo-detail-back:active{opacity:.7;}
-  .saldo-breakdown{display:flex;justify-content:space-between;background:var(--jade-tint);border-radius:var(--radius-sm);padding:12px;margin-bottom:14px;}
+  .saldo-breakdown{display:flex;justify-content:space-between;background:var(--chili-tint);border-radius:var(--radius-sm);padding:12px;margin-bottom:14px;}
   .saldo-breakdown .col{text-align:center;flex:1;}
   .saldo-breakdown .col .label{font-size:10.5px;color:var(--ink-soft);margin-bottom:2px;}
-  .saldo-breakdown .col .val{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:13.5px;color:var(--jade-dark);}
+  .saldo-breakdown .col .val{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:13.5px;color:var(--chili);}
   .saldo-topup-row{display:flex;gap:8px;margin-bottom:16px;}
   .saldo-topup-row input{flex:1;}
   .saldo-history-item{display:flex;justify-content:space-between;font-size:12.5px;padding:8px 4px;border-bottom:1px solid var(--border);color:var(--ink-soft);}
-  .saldo-history-item.topup span:last-child{color:var(--jade-dark);font-weight:600;}
-  @keyframes historySlideIn{0%{opacity:0;transform:translateY(-14px) scale(.97);background:var(--jade);}55%{opacity:1;transform:translateY(0) scale(1);background:var(--jade-tint);}100%{background:transparent;}}
+  .saldo-history-item.topup span:last-child{color:var(--chili);font-weight:600;}
+  @keyframes historySlideIn{0%{opacity:0;transform:translateY(-14px) scale(.97);background:var(--chili);}55%{opacity:1;transform:translateY(0) scale(1);background:var(--chili-tint);}100%{background:transparent;}}
   .history-enter{animation:historySlideIn 1.1s ease-out;}
   .saldo-topup-row button:disabled,.saldo-topup-row input:disabled{opacity:.5;cursor:not-allowed;}
-  .btn-spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(30,61,53,.25);border-top-color:var(--jade-dark);border-radius:50%;animation:btnSpin .7s linear infinite;vertical-align:middle;}
+  .btn-spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(30,61,53,.25);border-top-color:var(--chili);border-radius:50%;animation:btnSpin .7s linear infinite;vertical-align:middle;}
   .btn-spinner.hidden{display:none;}
   @keyframes btnSpin{to{transform:rotate(360deg);}}
   .order-card .saldo-hint{font-size:11.5px;margin:-2px 0 6px;font-family:'IBM Plex Mono',monospace;}
-  .order-card .saldo-hint.ok{color:var(--jade-dark);}
+  .order-card .saldo-hint.ok{color:var(--chili);}
   .order-card .saldo-hint.short{color:var(--chili);}
 
   /* ==== STRUK ORDER ==== */
@@ -382,7 +382,7 @@
       </div>
       <div id="saldoDetailView" style="display:none;">
         <button class="saldo-detail-back" onclick="showSaldoListView()">← Balik ke daftar</button>
-        <p style="margin-top:-6px;font-weight:600;color:var(--jade-dark);" id="saldoDetailNama"></p>
+        <p style="margin-top:-6px;font-weight:600;color:var(--chili);" id="saldoDetailNama"></p>
         <div class="saldo-breakdown">
           <div class="col"><div class="label">Saldo Awal</div><div class="val" id="saldoDetailAwal">-</div></div>
           <div class="col"><div class="label">Saldo Jajan</div><div class="val" id="saldoDetailJajan">-</div></div>
@@ -1454,6 +1454,7 @@ async function submitOrder(){
   if(!editingOrderId && !pendingOrderClientId) pendingOrderClientId = crypto.randomUUID();
   isSubmittingOrder = true;
   btn.disabled = true; btn.textContent = editingOrderId ? 'Menyimpan perubahan...' : 'Menyimpan...';
+  let newOrderIdForHighlight = null;
   try{
     if(editingOrderId){
       await apiPost('update_order', {
@@ -1463,16 +1464,19 @@ async function submitOrder(){
       });
       showToast('Orderan diupdate ✓');
     } else {
-      await apiPost('add_order', {
+      const addResult = await apiPost('add_order', {
         delivery_date: deliveryDate, customer_name: customerName, items_summary, items, total, note,
         device_label: deviceLabel || 'Tanpa label', shipping_fee: shippingFee, client_order_id: pendingOrderClientId
       });
-      showToast('Orderan disimpan ✓');
+      // Toast SENGAJA dimatiin buat order baru — konfirmasinya udah keliatan sendiri lewat
+      // pindah ke tab Prep + card-nya kedap-kedip, gak perlu notif box lagi.
+      newOrderIdForHighlight = addResult.order_id;
     }
     await loadOrders();
     loadCustomers();
     resetOrderForm();
     if(wasEditing) goToPrepAndHighlight(editedOrderId, deliveryDate);
+    else if(newOrderIdForHighlight) goToPrepAndHighlight(newOrderIdForHighlight, deliveryDate);
   } catch(e){
     if(e.status === 'not_registered' && hadRealSession){
       // Ini BUKAN "HP belum terdaftar" — ini sesi login yang tadinya valid terus expired
@@ -1498,9 +1502,11 @@ async function submitOrder(){
         };
         allOrders.unshift(demoOrder);
         showToast('👀 Mode coba-coba — orderan ini CUMA keliatan di HP ini, nggak beneran kesimpen ke sistem');
+        newOrderIdForHighlight = demoOrder.order_id;
       }
       resetOrderForm();
       if(wasEditing) goToPrepAndHighlight(editedOrderId, deliveryDate);
+      else if(newOrderIdForHighlight) goToPrepAndHighlight(newOrderIdForHighlight, deliveryDate);
     } else {
       showToast('Gagal simpan: ' + e.message);
     }
