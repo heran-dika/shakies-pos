@@ -928,10 +928,17 @@ async function syncSaldoForUnpaidOrders(orders){
   }
 }
 
-// Baris kecil di card order Belum Lunas — "Saldo tersedia: Rp X" / "Kurang Rp Y".
-// Cuma muncul kalau customer-nya punya Customer ID (pernah nitip saldo).
+// Baris kecil di card order — buat yang BELUM Lunas: "Saldo tersedia"/"Kurang".
+// Buat yang UDAH Lunas via saldo: info audit (kepake berapa, sisa saat itu berapa),
+// diambil dari saldo_used/saldo_sisa_after yang UDAH DIBEKUKAN di order itu sendiri —
+// jadi gak butuh customerSaldoMap sama sekali buat kasus ini (gak kena masalah "map
+// belum sempet ke-load"), soalnya datanya nempel permanen di order-nya.
 function saldoLineHtml(o){
-  if(o.paid) return '';
+  if(o.paid){
+    if(!o.saldo_used || o.saldo_used <= 0) return '';
+    const sisaText = (o.saldo_sisa_after === null || o.saldo_sisa_after === undefined) ? '-' : rupiah(o.saldo_sisa_after);
+    return `<div class="saldo-hint ok">Dibayar via saldo: ${rupiah(o.saldo_used)} · sisa saat itu ${sisaText}</div>`;
+  }
   const c = customerSaldoMap[String(o.customer_name||'').trim().toLowerCase()];
   if(!c || !c.customer_id) return '';
   const sisa = c.saldo_sisa;
