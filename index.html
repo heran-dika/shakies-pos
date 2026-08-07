@@ -151,6 +151,9 @@
   .saldo-topup-row input{flex:1;}
   .saldo-history-item{display:flex;justify-content:space-between;font-size:12.5px;padding:8px 4px;border-bottom:1px solid var(--border);color:var(--ink-soft);}
   .saldo-history-item.topup span:last-child{color:var(--jade-dark);font-weight:600;}
+  @keyframes historySlideIn{from{opacity:0;transform:translateY(-10px);background:var(--jade-tint);}to{opacity:1;transform:translateY(0);background:transparent;}}
+  .history-enter{animation:historySlideIn .45s ease-out;}
+  .saldo-topup-row button:disabled,.saldo-topup-row input:disabled{opacity:.5;cursor:not-allowed;}
   .order-card .saldo-hint{font-size:11.5px;margin:-2px 0 6px;font-family:'IBM Plex Mono',monospace;}
   .order-card .saldo-hint.ok{color:var(--jade-dark);}
   .order-card .saldo-hint.short{color:var(--chili);}
@@ -384,7 +387,7 @@
         <label class="field-label">Top Up (isi negatif buat koreksi salah input)</label>
         <div class="saldo-topup-row">
           <input type="number" id="saldoTopupAmount" placeholder="misal 100000 atau -20000">
-          <button onclick="submitTopupSaldo()">Top Up</button>
+          <button id="saldoTopupBtn" onclick="submitTopupSaldo()">Top Up</button>
         </div>
         <label class="field-label">Histori order pake saldo</label>
         <div id="saldoHistoryArea"><p class="section-sub">Belum ada.</p></div>
@@ -838,6 +841,48 @@ function openSaldoDetailByName(nama){
   const c = customerSaldoMap[nama.toLowerCase()];
   openSaldoDetail(nama, c ? c.customer_id : '');
 }
+function loadSaldoDetailCache(customerId){
+  try{
+    const raw = localStorage.getItem('saldo-detail-cache-' + customerId);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e){ return null; }
+}
+function saveSaldoDetailCache(customerId, detail){
+  try{ localStorage.setItem('saldo-detail-cache-' + customerId, JSON.stringify(detail)); }
+  catch(e){ /* nggak fatal */ }
+}
+
+// Kunci unik per entri histori — dipake buat deteksi "ini entri baru yang belum pernah
+// dirender" biar bisa dikasih animasi masuk, tanpa perlu nebak-nebak dari urutan/index.
+function historyItemKey(h){
+  return h.type === 'topup' ? `topup|${h.date}|${h.amount}|${h.saldo_after}` : `spend|${h.order_id}`;
+}
+let saldoHistoryTopKey = null; // key entri paling atas yang lagi kerender — buat bandingin pas render ulang
+function renderSaldoHistory(history){
+  const area = document.getElementById('saldoHistoryArea');
+  if(!history || history.length === 0){
+    area.innerHTML = `<p class="section-sub">Belum ada histori.</p>`;
+    saldoHistoryTopKey = null;
+    return;
+  }
+  const sorted = history.slice().sort((a,b) => a.date < b.date ? 1 : (a.date > b.date ? -1 : 0)); // terbaru di atas
+  const topKey = historyItemKey(sorted[0]);
+  const isFreshEntry = saldoHistoryTopKey !== null && topKey !== saldoHistoryTopKey;
+  area.innerHTML = sorted.map((h, idx)=>{
+    const animateCls = (idx === 0 && isFreshEntry) ? ' history-enter' : '';
+    return h.type === 'topup'
+      ? `<div class="saldo-history-item topup${animateCls}">
+          <span>${formatDateLong(h.date)} · Top Up</span>
+          <span>${h.amount>=0?'+':''}${rupiah(h.amount)} → saldo ${rupiah(h.saldo_after)}</span>
+        </div>`
+      : `<div class="saldo-history-item${animateCls}">
+          <span>${formatDateLong(h.date)} · ${rupiah(h.total)}</span>
+          <span>-${rupiah(h.saldo_used)} → sisa ${h.saldo_sisa_after===null?'-':rupiah(h.saldo_sisa_after)}</span>
+        </div>`;
+  }).join('');
+  saldoHistoryTopKey = topKey;
+}
+
 async function openSaldoDetail(nama, customerId){
   document.getElementById('saldoListView').style.display = 'none';
   document.getElementById('saldoDetailView').style.display = 'block';
@@ -850,34 +895,33 @@ async function openSaldoDetail(nama, customerId){
     document.getElementById('saldoDetailAwal').textContent = rupiah(0);
     document.getElementById('saldoDetailJajan').textContent = rupiah(0);
     document.getElementById('saldoDetailSisa').textContent = rupiah(0);
+    saldoHistoryTopKey = null;
     document.getElementById('saldoHistoryArea').innerHTML = `<p class="section-sub">Belum pernah nitip saldo. Top Up buat mulai.</p>`;
     return;
   }
-  // Isi angka dari cache dulu (instan, dari customerSaldoMap yang udah ke-load) — histori
-  // tetep nunggu fetch (gak ke-cache), tapi minimal Awal/Jajan/Sisa gak keliatan kosong pas loading.
+  // Isi angka + HISTORI dari cache dulu (instan) — baik dari customerSaldoMap (Awal/Jajan/Sisa)
+  // maupun dari cache detail lengkap (localStorage, termasuk histori-nya) yang tersimpen dari
+  // kunjungan sebelumnya. Baru abis itu fetch fresh di belakang buat mastiin up to date.
   const cachedEntry = Object.values(customerSaldoMap).find(c => c.customer_id === customerId);
   if(cachedEntry){
     document.getElementById('saldoDetailAwal').textContent = rupiah(cachedEntry.saldo_real);
     document.getElementById('saldoDetailJajan').textContent = rupiah(cachedEntry.saldo_prep);
     document.getElementById('saldoDetailSisa').textContent = rupiah(cachedEntry.saldo_sisa);
   }
-  document.getElementById('saldoHistoryArea').innerHTML = `<div class="spinner">Memuat histori...</div>`;
+  saldoHistoryTopKey = null; // reset — buka detail baru gak dianggap "entri fresh", cuma nampilin cache apa adanya
+  const cachedDetail = loadSaldoDetailCache(customerId);
+  if(cachedDetail){
+    renderSaldoHistory(cachedDetail.history);
+  } else {
+    document.getElementById('saldoHistoryArea').innerHTML = `<div class="spinner">Memuat histori...</div>`;
+  }
   try{
     const detail = await apiGet('get_customer_saldo_detail', { customer_id: customerId });
     document.getElementById('saldoDetailAwal').textContent = rupiah(detail.saldo_real);
     document.getElementById('saldoDetailJajan').textContent = rupiah(detail.saldo_prep);
     document.getElementById('saldoDetailSisa').textContent = rupiah(detail.saldo_sisa);
-    document.getElementById('saldoHistoryArea').innerHTML = detail.history.length === 0
-      ? `<p class="section-sub">Belum ada histori.</p>`
-      : detail.history.map(h => h.type === 'topup'
-        ? `<div class="saldo-history-item topup">
-            <span>${formatDateLong(h.date)} · Top Up</span>
-            <span>${h.amount>=0?'+':''}${rupiah(h.amount)} → saldo ${rupiah(h.saldo_after)}</span>
-          </div>`
-        : `<div class="saldo-history-item">
-            <span>${formatDateLong(h.date)} · ${rupiah(h.total)}</span>
-            <span>-${rupiah(h.saldo_used)} → sisa ${h.saldo_sisa_after===null?'-':rupiah(h.saldo_sisa_after)}</span>
-          </div>`).join('');
+    renderSaldoHistory(detail.history);
+    saveSaldoDetailCache(customerId, detail);
   } catch(e){
     // Fetch gagal — BIARIN angka cache yang udah ketampil di atas (jangan balikin ke kosong),
     // cuma histori-nya yang nunjukin gagal.
@@ -890,19 +934,25 @@ async function submitTopupSaldo(){
   const amountRaw = document.getElementById('saldoTopupAmount').value.trim();
   const amount = Number(amountRaw);
   if(!nama || !amountRaw || isNaN(amount) || amount === 0){ showToast('Isi nominal top up dulu'); return; }
+  const btn = document.getElementById('saldoTopupBtn');
+  const input = document.getElementById('saldoTopupAmount');
+  const originalBtnText = btn.textContent;
+  btn.disabled = true; input.disabled = true; btn.textContent = '...'; // cegah dobel pencet + nunjukin lagi proses
   try{
     const result = await apiPost('topup_saldo', { nama, amount });
-    showToast('Saldo diupdate: ' + rupiah(result.saldo_real));
+    input.value = '';
     // Abis top up, langsung coba alokasiin ke order belum lunas yang mungkin sekarang udah kecukup.
     await apiPost('reconcile_saldo', { customer_id: result.customer_id });
     saldoFetchCooldownUntil = 0; // topup barusan sukses -> reset cooldown, biar refresh berikutnya gak ketahan
     await loadCustomerSaldoMap();
-    await openSaldoDetail(nama, result.customer_id);
+    await openSaldoDetail(nama, result.customer_id); // histori otomatis kedeteksi ada entri baru -> animasi masuk sendiri
     // Order yang barusan auto-lunas via saldo perlu keliatan di Prep/Riwayat — refresh data + re-render tab aktif.
     await loadOrders();
     refreshActiveTabAfterSaldoChange();
   } catch(e){
     showToast('Gagal top up: ' + e.message);
+  } finally {
+    btn.disabled = false; input.disabled = false; btn.textContent = originalBtnText;
   }
 }
 function refreshActiveTabAfterSaldoChange(){
