@@ -133,33 +133,38 @@
   .order-card .edit-icon-btn{background:none;border:none;padding:2px;line-height:0;cursor:pointer;color:var(--jade-dark);opacity:.5;}
   .order-card .edit-icon-btn:active{opacity:.9;}
   .order-card .edit-icon-btn svg{width:15px;height:15px;}
-  .saldo-icon-btn{background:var(--chili-tint);border:1px solid var(--border);border-radius:12px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--chili);flex-shrink:0;}
+  .saldo-icon-btn{background:none;border:none;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--jade-dark);opacity:.6;flex-shrink:0;}
+  .saldo-icon-btn:active{opacity:1;}
   .saldo-icon-btn svg{width:19px;height:19px;}
-  .saldo-icon-btn:active{opacity:.75;}
   .saldo-list-row{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-bottom:1px solid var(--border);cursor:pointer;border-radius:8px;}
-  .saldo-list-row:nth-child(even){background:var(--chili-tint);}
-  .saldo-list-row:active{background:var(--chili-tint);}
+  .saldo-list-row:nth-child(even){background:#FDF0F0;}
+  .saldo-list-row:active{background:#FDF0F0;}
   .saldo-list-row .nama{font-weight:600;font-size:14px;color:var(--ink);}
-  .saldo-list-row .saldo{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink-soft);}
-  .saldo-list-row .saldo.has-saldo{color:var(--chili);font-weight:600;}
-  .saldo-detail-back{display:inline-flex;align-items:center;gap:4px;background:var(--chili-tint);border:1px solid var(--border);border-radius:999px;color:var(--chili);font-size:12.5px;font-weight:600;padding:7px 13px;margin-bottom:14px;cursor:pointer;}
-  .saldo-detail-back:active{opacity:.7;}
-  .saldo-breakdown{display:flex;justify-content:space-between;background:var(--chili-tint);border-radius:var(--radius-sm);padding:12px;margin-bottom:14px;}
+  .saldo-list-row .saldo{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink);}
+  .saldo-list-row .saldo.has-saldo{font-weight:600;}
+  .saldo-list-row .saldo.negative{color:var(--chili);}
+  .saldo-detail-back{display:inline-flex;align-items:center;gap:4px;background:var(--jade);border:none;border-radius:999px;color:#fff;font-size:12.5px;font-weight:700;padding:8px 15px;margin-bottom:14px;cursor:pointer;}
+  .saldo-detail-back:active{opacity:.85;}
+  .saldo-breakdown{display:flex;justify-content:space-between;background:#FDF0F0;border-radius:var(--radius-sm);padding:12px;margin-bottom:14px;}
   .saldo-breakdown .col{text-align:center;flex:1;}
   .saldo-breakdown .col .label{font-size:10.5px;color:var(--ink-soft);margin-bottom:2px;}
-  .saldo-breakdown .col .val{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:13.5px;color:var(--chili);}
+  .saldo-breakdown .col .val{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:13.5px;color:var(--ink);}
+  .saldo-breakdown .col .val.negative{color:var(--chili);}
   .saldo-topup-row{display:flex;gap:8px;margin-bottom:16px;}
   .saldo-topup-row input{flex:1;}
+  #saldoTopupBtn{background:var(--jade);border:none;border-radius:var(--radius-sm);color:#fff;font-weight:700;font-size:14px;padding:0 18px;cursor:pointer;}
   .saldo-history-item{display:flex;justify-content:space-between;font-size:12.5px;padding:8px 4px;border-bottom:1px solid var(--border);color:var(--ink-soft);}
-  .saldo-history-item.topup span:last-child{color:var(--chili);font-weight:600;}
-  @keyframes historySlideIn{0%{opacity:0;transform:translateY(-14px) scale(.97);background:var(--chili);}55%{opacity:1;transform:translateY(0) scale(1);background:var(--chili-tint);}100%{background:transparent;}}
+  .saldo-history-item.topup span:last-child{color:var(--ink);font-weight:600;}
+  .saldo-history-item.topup span:last-child.negative{color:var(--chili);}
+  @keyframes historySlideIn{0%{opacity:0;transform:translateY(-14px) scale(.97);background:var(--jade);}55%{opacity:1;transform:translateY(0) scale(1);background:#FDF0F0;}100%{background:transparent;}}
   .history-enter{animation:historySlideIn 1.1s ease-out;}
   .saldo-topup-row button:disabled,.saldo-topup-row input:disabled{opacity:.5;cursor:not-allowed;}
-  .btn-spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(30,61,53,.25);border-top-color:var(--chili);border-radius:50%;animation:btnSpin .7s linear infinite;vertical-align:middle;}
-  .btn-spinner.hidden{display:none;}
-  @keyframes btnSpin{to{transform:rotate(360deg);}}
   .order-card .saldo-hint{font-size:11.5px;margin:-2px 0 6px;font-family:'IBM Plex Mono',monospace;}
-  .order-card .saldo-hint.ok{color:var(--chili);}
+  .order-card .saldo-hint.ok{color:var(--ink);}
+  .order-failed-banner{display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--chili-tint);color:var(--chili);font-size:12px;font-weight:600;padding:8px 10px;border-radius:8px;margin-bottom:8px;}
+  .order-failed-banner button{background:var(--chili);color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;flex-shrink:0;}
+  .topup-failed-banner{display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--chili-tint);color:var(--chili);font-size:12px;font-weight:600;padding:8px 10px;border-radius:8px;margin-bottom:10px;}
+  .topup-failed-banner button{background:var(--chili);color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;flex-shrink:0;}
   .order-card .saldo-hint.short{color:var(--chili);}
 
   /* ==== STRUK ORDER ==== */
@@ -382,16 +387,17 @@
       </div>
       <div id="saldoDetailView" style="display:none;">
         <button class="saldo-detail-back" onclick="showSaldoListView()">← Balik ke daftar</button>
-        <p style="margin-top:-6px;font-weight:600;color:var(--chili);" id="saldoDetailNama"></p>
+        <p style="margin-top:-6px;font-weight:600;color:var(--ink);" id="saldoDetailNama"></p>
         <div class="saldo-breakdown">
           <div class="col"><div class="label">Saldo Awal</div><div class="val" id="saldoDetailAwal">-</div></div>
           <div class="col"><div class="label">Saldo Jajan</div><div class="val" id="saldoDetailJajan">-</div></div>
           <div class="col"><div class="label">Saldo Sisa</div><div class="val" id="saldoDetailSisa">-</div></div>
         </div>
         <label class="field-label">Top Up (isi negatif buat koreksi salah input)</label>
+        <div id="saldoTopupFailedArea"></div>
         <div class="saldo-topup-row">
           <input type="number" id="saldoTopupAmount" placeholder="misal 100000 atau -20000">
-          <button id="saldoTopupBtn" onclick="submitTopupSaldo()"><span id="saldoTopupBtnLabel">Top Up</span><span id="saldoTopupBtnSpinner" class="btn-spinner hidden"></span></button>
+          <button id="saldoTopupBtn" onclick="submitTopupSaldo()">Top Up</button>
         </div>
         <label class="field-label">Histori order pake saldo</label>
         <div id="saldoHistoryArea"><p class="section-sub">Belum ada.</p></div>
@@ -833,7 +839,7 @@ function drawSaldoListRows(){
   area.innerHTML = list.map(c=>`
     <div class="saldo-list-row">
       <span class="nama" onclick="pickCustomerNameForOrder('${escapeHtml(c.nama).replace(/'/g,"\\'")}')">${escapeHtml(c.nama)}</span>
-      <span class="saldo ${c.saldo_real>0?'has-saldo':''}" onclick="event.stopPropagation(); openSaldoDetailByName('${escapeHtml(c.nama).replace(/'/g,"\\'")}')">${rupiah(c.saldo_real)}</span>
+      <span class="saldo ${c.saldo_real!==0?'has-saldo':''} ${c.saldo_real<0?'negative':''}" onclick="event.stopPropagation(); openSaldoDetailByName('${escapeHtml(c.nama).replace(/'/g,"\\'")}')">${rupiah(c.saldo_real)}</span>
     </div>`).join('');
 }
 // Tap NAMA di panel -> isi form order (bukan buka detail saldo) + tutup panel.
@@ -858,6 +864,11 @@ function saveSaldoDetailCache(customerId, detail){
 
 // Kunci unik per entri histori — dipake buat deteksi "ini entri baru yang belum pernah
 // dirender" biar bisa dikasih animasi masuk, tanpa perlu nebak-nebak dari urutan/index.
+function setSaldoBreakdownVal(elId, value){
+  const el = document.getElementById(elId);
+  el.textContent = rupiah(value);
+  el.classList.toggle('negative', value < 0);
+}
 function historyItemKey(h){
   return h.type === 'topup' ? `topup|${h.sort_key||h.date}|${h.amount}|${h.saldo_after}` : `spend|${h.order_id}`;
 }
@@ -882,7 +893,7 @@ function renderSaldoHistory(history){
     return h.type === 'topup'
       ? `<div class="saldo-history-item topup${animateCls}">
           <span>${formatDateLong(h.date)} · Top Up</span>
-          <span>${h.amount>=0?'+':''}${rupiah(h.amount)} → saldo ${rupiah(h.saldo_after)}</span>
+          <span class="${h.amount<0?'negative':''}">${h.amount>=0?'+':''}${rupiah(h.amount)} → saldo ${rupiah(h.saldo_after)}</span>
         </div>`
       : `<div class="saldo-history-item${animateCls}">
           <span>${formatDateLong(h.date)} · ${rupiah(h.total)}</span>
@@ -901,9 +912,9 @@ async function openSaldoDetail(nama, customerId){
 
   if(!customerId){
     // Belum pernah top up — belum ada Customer ID, jadi belum ada apa-apa buat ditampilin selain 0.
-    document.getElementById('saldoDetailAwal').textContent = rupiah(0);
-    document.getElementById('saldoDetailJajan').textContent = rupiah(0);
-    document.getElementById('saldoDetailSisa').textContent = rupiah(0);
+    setSaldoBreakdownVal('saldoDetailAwal', 0);
+    setSaldoBreakdownVal('saldoDetailJajan', 0);
+    setSaldoBreakdownVal('saldoDetailSisa', 0);
     saldoHistoryTopKey = null;
     document.getElementById('saldoHistoryArea').innerHTML = `<p class="section-sub">Belum pernah nitip saldo. Top Up buat mulai.</p>`;
     return;
@@ -913,9 +924,9 @@ async function openSaldoDetail(nama, customerId){
   // kunjungan sebelumnya. Baru abis itu fetch fresh di belakang buat mastiin up to date.
   const cachedEntry = Object.values(customerSaldoMap).find(c => c.customer_id === customerId);
   if(cachedEntry){
-    document.getElementById('saldoDetailAwal').textContent = rupiah(cachedEntry.saldo_real);
-    document.getElementById('saldoDetailJajan').textContent = rupiah(cachedEntry.saldo_prep);
-    document.getElementById('saldoDetailSisa').textContent = rupiah(cachedEntry.saldo_sisa);
+    setSaldoBreakdownVal('saldoDetailAwal', cachedEntry.saldo_real);
+    setSaldoBreakdownVal('saldoDetailJajan', cachedEntry.saldo_prep);
+    setSaldoBreakdownVal('saldoDetailSisa', cachedEntry.saldo_sisa);
   }
   saldoHistoryTopKey = null; // reset — buka detail baru gak dianggap "entri fresh", cuma nampilin cache apa adanya
   const cachedDetail = loadSaldoDetailCache(customerId);
@@ -926,9 +937,9 @@ async function openSaldoDetail(nama, customerId){
   }
   try{
     const detail = await apiGet('get_customer_saldo_detail', { customer_id: customerId });
-    document.getElementById('saldoDetailAwal').textContent = rupiah(detail.saldo_real);
-    document.getElementById('saldoDetailJajan').textContent = rupiah(detail.saldo_prep);
-    document.getElementById('saldoDetailSisa').textContent = rupiah(detail.saldo_sisa);
+    setSaldoBreakdownVal('saldoDetailAwal', detail.saldo_real);
+    setSaldoBreakdownVal('saldoDetailJajan', detail.saldo_prep);
+    setSaldoBreakdownVal('saldoDetailSisa', detail.saldo_sisa);
     renderSaldoHistory(detail.history);
     saveSaldoDetailCache(customerId, detail);
   } catch(e){
@@ -938,31 +949,88 @@ async function openSaldoDetail(nama, customerId){
     showToast('Gagal ambil detail saldo: ' + e.message);
   }
 }
+let topupInFlight = false; // guard diam-diam anti dobel-pencet, gak ada tampilan loading lagi
+let lastFailedTopup = null;
+
+async function ensureNotifyPermission(){
+  if(!('Notification' in window)) return false;
+  if(Notification.permission === 'granted') return true;
+  if(Notification.permission === 'denied') return false;
+  try{ return (await Notification.requestPermission()) === 'granted'; }
+  catch(e){ return false; }
+}
+function notifyBackgroundFailure(title, body){
+  try{
+    if('Notification' in window && Notification.permission === 'granted'){
+      new Notification(title, { body, icon: 'icon-192.png' });
+    }
+  } catch(e){ /* non-fatal — toast tetep jadi fallback */ }
+}
+function clearTopupFailedBanner(){
+  lastFailedTopup = null;
+  const area = document.getElementById('saldoTopupFailedArea');
+  if(area) area.innerHTML = '';
+}
+function showTopupFailedBanner(nama, amount, customerId){
+  lastFailedTopup = { nama, amount, customerId };
+  const area = document.getElementById('saldoTopupFailedArea');
+  if(area) area.innerHTML = `<div class="topup-failed-banner">⚠️ Top Up ${rupiah(amount)} gagal tersimpan <button onclick="retryFailedTopup()">Coba Lagi</button></div>`;
+}
+async function retryFailedTopup(){
+  if(!lastFailedTopup) return;
+  const { amount } = lastFailedTopup;
+  clearTopupFailedBanner();
+  document.getElementById('saldoTopupAmount').value = amount;
+  await submitTopupSaldo();
+}
+
 async function submitTopupSaldo(){
   const nama = document.getElementById('saldoDetailNama').textContent.trim();
   const amountRaw = document.getElementById('saldoTopupAmount').value.trim();
   const amount = Number(amountRaw);
   if(!nama || !amountRaw || isNaN(amount) || amount === 0){ showToast('Isi nominal top up dulu'); return; }
-  const btn = document.getElementById('saldoTopupBtn');
-  const label = document.getElementById('saldoTopupBtnLabel');
-  const spinner = document.getElementById('saldoTopupBtnSpinner');
-  const input = document.getElementById('saldoTopupAmount');
-  btn.disabled = true; input.disabled = true; label.classList.add('hidden'); spinner.classList.remove('hidden'); // cegah dobel pencet + nunjukin lagi proses
+  if(topupInFlight) return; // dobel-pencet cepet -> diabaikan diam-diam
+  topupInFlight = true;
+  clearTopupFailedBanner();
+  const customerIdAtStart = saldoDetailCustomerId; // mungkin masih kosong kalau ini top up PERTAMA customer ini
+  document.getElementById('saldoTopupAmount').value = '';
+
+  // ==== OPTIMISTIC: update angka & histori LANGSUNG, gak nunggu network ====
+  const cachedEntry = Object.values(customerSaldoMap).find(c => c.nama.toLowerCase() === nama.toLowerCase())
+    || { saldo_real: 0, saldo_prep: 0, saldo_sisa: 0 };
+  const optimisticAwal = cachedEntry.saldo_real + amount;
+  const optimisticSisa = optimisticAwal - cachedEntry.saldo_prep;
+  setSaldoBreakdownVal('saldoDetailAwal', optimisticAwal);
+  setSaldoBreakdownVal('saldoDetailSisa', optimisticSisa);
+  const cachedDetail = (customerIdAtStart && loadSaldoDetailCache(customerIdAtStart)) || { history: [] };
+  const optimisticHistory = (cachedDetail.history || []).concat([{
+    type: 'topup', date: new Date().toISOString().slice(0,10),
+    sort_key: new Date().toISOString().slice(0,19).replace('T',' '),
+    amount, saldo_after: optimisticAwal
+  }]);
+  renderSaldoHistory(optimisticHistory);
+
   try{
     const result = await apiPost('topup_saldo', { nama, amount });
-    input.value = '';
     // Abis top up, langsung coba alokasiin ke order belum lunas yang mungkin sekarang udah kecukup.
     await apiPost('reconcile_saldo', { customer_id: result.customer_id });
     saldoFetchCooldownUntil = 0; // topup barusan sukses -> reset cooldown, biar refresh berikutnya gak ketahan
     await loadCustomerSaldoMap();
-    await openSaldoDetail(nama, result.customer_id); // histori otomatis kedeteksi ada entri baru -> animasi masuk sendiri
+    await openSaldoDetail(nama, result.customer_id); // fetch beneran, gantiin data optimistic dgn yg asli dari server
     // Order yang barusan auto-lunas via saldo perlu keliatan di Prep/Riwayat — refresh data + re-render tab aktif.
     await loadOrders();
     refreshActiveTabAfterSaldoChange();
   } catch(e){
+    // Gagal — balikin angka ke sebelum optimistic, histori juga balik (buang entry optimistic-nya)
+    setSaldoBreakdownVal('saldoDetailAwal', cachedEntry.saldo_real);
+    setSaldoBreakdownVal('saldoDetailSisa', cachedEntry.saldo_sisa);
+    renderSaldoHistory(cachedDetail.history || []);
+    showTopupFailedBanner(nama, amount, customerIdAtStart);
+    const notified = await ensureNotifyPermission();
+    if(notified) notifyBackgroundFailure('Gagal Top Up', `${nama} — Top Up ${rupiah(amount)} gagal tersimpan.`);
     showToast('Gagal top up: ' + e.message);
   } finally {
-    btn.disabled = false; input.disabled = false; label.classList.remove('hidden'); spinner.classList.add('hidden');
+    topupInFlight = false;
   }
 }
 function refreshActiveTabAfterSaldoChange(){
@@ -1443,78 +1511,113 @@ async function submitOrder(){
   const total = itemsTotal + shippingFee;
   const items_summary = items.map(i=>`${i.name} x${i.qty}`).join(', ');
 
-  const btn = document.getElementById('btnSubmitOrder');
+  if(isSubmittingOrder) return; // dobel-pencet cepet -> diabaikan diam-diam, gak ada tampilan loading lagi
+  isSubmittingOrder = true;
+
   const wasEditing = !!editingOrderId;
   const editedOrderId = editingOrderId;
-  const hadRealSession = !!staffSession; // sebelum request — dipake buat bedain "sesi expired" vs "emang HP belum terdaftar"
+  const editedPrepared = editingOrderPrepared;
+  const editedPaid = editingOrderPaid;
   // Idempotency key — dibikin SEKALI aja pas order baru pertama kali disubmit dalam sesi isi form ini.
-  // Kalau submit ini gagal/timeout terus di-retry (manual ataupun nanti otomatis), ID yang sama dikirim
-  // ulang, jadi backend bisa tau "ini request yang sama" dan gak nulis baris dobel walau request
-  // sebelumnya sebenarnya udah sukses nulis ke Sheet tapi responnya yang gagal balik.
+  // Kalau submit ini gagal/timeout terus di-retry (manual ataupun lewat tombol "Coba Lagi"), ID yang sama
+  // dikirim ulang, jadi backend bisa tau "ini request yang sama" dan gak nulis baris dobel.
   if(!editingOrderId && !pendingOrderClientId) pendingOrderClientId = crypto.randomUUID();
-  isSubmittingOrder = true;
-  btn.disabled = true; btn.textContent = editingOrderId ? 'Menyimpan perubahan...' : 'Menyimpan...';
-  let newOrderIdForHighlight = null;
+
+  const payloadBase = {
+    delivery_date: deliveryDate, customer_name: customerName, items_summary, items, total, note,
+    device_label: deviceLabel || 'Tanpa label', shipping_fee: shippingFee
+  };
+
   try{
-    if(editingOrderId){
-      await apiPost('update_order', {
-        order_id: editingOrderId, delivery_date: deliveryDate, customer_name: customerName,
-        items_summary, items, total, note, prepared: editingOrderPrepared, device_label: deviceLabel || 'Tanpa label',
-        shipping_fee: shippingFee, paid: editingOrderPaid
-      });
-      showToast('Orderan diupdate ✓');
-    } else {
-      const addResult = await apiPost('add_order', {
-        delivery_date: deliveryDate, customer_name: customerName, items_summary, items, total, note,
-        device_label: deviceLabel || 'Tanpa label', shipping_fee: shippingFee, client_order_id: pendingOrderClientId
-      });
-      // Toast SENGAJA dimatiin buat order baru — konfirmasinya udah keliatan sendiri lewat
-      // pindah ke tab Prep + card-nya kedap-kedip, gak perlu notif box lagi.
-      newOrderIdForHighlight = addResult.order_id;
-    }
-    await loadOrders();
-    loadCustomers();
-    resetOrderForm();
-    if(wasEditing) goToPrepAndHighlight(editedOrderId, deliveryDate);
-    else if(newOrderIdForHighlight) goToPrepAndHighlight(newOrderIdForHighlight, deliveryDate);
-  } catch(e){
-    if(e.status === 'not_registered' && hadRealSession){
-      // Ini BUKAN "HP belum terdaftar" — ini sesi login yang tadinya valid terus expired
-      // di tengah jalan. Order ini BELUM tersimpan ke server. Form SENGAJA nggak direset
-      // biar isian nggak hilang — user tinggal sign in ulang, lalu tap Simpan lagi.
-      showToast('⚠️ Sesi login habis — orderan ini BELUM tersimpan. Sign in ulang dulu (form nggak hilang), baru tap Simpan lagi.');
-    } else if(e.status === 'not_registered'){
-      // HP/akun ini emang beneran belum pernah sign in / belum terdaftar — mode coba-coba
-      // (fitur yang disengaja, biar orang bisa liat-liat app tanpa akun).
-      if(editingOrderId){
-        const idx = allOrders.findIndex(o=>o.order_id===editingOrderId);
-        if(idx>-1){
-          allOrders[idx] = { ...allOrders[idx], delivery_date: deliveryDate, customer_name: customerName,
-            items_summary, items, total, note, shipping_fee: shippingFee, updated_at: new Date().toISOString() };
-        }
+    if(!staffSession){
+      // Belum ada sesi login sama sekali -> mode coba-coba, udah pasti bakal ditolak auth kalau
+      // dicoba ke server, jadi langsung instan lokal doang, gak usah nembak API sama sekali.
+      if(wasEditing){
+        const idx = allOrders.findIndex(o=>o.order_id===editedOrderId);
+        if(idx>-1) allOrders[idx] = { ...allOrders[idx], ...payloadBase, updated_at: new Date().toISOString() };
+        resetOrderForm();
+        goToPrepAndHighlight(editedOrderId, deliveryDate);
         showToast('👀 Orderan coba-coba diupdate (tetep lokal doang)');
       } else {
         const demoOrder = {
-          order_id: 'demo_' + uid('x'), created_at: new Date().toISOString(), delivery_date: deliveryDate,
-          customer_name: customerName, items_summary, items, total, note,
+          order_id: 'demo_' + uid('x'), created_at: new Date().toISOString(), ...payloadBase,
           prepared: false, device_label: (deviceLabel || 'Tanpa label') + ' (coba-coba)', updated_at: new Date().toISOString(),
-          shipping_fee: shippingFee, paid: false, _demo: true
+          paid: false, _demo: true
         };
         allOrders.unshift(demoOrder);
+        resetOrderForm();
+        goToPrepAndHighlight(demoOrder.order_id, deliveryDate);
         showToast('👀 Mode coba-coba — orderan ini CUMA keliatan di HP ini, nggak beneran kesimpen ke sistem');
-        newOrderIdForHighlight = demoOrder.order_id;
       }
+      return;
+    }
+
+    // ==== OPTIMISTIC: order LANGSUNG nongol + pindah ke tab Prep, API-nya jalan di belakang ====
+    if(wasEditing){
+      const idx = allOrders.findIndex(o=>o.order_id===editedOrderId);
+      if(idx>-1) allOrders[idx] = { ...allOrders[idx], ...payloadBase, updated_at: new Date().toISOString() };
       resetOrderForm();
-      if(wasEditing) goToPrepAndHighlight(editedOrderId, deliveryDate);
-      else if(newOrderIdForHighlight) goToPrepAndHighlight(newOrderIdForHighlight, deliveryDate);
+      goToPrepAndHighlight(editedOrderId, deliveryDate);
+      saveOrderInBackground(
+        { order_id: editedOrderId, ...payloadBase, prepared: editedPrepared, paid: editedPaid },
+        editedOrderId, true
+      );
     } else {
-      showToast('Gagal simpan: ' + e.message);
+      const tempId = 'pending_' + pendingOrderClientId;
+      const tempOrder = {
+        order_id: tempId, created_at: new Date().toISOString(), ...payloadBase,
+        prepared: false, updated_at: new Date().toISOString(), paid: false,
+        client_order_id: pendingOrderClientId, saldo_used: 0, saldo_deducted: false, saldo_sisa_after: null
+      };
+      allOrders.unshift(tempOrder);
+      resetOrderForm();
+      goToPrepAndHighlight(tempId, deliveryDate);
+      saveOrderInBackground({ ...payloadBase, client_order_id: pendingOrderClientId }, tempId, false);
     }
   } finally {
     isSubmittingOrder = false;
-    btn.textContent = editingOrderId ? 'Update Orderan' : 'Simpan Orderan';
-    updateOrderTotal();
   }
+}
+
+// Nyimpen order ke server di BELAKANG LAYAR (dipanggil abis UI-nya udah optimistic keupdate &
+// user udah dipindah ke tab Prep). Sukses -> tempId ditukar jadi order_id asli dari server (buat
+// order baru) atau nggak ngapa-ngapain lagi (buat edit). Gagal -> card ditandain _failed, muncul
+// banner "Coba Lagi", + notifikasi HP (kalau diizinin) + toast sebagai fallback.
+async function saveOrderInBackground(payload, tempOrRealId, isEdit){
+  try{
+    if(isEdit){
+      await apiPost('update_order', payload);
+    } else {
+      const addResult = await apiPost('add_order', payload);
+      const idx = allOrders.findIndex(o => o.order_id === tempOrRealId);
+      if(idx !== -1){
+        allOrders[idx].order_id = addResult.order_id;
+        if(document.querySelector('.tab-btn.active')?.dataset.tab === 'besok') renderBesokList();
+      }
+    }
+    loadCustomers();
+  } catch(e){
+    const idx = allOrders.findIndex(o => o.order_id === tempOrRealId);
+    if(idx !== -1){
+      allOrders[idx]._failed = true;
+      allOrders[idx]._failedMessage = e.message;
+      allOrders[idx]._failedPayload = payload;
+      allOrders[idx]._failedIsEdit = isEdit;
+    }
+    if(document.querySelector('.tab-btn.active')?.dataset.tab === 'besok') renderBesokList();
+    const notified = await ensureNotifyPermission();
+    if(notified) notifyBackgroundFailure('Gagal simpan orderan', `${payload.customer_name} gagal tersimpan — buka tab Prep buat coba lagi.`);
+    showToast('Gagal simpan orderan: ' + e.message);
+  }
+}
+async function retryFailedOrder(orderId){
+  const order = allOrders.find(o=>o.order_id===orderId);
+  if(!order || !order._failed) return;
+  order._failed = false;
+  const payload = order._failedPayload;
+  const isEdit = order._failedIsEdit;
+  renderBesokList();
+  await saveOrderInBackground(payload, orderId, isEdit);
 }
 async function deleteCurrentOrder(){
   if(!editingOrderId) return;
@@ -1823,6 +1926,7 @@ function renderBesokList(){
     const liveTotal = computeLiveOrderTotal(o, menuByIdBesok);
     return `
     <div class="order-card ${o.prepared?'prepared':''} ${o.paid?'paid':'unpaid'}" id="order-${o.order_id}">
+      ${o._failed ? `<div class="order-failed-banner">⚠️ Gagal tersimpan ke server <button onclick="event.stopPropagation(); retryFailedOrder('${o.order_id}')">Coba Lagi</button></div>` : ''}
       <div class="top-row">
         <div onclick="openEditOrder('${o.order_id}')" style="flex:1;">
           <div class="cust">${escapeHtml(o.customer_name)}</div>
