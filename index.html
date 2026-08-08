@@ -397,8 +397,8 @@
   </div>
 
   <!-- Add menu modal -->
-  <div class="modal-overlay hidden" id="receiptModal">
-    <div class="modal-sheet receipt-sheet">
+  <div class="modal-overlay hidden" id="receiptModal" onclick="if(event.target===this) closeReceiptView()">
+    <div class="modal-sheet receipt-sheet" id="receiptSheet">
       <div id="receiptImageArea"></div>
       <div id="receiptBankArea"></div>
       <div class="receipt-actions">
@@ -531,6 +531,7 @@ let editingOrderPaid = false;
 let selectedBesokDate = null;
 let activeItemFilter = null; // nama item yang lagi difilter di tab Prep
 let pendingHighlightOrderId = null; // order_id yang mau disorot abis balik ke Prep
+let skipNextHighlightScroll = false; // true kalau abis ini langsung disusul openReceiptView() (scroll jadi percuma)
 let stokMode = false; // lagi mode "Tambah Stok" di tab Menu?
 let deleteMode = false; // lagi mode "Hapus" di tab Menu?
 let pendingStok = {}; // row -> nilai stok baru yang belum disimpen ke server
@@ -556,7 +557,6 @@ function formatDateLong(iso){ if(!iso) return ''; const [y,m,d]=iso.split('-').m
 const DAY_ABBR = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
 const MONTH_ABBR_ID = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des'];
 const DAY_NAME_ID_LOWER = ['minggu','senin','selasa','rabu','kamis','jumat','sabtu'];
-function tomorrowISO(){ const d=new Date(); d.setDate(d.getDate()+1); return toLocalISODate(d); }
 // Format manual (dd-Mmm-yyyy) — nggak pake toLocaleDateString biar konsisten di semua device/OS,
 // karena native <input type=date> & format locale suka beda-beda render-nya per device (mm/dd/yyyy vs dd/mm/yyyy).
 function formatDateShort(iso){
@@ -612,6 +612,12 @@ function clearSearchField(inputId, cb){
   input.focus();
   if(typeof cb === 'function') cb();
 }
+function toLocalTimestamp(d){
+  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+  const hh=String(d.getHours()).padStart(2,'0'), mm=String(d.getMinutes()).padStart(2,'0'), ss=String(d.getSeconds()).padStart(2,'0');
+  return `${y}-${m}-${day} ${hh}:${mm}:${ss}`;
+}
+function tomorrowISO(){ const d=new Date(); d.setDate(d.getDate()+1); return toLocalISODate(d); }
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(showToast._t); showToast._t=setTimeout(()=>t.classList.remove('show'),4500); }
 function escapeHtml(str){ const d=document.createElement('div'); d.textContent = str==null?'':String(str); return d.innerHTML; }
 
@@ -1128,8 +1134,8 @@ async function submitTopupSaldo(){
   setSaldoBreakdownVal('saldoDetailSisa', optimisticSisa);
   const cachedDetail = (customerIdAtStart && loadSaldoDetailCache(customerIdAtStart)) || { history: [] };
   const optimisticHistory = (cachedDetail.history || []).concat([{
-    type: 'topup', date: new Date().toISOString().slice(0,10),
-    sort_key: new Date().toISOString().slice(0,19).replace('T',' '),
+    type: 'topup', date: toLocalISODate(new Date()),
+    sort_key: toLocalTimestamp(new Date()),
     amount, saldo_after: optimisticAwal
   }]);
   renderSaldoHistory(optimisticHistory);
@@ -1682,7 +1688,8 @@ async function submitOrder(){
         };
         allOrders.unshift(demoOrder);
         resetOrderForm();
-        goToPrepAndHighlight(demoOrder.order_id, deliveryDate);
+        goToPrepAndHighlight(demoOrder.order_id, deliveryDate, { skipScroll: true });
+        openReceiptView(demoOrder.order_id);
         showToast('👀 Mode coba-coba — orderan ini CUMA keliatan di HP ini, nggak beneran kesimpen ke sistem');
       }
       return;
@@ -1708,7 +1715,8 @@ async function submitOrder(){
       };
       allOrders.unshift(tempOrder);
       resetOrderForm();
-      goToPrepAndHighlight(tempId, deliveryDate);
+      goToPrepAndHighlight(tempId, deliveryDate, { skipScroll: true });
+      openReceiptView(tempId); // langsung siap share, sesuai maunya Shakies (butuh cepet buat share ke customer)
       saveOrderInBackground({ ...payloadBase, client_order_id: pendingOrderClientId }, tempId, false);
     }
   } finally {
@@ -1731,6 +1739,7 @@ async function saveOrderInBackground(payload, tempOrRealId, isEdit){
       const idx = allOrders.findIndex(o => o.order_id === tempOrRealId);
       if(idx !== -1){
         allOrders[idx].order_id = addResult.order_id;
+        if(currentReceiptOrderId === tempOrRealId) currentReceiptOrderId = addResult.order_id; // struk yg lagi kebuka ikut nyambung ke ID asli
         delete allOrders[idx]._pending;
         if(document.querySelector('.tab-btn.active')?.dataset.tab === 'besok') renderBesokList();
       }
@@ -1791,9 +1800,10 @@ async function deleteCurrentOrder(){
     btnDel.disabled = false; btnDel.textContent = 'Hapus Orderan';
   }
 }
-function goToPrepAndHighlight(orderId, deliveryDate){
+function goToPrepAndHighlight(orderId, deliveryDate, opts){
   pendingHighlightOrderId = orderId;
   selectedBesokDate = deliveryDate;
+  skipNextHighlightScroll = !!(opts && opts.skipScroll);
   switchTab('besok');
 }
 function resetOrderForm(){
@@ -2100,9 +2110,11 @@ function renderBesokList(){
   if(pendingHighlightOrderId){
     const targetOrderId = pendingHighlightOrderId;
     pendingHighlightOrderId = null;
+    const doScroll = !skipNextHighlightScroll;
+    skipNextHighlightScroll = false;
     const el = document.getElementById('order-'+targetOrderId);
     if(el){
-      el.scrollIntoView({behavior:'smooth', block:'center'});
+      if(doScroll) el.scrollIntoView({behavior:'smooth', block:'center'});
       el.classList.add('flash-highlight');
       setTimeout(()=>el.classList.remove('flash-highlight'), 1700);
     }
@@ -2289,11 +2301,32 @@ function openReceiptView(orderId){
   document.getElementById('receiptImageArea').innerHTML = buildReceiptImageHTML(order);
   document.getElementById('receiptBankArea').innerHTML = buildReceiptBankHTML();
   document.getElementById('receiptModal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
 }
 function closeReceiptView(){
   document.getElementById('receiptModal').classList.add('hidden');
+  document.body.style.overflow = '';
   currentReceiptOrderId = null;
 }
+// Swipe ke bawah buat nutup — lebih natural di HP drpd nyari area gelap kecil di pinggir.
+(function setupReceiptSwipeToClose(){
+  const sheet = document.getElementById('receiptSheet');
+  if(!sheet) return;
+  let startY = null;
+  sheet.addEventListener('touchstart', e=>{ startY = e.touches[0].clientY; }, { passive: true });
+  sheet.addEventListener('touchmove', e=>{
+    if(startY === null) return;
+    const delta = e.touches[0].clientY - startY;
+    if(delta > 0) sheet.style.transform = `translateY(${delta}px)`;
+  }, { passive: true });
+  sheet.addEventListener('touchend', e=>{
+    if(startY === null) return;
+    const delta = e.changedTouches[0].clientY - startY;
+    sheet.style.transform = '';
+    if(delta > 80) closeReceiptView(); // geser lumayan jauh ke bawah -> tutup
+    startY = null;
+  });
+})();
 
 async function shareReceiptImage(){
   const order = allOrders.find(o=>o.order_id===currentReceiptOrderId);
