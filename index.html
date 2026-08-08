@@ -46,6 +46,10 @@
      max-width + min-width:0 maksa dia tetep nempel di dalam container, drpd nongol kepotong
      di luar layar. */
   input[type=date]{max-width:100%;min-width:0;}
+  .date-field{position:relative;}
+  .date-field input[type=date]{color:transparent;-webkit-text-fill-color:transparent;background:transparent;position:relative;z-index:2;}
+  .date-field .date-display{position:absolute;left:13px;top:50%;transform:translateY(-50%);pointer-events:none;font-family:'DM Sans',sans-serif;font-size:15px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(100% - 40px);z-index:1;}
+  .date-field .date-display.placeholder{color:#9B958A;}
   input:focus,textarea:focus,select:focus{outline:2px solid var(--jade);outline-offset:1px;border-color:var(--jade);}
   textarea{resize:vertical;min-height:56px;}
   .field{margin-bottom:14px;}
@@ -84,6 +88,13 @@
   .modal-overlay{position:fixed;inset:0;background:rgba(38,48,44,.5);z-index:50;display:flex;align-items:flex-end;justify-content:center;}
   .modal-overlay.hidden{display:none;}
   .modal-sheet{background:var(--surface);width:100%;max-width:480px;max-height:88vh;overflow-y:auto;overscroll-behavior:contain;border-radius:20px 20px 0 0;padding:22px 18px calc(22px + env(safe-area-inset-bottom));}
+  #saldoListView{display:flex;flex-direction:column;min-height:0;}
+  #saldoSearchInput{position:sticky;top:0;background:var(--surface);z-index:3;}
+  #saldoListArea{overflow-y:auto;max-height:55vh;}
+  .search-clear-field{position:relative;}
+  .search-clear-field input{padding-right:38px;}
+  .search-clear-btn{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:28px;height:28px;border:none;background:none;color:var(--ink-soft);font-size:18px;line-height:1;cursor:pointer;display:none;align-items:center;justify-content:center;border-radius:50%;}
+  .search-clear-btn:active{background:var(--jade-tint);}
   .modal-sheet h3{font-family:'Fraunces',serif;margin:0 0 6px;color:var(--jade-dark);}
   .modal-sheet p{font-size:13px;color:var(--ink-soft);margin:0 0 14px;}
   .day-strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:16px;-webkit-overflow-scrolling:touch;}
@@ -116,6 +127,10 @@
   .filter-row{display:flex;gap:8px;margin-bottom:14px;}
   .filter-row input{flex:1;} .filter-row input[type=date]{flex:0 0 130px;}
   nav.tabbar{position:fixed;bottom:0;left:0;right:0;z-index:30;background:var(--surface);border-top:1px solid var(--border);display:flex;padding:6px 4px calc(4px + env(safe-area-inset-bottom));}
+  .scroll-bottom-fab{position:fixed;left:50%;bottom:calc(70px + env(safe-area-inset-bottom,0px));width:46px;height:46px;border-radius:50%;background:var(--jade);color:#fff;border:none;box-shadow:0 4px 14px rgba(0,0,0,.28);display:flex;align-items:center;justify-content:center;z-index:25;cursor:pointer;opacity:0;pointer-events:none;transform:translate(-50%,0);transition:opacity .2s ease;}
+  .scroll-bottom-fab.show{opacity:1;pointer-events:auto;animation:fabBounce 1.6s ease-in-out infinite;}
+  @keyframes fabBounce{0%,100%{transform:translate(-50%,0);}50%{transform:translate(-50%,6px);}}
+  .menu-action-row-sticky{position:sticky;top:var(--header-h,54px);z-index:15;background:var(--bg);padding-top:8px;padding-bottom:8px;margin-top:-8px;}
   nav.tabbar .wrap-inner{max-width:480px;margin:0 auto;display:flex;width:100%;}
   nav.tabbar button{flex:1;background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;color:var(--ink-soft);font-family:'DM Sans',sans-serif;font-size:10.5px;font-weight:600;cursor:pointer;border-radius:10px;}
   nav.tabbar button svg{width:20px;height:20px;}
@@ -133,8 +148,8 @@
   .order-card .edit-icon-btn{background:none;border:none;padding:2px;line-height:0;cursor:pointer;color:var(--jade-dark);opacity:.5;}
   .order-card .edit-icon-btn:active{opacity:.9;}
   .order-card .edit-icon-btn svg{width:15px;height:15px;}
-  .saldo-icon-btn{background:none;border:none;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--jade-dark);opacity:.6;flex-shrink:0;}
-  .saldo-icon-btn:active{opacity:1;}
+  .saldo-icon-btn{background:var(--jade-tint);border:1.5px solid var(--jade);border-radius:var(--radius-sm);width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--jade-dark);opacity:1;flex-shrink:0;}
+  .saldo-icon-btn:active{opacity:.8;}
   .saldo-icon-btn svg{width:19px;height:19px;}
   .saldo-list-row{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-bottom:1px solid var(--border);cursor:pointer;border-radius:8px;}
   .saldo-list-row:nth-child(even){background:#FDF0F0;}
@@ -268,9 +283,15 @@
       </div>
       <div class="field">
         <label class="field-label">Tanggal Kirim</label>
-        <input type="date" id="deliveryDate">
+        <div class="date-field">
+          <input type="date" id="deliveryDate">
+          <span class="date-display" id="deliveryDateDisplay"></span>
+        </div>
       </div>
-      <div class="field"><input type="text" id="orderMenuSearch" placeholder="Cari menu..." oninput="renderMenuPicker()"></div>
+      <div class="field search-clear-field">
+        <input type="text" id="orderMenuSearch" placeholder="Cari menu..." oninput="renderMenuPicker(); toggleSearchClear('orderMenuSearch')">
+        <button type="button" class="search-clear-btn" id="orderMenuSearchClear" onclick="clearSearchField('orderMenuSearch', renderMenuPicker)" aria-label="Hapus pencarian">×</button>
+      </div>
       <div id="menuPickerArea"><div class="spinner">Memuat menu...</div></div>
       <div class="field">
         <label class="field-label">Catatan (opsional)</label>
@@ -288,14 +309,17 @@
     <!-- MENU -->
     <section class="tab" id="tab-menu">
       <h2 class="section-title" style="margin-bottom:8px;">Menu</h2>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <div id="menuActionRow" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
         <button class="chili-sm" style="background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark);" onclick="openAddMenuModal()">+ Tambah Menu</button>
         <button class="chili-sm" id="btnToggleStokMode" onclick="toggleStokMode()" style="background:var(--gold-tint);border-color:var(--gold);color:var(--gold);">📦 Tambah Stok</button>
         <button class="chili-sm" id="btnToggleDeleteMode" onclick="toggleDeleteMode()" style="background:#fff;margin-left:auto;">🗑️ Hapus</button>
         <button class="chili-sm" style="background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark);" onclick="openShareMenu()">🖨️ Bagikan Menu</button>
       </div>
       <p class="section-sub">Kelola kategori &amp; item menu.</p>
-      <div class="field"><input type="text" id="menuSearch" placeholder="Cari nama menu..." oninput="renderMenuManage()"></div>
+      <div class="field search-clear-field">
+        <input type="text" id="menuSearch" placeholder="Cari nama menu..." oninput="renderMenuManage(); toggleSearchClear('menuSearch')">
+        <button type="button" class="search-clear-btn" id="menuSearchClear" onclick="clearSearchField('menuSearch', renderMenuManage)" aria-label="Hapus pencarian">×</button>
+      </div>
       <div id="categoryListArea"><div class="spinner">Memuat menu...</div></div>
     </section>
 
@@ -320,12 +344,22 @@
       <p class="section-sub" id="riwayatModeHint">Nampilin yang belum lunas aja.</p>
       <div class="field"><input type="text" id="riwayatSearch" list="customerList" autocomplete="off" placeholder="Cari nama customer..." oninput="debouncedRenderRiwayat()"></div>
       <div class="filter-row">
-        <input type="date" id="riwayatDateFrom" onchange="renderRiwayat()" style="flex:1;min-width:0;">
-        <input type="date" id="riwayatDateTo" onchange="renderRiwayat()" style="flex:1;min-width:0;">
+        <div class="date-field" style="flex:1;min-width:0;">
+          <input type="date" id="riwayatDateFrom" onchange="renderRiwayat()" style="width:100%;">
+          <span class="date-display placeholder" id="riwayatDateFromDisplay">Dari tanggal</span>
+        </div>
+        <div class="date-field" style="flex:1;min-width:0;">
+          <input type="date" id="riwayatDateTo" onchange="renderRiwayat()" style="width:100%;">
+          <span class="date-display placeholder" id="riwayatDateToDisplay">Sampai tanggal</span>
+        </div>
       </div>
       <div id="riwayatContent"><div class="spinner">Memuat riwayat...</div></div>
     </section>
   </main>
+
+  <button type="button" class="scroll-bottom-fab" id="scrollBottomFab" onclick="scrollToOrderBottom()" aria-label="Scroll ke bawah">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+  </button>
 
   <nav class="tabbar">
     <div class="wrap-inner">
@@ -363,8 +397,8 @@
   </div>
 
   <!-- Add menu modal -->
-  <div class="modal-overlay hidden" id="receiptModal" onclick="if(event.target===this) closeReceiptView()">
-    <div class="modal-sheet receipt-sheet" id="receiptSheet">
+  <div class="modal-overlay hidden" id="receiptModal">
+    <div class="modal-sheet receipt-sheet">
       <div id="receiptImageArea"></div>
       <div id="receiptBankArea"></div>
       <div class="receipt-actions">
@@ -520,12 +554,64 @@ function rupiah(n){ return 'Rp ' + Math.round(n).toLocaleString('id-ID'); }
 function toLocalISODate(d){ const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; }
 function formatDateLong(iso){ if(!iso) return ''; const [y,m,d]=iso.split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'}); }
 const DAY_ABBR = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
-function toLocalTimestamp(d){
-  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
-  const hh=String(d.getHours()).padStart(2,'0'), mm=String(d.getMinutes()).padStart(2,'0'), ss=String(d.getSeconds()).padStart(2,'0');
-  return `${y}-${m}-${day} ${hh}:${mm}:${ss}`;
-}
+const MONTH_ABBR_ID = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des'];
+const DAY_NAME_ID_LOWER = ['minggu','senin','selasa','rabu','kamis','jumat','sabtu'];
 function tomorrowISO(){ const d=new Date(); d.setDate(d.getDate()+1); return toLocalISODate(d); }
+// Format manual (dd-Mmm-yyyy) — nggak pake toLocaleDateString biar konsisten di semua device/OS,
+// karena native <input type=date> & format locale suka beda-beda render-nya per device (mm/dd/yyyy vs dd/mm/yyyy).
+function formatDateShort(iso){
+  if(!iso) return '';
+  const [y,m,d] = iso.split('-').map(Number);
+  return `${String(d).padStart(2,'0')}-${MONTH_ABBR_ID[m-1]}-${y}`;
+}
+function formatDateRelative(iso){
+  if(!iso) return '';
+  if(iso === toLocalISODate(new Date())) return 'hari ini, ' + formatDateShort(iso);
+  if(iso === tomorrowISO()) return 'besok, ' + formatDateShort(iso);
+  const [y,m,d] = iso.split('-').map(Number);
+  const dow = new Date(y,m-1,d).getDay();
+  return DAY_NAME_ID_LOWER[dow] + ', ' + formatDateShort(iso);
+}
+// Overlay tampilan custom di atas <input type=date> supaya format tanggal konsisten dd-Mmm-yyyy
+// di semua device (native input text di-transparent-in, teks asli disembunyikan pake CSS).
+function bindDateDisplay(inputId, labelId, opts){
+  opts = opts || {};
+  const input = document.getElementById(inputId);
+  const label = document.getElementById(labelId);
+  if(!input || !label) return;
+  const placeholder = opts.placeholder || 'Pilih tanggal';
+  const relative = !!opts.relative;
+  function refresh(){
+    const v = input.value;
+    if(!v){ label.textContent = placeholder; label.classList.add('placeholder'); return; }
+    label.classList.remove('placeholder');
+    label.textContent = relative ? formatDateRelative(v) : formatDateShort(v);
+  }
+  input.addEventListener('input', refresh);
+  input.addEventListener('change', refresh);
+  refresh();
+  bindDateDisplay._refreshers = bindDateDisplay._refreshers || {};
+  bindDateDisplay._refreshers[inputId] = refresh;
+}
+function refreshDateDisplay(inputId){
+  const fn = bindDateDisplay._refreshers && bindDateDisplay._refreshers[inputId];
+  if(fn) fn();
+}
+// Clear (×) button di search input — tampil kalau ada isinya, klik = kosongin + re-render + fokus lagi.
+function toggleSearchClear(inputId){
+  const input = document.getElementById(inputId);
+  const btn = document.getElementById(inputId+'Clear');
+  if(!input || !btn) return;
+  btn.style.display = input.value ? 'flex' : 'none';
+}
+function clearSearchField(inputId, cb){
+  const input = document.getElementById(inputId);
+  if(!input) return;
+  input.value = '';
+  toggleSearchClear(inputId);
+  input.focus();
+  if(typeof cb === 'function') cb();
+}
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(showToast._t); showToast._t=setTimeout(()=>t.classList.remove('show'),4500); }
 function escapeHtml(str){ const d=document.createElement('div'); d.textContent = str==null?'':String(str); return d.innerHTML; }
 
@@ -650,6 +736,19 @@ function switchTab(name){
   if(name==='besok') renderBesok();
   if(name==='riwayat') renderRiwayat();
   if(name==='menu') { renderMenuManage(); refreshMenuStokContext(); }
+  updateScrollBottomFab();
+}
+function updateScrollBottomFab(){
+  const fab = document.getElementById('scrollBottomFab');
+  if(!fab) return;
+  const activeOrderTab = document.getElementById('tab-order').classList.contains('active');
+  const hasItems = Object.keys(orderSelections).length > 0;
+  fab.classList.toggle('show', activeOrderTab && hasItems);
+}
+function scrollToOrderBottom(){
+  const target = document.getElementById('btnDeleteOrder');
+  const el = (target && target.style.display !== 'none') ? target : document.getElementById('btnSubmitOrder');
+  el.scrollIntoView({ behavior: 'smooth', block: 'end' });
 }
 async function refreshMenuStokContext(){
   // Stok Prep butuh data orderan — muat diam-diam (pakai yang udah ke-cache Prep kalau ada, biar cepet),
@@ -1029,8 +1128,8 @@ async function submitTopupSaldo(){
   setSaldoBreakdownVal('saldoDetailSisa', optimisticSisa);
   const cachedDetail = (customerIdAtStart && loadSaldoDetailCache(customerIdAtStart)) || { history: [] };
   const optimisticHistory = (cachedDetail.history || []).concat([{
-    type: 'topup', date: toLocalISODate(new Date()),
-    sort_key: toLocalTimestamp(new Date()),
+    type: 'topup', date: new Date().toISOString().slice(0,10),
+    sort_key: new Date().toISOString().slice(0,19).replace('T',' '),
     amount, saldo_after: optimisticAwal
   }]);
   renderSaldoHistory(optimisticHistory);
@@ -1191,6 +1290,8 @@ function updateStokButtonUI(){
   btn.style.background = stokMode ? 'var(--jade)' : 'var(--gold-tint)';
   btn.style.color = stokMode ? '#fff' : 'var(--gold)';
   btn.style.borderColor = stokMode ? 'var(--jade)' : 'var(--gold)';
+  const row = document.getElementById('menuActionRow');
+  if(row) row.classList.toggle('menu-action-row-sticky', stokMode);
 }
 function updateDeleteButtonUI(){
   const btn = document.getElementById('btnToggleDeleteMode');
@@ -1375,6 +1476,7 @@ function updateOrderTotal(){
   document.getElementById('orderTotal').textContent = rupiah(total);
   const hasItems = Object.keys(orderSelections).length > 0;
   document.getElementById('btnSubmitOrder').disabled = !hasItems || isSubmittingOrder;
+  updateScrollBottomFab();
   return total;
 }
 
@@ -1581,7 +1683,6 @@ async function submitOrder(){
         allOrders.unshift(demoOrder);
         resetOrderForm();
         goToPrepAndHighlight(demoOrder.order_id, deliveryDate);
-        openReceiptView(demoOrder.order_id);
         showToast('👀 Mode coba-coba — orderan ini CUMA keliatan di HP ini, nggak beneran kesimpen ke sistem');
       }
       return;
@@ -1608,7 +1709,6 @@ async function submitOrder(){
       allOrders.unshift(tempOrder);
       resetOrderForm();
       goToPrepAndHighlight(tempId, deliveryDate);
-      openReceiptView(tempId); // langsung siap share, sesuai maunya Shakies (butuh cepet buat share ke customer)
       saveOrderInBackground({ ...payloadBase, client_order_id: pendingOrderClientId }, tempId, false);
     }
   } finally {
@@ -1631,7 +1731,6 @@ async function saveOrderInBackground(payload, tempOrRealId, isEdit){
       const idx = allOrders.findIndex(o => o.order_id === tempOrRealId);
       if(idx !== -1){
         allOrders[idx].order_id = addResult.order_id;
-        if(currentReceiptOrderId === tempOrRealId) currentReceiptOrderId = addResult.order_id; // struk yg lagi kebuka ikut nyambung ke ID asli
         delete allOrders[idx]._pending;
         if(document.querySelector('.tab-btn.active')?.dataset.tab === 'besok') renderBesokList();
       }
@@ -1708,6 +1807,7 @@ function resetOrderForm(){
   document.getElementById('shippingFee').value = '';
   orderSelections = {};
   document.getElementById('deliveryDate').value = tomorrowISO();
+  refreshDateDisplay('deliveryDate');
   renderMenuPicker();
 }
 function cancelEdit(){ resetOrderForm(); showToast('Edit dibatalin'); }
@@ -1725,6 +1825,7 @@ function openEditOrder(orderId){
   document.getElementById('btnDeleteOrder').style.display = 'block';
   document.getElementById('custName').value = order.customer_name;
   document.getElementById('deliveryDate').value = order.delivery_date;
+  refreshDateDisplay('deliveryDate');
   document.getElementById('orderNote').value = order.note || '';
   document.getElementById('shippingFee').value = order.shipping_fee || '';
   orderSelections = {};
@@ -2117,7 +2218,7 @@ function renderRiwayatCards(list){
         <div onclick="openReceiptView('${o.order_id}')" style="flex:1;">
           <div class="cust">${escapeHtml(o.customer_name)}</div>
           <span class="badge">${escapeHtml(o.device_label)}</span>
-          <span class="badge" style="background:var(--gold-tint);color:var(--gold);">${formatDateLong(o.delivery_date)}</span>
+          <span class="badge" style="background:var(--gold-tint);color:var(--gold);">${formatDateShort(o.delivery_date)}</span>
         </div>
         <button class="pay-toggle ${o.paid?'paid':''}" onclick="togglePaid('${o.order_id}')">${o.paid?'✓ Lunas':'Belum Lunas'}</button>
       </div>
@@ -2188,32 +2289,11 @@ function openReceiptView(orderId){
   document.getElementById('receiptImageArea').innerHTML = buildReceiptImageHTML(order);
   document.getElementById('receiptBankArea').innerHTML = buildReceiptBankHTML();
   document.getElementById('receiptModal').classList.remove('hidden');
-  document.body.style.overflow = 'hidden';
 }
 function closeReceiptView(){
   document.getElementById('receiptModal').classList.add('hidden');
-  document.body.style.overflow = '';
   currentReceiptOrderId = null;
 }
-// Swipe ke bawah buat nutup — lebih natural di HP drpd nyari area gelap kecil di pinggir.
-(function setupReceiptSwipeToClose(){
-  const sheet = document.getElementById('receiptSheet');
-  if(!sheet) return;
-  let startY = null;
-  sheet.addEventListener('touchstart', e=>{ startY = e.touches[0].clientY; }, { passive: true });
-  sheet.addEventListener('touchmove', e=>{
-    if(startY === null) return;
-    const delta = e.touches[0].clientY - startY;
-    if(delta > 0) sheet.style.transform = `translateY(${delta}px)`;
-  }, { passive: true });
-  sheet.addEventListener('touchend', e=>{
-    if(startY === null) return;
-    const delta = e.changedTouches[0].clientY - startY;
-    sheet.style.transform = '';
-    if(delta > 80) closeReceiptView(); // geser lumayan jauh ke bawah -> tutup
-    startY = null;
-  });
-})();
 
 async function shareReceiptImage(){
   const order = allOrders.find(o=>o.order_id===currentReceiptOrderId);
@@ -2487,7 +2567,16 @@ document.getElementById('shareKertasScreen').addEventListener('click', (e)=>{
 })();
 
 // ==== INIT ====
+function syncHeaderHeightVar(){
+  const h = document.querySelector('header');
+  if(h) document.documentElement.style.setProperty('--header-h', h.offsetHeight + 'px');
+}
+syncHeaderHeightVar();
+window.addEventListener('resize', syncHeaderHeightVar);
 document.getElementById('deliveryDate').value = tomorrowISO();
+bindDateDisplay('deliveryDate', 'deliveryDateDisplay', { relative: true });
+bindDateDisplay('riwayatDateFrom', 'riwayatDateFromDisplay', { placeholder: 'Dari tanggal' });
+bindDateDisplay('riwayatDateTo', 'riwayatDateToDisplay', { placeholder: 'Sampai tanggal' });
 (async function init(){
   if(CONFIG.API_URL.includes('PASTE_URL')){
     document.getElementById('menuPickerArea').innerHTML = `<div class="empty-state"><div class="glyph">⚠️</div>URL Apps Script belum diisi di CONFIG.API_URL.</div>`;
