@@ -24,7 +24,7 @@
     --border:#E7E1D6; --radius:16px; --radius-sm:10px;
   }
   *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;touch-action:pan-x pan-y;}
+  html,body{margin:0;padding:0;touch-action:pan-y;overflow-x:hidden;}
   body{background:var(--bg);color:var(--ink);font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh;padding-bottom:78px;}
   .wrap{max-width:480px;margin:0 auto;position:relative;}
   header{padding:calc(env(safe-area-inset-top,0px) + 8px) 18px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:20;gap:8px;}
@@ -45,8 +45,8 @@
      kalender bawaan iOS ngukur lebar sendiri, nggak selalu nurut ke width:100% + box-sizing).
      max-width + min-width:0 maksa dia tetep nempel di dalam container, drpd nongol kepotong
      di luar layar. */
-  input[type=date]{max-width:100%;min-width:0;}
-  .date-field{position:relative;}
+  input[type=date]{max-width:100%;min-width:0;-webkit-appearance:none;appearance:none;}
+  .date-field{position:relative;overflow:hidden;}
   .date-field input[type=date]{color:transparent;-webkit-text-fill-color:transparent;background:transparent;position:relative;z-index:2;}
   .date-field .date-display{position:absolute;left:13px;top:50%;transform:translateY(-50%);pointer-events:none;font-family:'DM Sans',sans-serif;font-size:15px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(100% - 40px);z-index:1;}
   .date-field .date-display.placeholder{color:#9B958A;}
