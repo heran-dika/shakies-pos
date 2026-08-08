@@ -83,7 +83,7 @@
   .cat-manage .cname{font-family:'Fraunces',serif;font-weight:600;color:var(--jade-dark);}
   .modal-overlay{position:fixed;inset:0;background:rgba(38,48,44,.5);z-index:50;display:flex;align-items:flex-end;justify-content:center;}
   .modal-overlay.hidden{display:none;}
-  .modal-sheet{background:var(--surface);width:100%;max-width:480px;max-height:88vh;overflow-y:auto;border-radius:20px 20px 0 0;padding:22px 18px calc(22px + env(safe-area-inset-bottom));}
+  .modal-sheet{background:var(--surface);width:100%;max-width:480px;max-height:88vh;overflow-y:auto;overscroll-behavior:contain;border-radius:20px 20px 0 0;padding:22px 18px calc(22px + env(safe-area-inset-bottom));}
   .modal-sheet h3{font-family:'Fraunces',serif;margin:0 0 6px;color:var(--jade-dark);}
   .modal-sheet p{font-size:13px;color:var(--ink-soft);margin:0 0 14px;}
   .day-strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:16px;-webkit-overflow-scrolling:touch;}
@@ -651,8 +651,7 @@ async function refreshMenuStokContext(){
   // baru re-render angka Real/Prep/Available begitu data fresh dateng.
   const cached = loadPrepCache();
   if(cached && cached.length){
-    const demoOrders = allOrders.filter(o=>o._demo);
-    allOrders = demoOrders.concat(cached);
+    allOrders = mergeLocalPendingOrders(cached);
     renderMenuManage();
   }
   // Sama kayak Prep — skip fetch ulang kalau data masih anget.
@@ -804,12 +803,16 @@ async function loadCustomerSaldoMap(){
 
 function openSaldoPanel(){
   document.getElementById('saldoModal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden'; // kunci scroll background selama panel kebuka
   saldoSearchQuery = '';
   document.getElementById('saldoSearchInput').value = '';
   showSaldoListView();
   renderSaldoList();
 }
-function closeSaldoPanel(){ document.getElementById('saldoModal').classList.add('hidden'); }
+function closeSaldoPanel(){
+  document.getElementById('saldoModal').classList.add('hidden');
+  document.body.style.overflow = '';
+}
 function showSaldoListView(){
   document.getElementById('saldoListView').style.display = 'block';
   document.getElementById('saldoDetailView').style.display = 'none';
@@ -949,6 +952,23 @@ async function openSaldoDetail(nama, customerId){
     showToast('Gagal ambil detail saldo: ' + e.message);
   }
 }
+// Refresh data saldo TANPA reset tampilan ke spinner/cache lama dulu — beda dari openSaldoDetail
+// yang emang didesain buat pas PERTAMA kali panel dibuka. Ini dipake abis Top Up: tampilan udah
+// kepenuhin optimistic duluan, jadi begitu data asli dateng tinggal DITIMPA langsung, gak boleh
+// "reset dulu baru render lagi" (itu yang bikin entry optimistic sempet ilang/kedip aneh).
+async function refreshSaldoDetailInPlace(customerId){
+  try{
+    const detail = await apiGet('get_customer_saldo_detail', { customer_id: customerId });
+    setSaldoBreakdownVal('saldoDetailAwal', detail.saldo_real);
+    setSaldoBreakdownVal('saldoDetailJajan', detail.saldo_prep);
+    setSaldoBreakdownVal('saldoDetailSisa', detail.saldo_sisa);
+    renderSaldoHistory(detail.history);
+    saveSaldoDetailCache(customerId, detail);
+    return true;
+  } catch(e){
+    return false;
+  }
+}
 let topupInFlight = false; // guard diam-diam anti dobel-pencet, gak ada tampilan loading lagi
 let lastFailedTopup = null;
 
@@ -1016,7 +1036,7 @@ async function submitTopupSaldo(){
     await apiPost('reconcile_saldo', { customer_id: result.customer_id });
     saldoFetchCooldownUntil = 0; // topup barusan sukses -> reset cooldown, biar refresh berikutnya gak ketahan
     await loadCustomerSaldoMap();
-    await openSaldoDetail(nama, result.customer_id); // fetch beneran, gantiin data optimistic dgn yg asli dari server
+    await refreshSaldoDetailInPlace(result.customer_id); // ganti data optimistic jadi data asli TANPA reset tampilan dulu
     // Order yang barusan auto-lunas via saldo perlu keliatan di Prep/Riwayat — refresh data + re-render tab aktif.
     await loadOrders();
     refreshActiveTabAfterSaldoChange();
@@ -1467,6 +1487,15 @@ function mergeSearchResultsIntoAllOrders(orders){
 }
 
 // ==== ORDERS ====
+// Order yang lagi optimistic (baru disubmit/diedit, background save-nya belum kelar) atau yang
+// gagal tersimpan JANGAN ketimpa data lama pas ada refresh (cache localStorage ATAU fetch server)
+// — soalnya versi lokal itu yang paling akurat/terbaru selama belum dikonfirmasi backend.
+function mergeLocalPendingOrders(freshList){
+  const localOnly = allOrders.filter(o => o._demo || o._pending || o._failed);
+  const localIds = new Set(localOnly.map(o=>o.order_id));
+  const freshFiltered = freshList.filter(o => !localIds.has(o.order_id));
+  return localOnly.concat(freshFiltered);
+}
 async function loadOrders(){
   const mySeq = ++ordersFetchSeq; // tandain request ini nomor berapa
   const demoOrders = allOrders.filter(o=>o._demo);
@@ -1475,7 +1504,7 @@ async function loadOrders(){
     const fresh = await apiGet('get_orders');
     if(mySeq !== ordersFetchSeq) return false; // ada loadOrders() lain yg lebih baru nyusul — hasil ini basi, buang
     applyRecentToggleGuards(fresh); // biar field yg baru aja di-tap gak ketiban data lama dari fetch ini
-    allOrders = demoOrders.concat(fresh); // orderan coba-coba tetep keliatan selama sesi ini, meski cuma lokal
+    allOrders = mergeLocalPendingOrders(fresh); // order _demo/_pending/_failed dilindungin, gak ketimpa fetch ini
     lastOrdersFetchAt = Date.now(); // dipake guard staleness di renderBesok()/refreshMenuStokContext() biar gak fetch ulang tiap ganti tab
     return true;
   } catch(e){
@@ -1555,7 +1584,7 @@ async function submitOrder(){
     // ==== OPTIMISTIC: order LANGSUNG nongol + pindah ke tab Prep, API-nya jalan di belakang ====
     if(wasEditing){
       const idx = allOrders.findIndex(o=>o.order_id===editedOrderId);
-      if(idx>-1) allOrders[idx] = { ...allOrders[idx], ...payloadBase, updated_at: new Date().toISOString() };
+      if(idx>-1) allOrders[idx] = { ...allOrders[idx], ...payloadBase, updated_at: new Date().toISOString(), _pending: true };
       resetOrderForm();
       goToPrepAndHighlight(editedOrderId, deliveryDate);
       saveOrderInBackground(
@@ -1567,7 +1596,8 @@ async function submitOrder(){
       const tempOrder = {
         order_id: tempId, created_at: new Date().toISOString(), ...payloadBase,
         prepared: false, updated_at: new Date().toISOString(), paid: false,
-        client_order_id: pendingOrderClientId, saldo_used: 0, saldo_deducted: false, saldo_sisa_after: null
+        client_order_id: pendingOrderClientId, saldo_used: 0, saldo_deducted: false, saldo_sisa_after: null,
+        _pending: true
       };
       allOrders.unshift(tempOrder);
       resetOrderForm();
@@ -1587,11 +1617,14 @@ async function saveOrderInBackground(payload, tempOrRealId, isEdit){
   try{
     if(isEdit){
       await apiPost('update_order', payload);
+      const idx = allOrders.findIndex(o => o.order_id === tempOrRealId);
+      if(idx !== -1) delete allOrders[idx]._pending;
     } else {
       const addResult = await apiPost('add_order', payload);
       const idx = allOrders.findIndex(o => o.order_id === tempOrRealId);
       if(idx !== -1){
         allOrders[idx].order_id = addResult.order_id;
+        delete allOrders[idx]._pending;
         if(document.querySelector('.tab-btn.active')?.dataset.tab === 'besok') renderBesokList();
       }
     }
@@ -1599,6 +1632,7 @@ async function saveOrderInBackground(payload, tempOrRealId, isEdit){
   } catch(e){
     const idx = allOrders.findIndex(o => o.order_id === tempOrRealId);
     if(idx !== -1){
+      delete allOrders[idx]._pending;
       allOrders[idx]._failed = true;
       allOrders[idx]._failedMessage = e.message;
       allOrders[idx]._failedPayload = payload;
@@ -1614,6 +1648,7 @@ async function retryFailedOrder(orderId){
   const order = allOrders.find(o=>o.order_id===orderId);
   if(!order || !order._failed) return;
   order._failed = false;
+  order._pending = true;
   const payload = order._failedPayload;
   const isEdit = order._failedIsEdit;
   renderBesokList();
@@ -1672,6 +1707,8 @@ function cancelEdit(){ resetOrderForm(); showToast('Edit dibatalin'); }
 function openEditOrder(orderId){
   const order = allOrders.find(o=>o.order_id===orderId);
   if(!order) return;
+  if(order._pending){ showToast('Order ini masih diproses ke server, tunggu sebentar ya...'); return; }
+  if(order._failed){ showToast('Order ini gagal tersimpan — pencet "Coba Lagi" di card-nya dulu sebelum diedit.'); return; }
   editingOrderId = order.order_id;
   editingOrderPrepared = order.prepared;
   editingOrderPaid = order.paid;
@@ -1691,6 +1728,8 @@ function openEditOrder(orderId){
 async function togglePrepared(orderId){
   const order = allOrders.find(o=>o.order_id===orderId);
   if(!order) return;
+  if(order._pending){ showToast('Order ini masih diproses ke server, tunggu sebentar ya...'); return; }
+  if(order._failed){ showToast('Order ini gagal tersimpan — pencet "Coba Lagi" di card-nya dulu.'); return; }
   const prevState = order.prepared;
   order.prepared = !order.prepared;
   markRecentToggle(orderId, 'prepared', order.prepared); // proteksi 8 detik biar gak ketiban fetch background yg lagi nunggak
@@ -1719,6 +1758,8 @@ function markRecentToggle(orderId, field, value){
 async function togglePaid(orderId){
   const order = allOrders.find(o=>o.order_id===orderId);
   if(!order) return;
+  if(order._pending){ showToast('Order ini masih diproses ke server, tunggu sebentar ya...'); return; }
+  if(order._failed){ showToast('Order ini gagal tersimpan — pencet "Coba Lagi" di card-nya dulu.'); return; }
   if(order.paid){
     // Order yang lunas KARENA SALDO dikunci — gak boleh di-"Belum Bayar"-in dari card.
     // Alasan: begitu dibalik jadi Belum Lunas, hint saldo di card ngitung ulang dari nol
@@ -1817,8 +1858,7 @@ async function renderBesok(){
   // Tampilin cache dulu (kalau ada) biar instan, baru refresh diam-diam di background
   const cached = loadPrepCache();
   if(cached && cached.length){
-    const demoOrders = allOrders.filter(o=>o._demo);
-    allOrders = demoOrders.concat(cached);
+    allOrders = mergeLocalPendingOrders(cached);
     renderDayStrip();
     renderBesokList();
   } else {
