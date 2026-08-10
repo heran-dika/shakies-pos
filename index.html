@@ -1439,7 +1439,9 @@ function renderMenuManage(){
               ? `<div class="stok-breakdown"><span class="stok-neg">⚠️ Item induk nggak ketemu (mungkin udah dihapus)</span></div>`
               : `<div class="stok-breakdown">Stok ngikut "${escapeHtml(indukNama)}" · Prep ${itemPrep}</div>`;
           } else {
-            breakdownHtml = `<div class="stok-breakdown">Real ${real} · Prep ${itemPrep} · Tersedia <span class="${available<0?'stok-neg':''}">${available}</span></div>`;
+            breakdownHtml = stokMode
+              ? `<div class="stok-breakdown">Prep ${itemPrep} · Tersedia <span class="${available<0?'stok-neg':''}">${available}</span></div>`
+              : `<div class="stok-breakdown">Real ${real} · Prep ${itemPrep} · Tersedia <span class="${available<0?'stok-neg':''}">${available}</span></div>`;
           }
           return `
           <div class="menu-item-manage">
