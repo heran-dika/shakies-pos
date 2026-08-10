@@ -132,7 +132,8 @@
   .scroll-bottom-fab.show{opacity:1;pointer-events:auto;animation:fabBounce 1.6s ease-in-out infinite;}
   @keyframes fabBounce{0%,100%{transform:translate(-50%,0);}50%{transform:translate(-50%,6px);}}
   .menu-action-row-sticky{}
-  .stok-mode-fab{position:fixed;left:50%;bottom:calc(70px + env(safe-area-inset-bottom,0px));transform:translate(-50%,0);background:var(--jade);color:#fff;border:none;border-radius:999px;padding:12px 20px;font-size:14px;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.28);z-index:25;cursor:pointer;display:none;align-items:center;gap:6px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .2s ease;}
+  .stok-mode-fab{position:fixed;left:50%;bottom:calc(70px + env(safe-area-inset-bottom,0px));transform:translate(-50%,0);background:var(--jade);color:#fff;border:none;border-radius:999px;padding:12px 20px;font-size:14px;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.28);z-index:25;cursor:pointer;display:none;align-items:center;gap:6px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .2s ease, top .2s ease, bottom .2s ease;}
+  .stok-mode-fab.at-top{bottom:auto;top:calc(14px + env(safe-area-inset-top,0px));}
   .stok-mode-fab.show{display:flex;opacity:1;pointer-events:auto;animation:fabBounce 1.6s ease-in-out infinite;}
   nav.tabbar .wrap-inner{max-width:480px;margin:0 auto;display:flex;width:100%;}
   nav.tabbar button{flex:1;background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;color:var(--ink-soft);font-family:'DM Sans',sans-serif;font-size:10.5px;font-weight:600;cursor:pointer;border-radius:10px;}
@@ -777,8 +778,13 @@ function updateScrollBottomFab(){
   if(!fab) return;
   const activeOrderTab = document.getElementById('tab-order').classList.contains('active');
   const hasItems = Object.keys(orderSelections).length > 0;
-  fab.classList.toggle('show', activeOrderTab && hasItems);
+  // Sebelumnya cuma cek hasItems doang, jadi FAB nempel terus walau udah discroll ke paling
+  // bawah — nutupin tombol Simpan Orderan. Sekarang ikut cek posisi scroll: kalau udah deket
+  // dasar halaman (tombol submit udah keliatan), FAB disembunyiin.
+  const nearBottom = (window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - 32);
+  fab.classList.toggle('show', activeOrderTab && hasItems && !nearBottom);
 }
+window.addEventListener('scroll', function(){ updateScrollBottomFab(); updateStokFabPosition(); }, { passive: true });
 function scrollToOrderBottom(){
   const target = document.getElementById('btnDeleteOrder');
   const el = (target && target.style.display !== 'none') ? target : document.getElementById('btnSubmitOrder');
@@ -1327,6 +1333,16 @@ function updateStokButtonUI(){
   const fab = document.getElementById('stokModeFab');
   const activeMenuTab = document.getElementById('tab-menu').classList.contains('active');
   if(fab) fab.classList.toggle('show', stokMode && activeMenuTab);
+  updateStokFabPosition();
+}
+function updateStokFabPosition(){
+  // Beda dari scroll-bottom-fab (yang disembunyiin pas deket bawah), tombol "Selesai (simpan
+  // stok)" ini WAJIB tetep bisa dipencet — jadi bukan disembunyiin, tapi pindah ke atas layar
+  // pas user udah scroll ke bawah, biar gak nutupin baris item terakhir.
+  const fab = document.getElementById('stokModeFab');
+  if(!fab || !fab.classList.contains('show')) return;
+  const nearBottom = (window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - 32);
+  fab.classList.toggle('at-top', nearBottom);
 }
 function updateDeleteButtonUI(){
   const btn = document.getElementById('btnToggleDeleteMode');
@@ -1430,7 +1446,7 @@ function renderMenuManage(){
             <div ${idleMode ? `onclick="openEditMenuModal(${it.row})" style="cursor:pointer;"` : ''}>
               <div class="name">${escapeHtml(it.nama)}</div>
               <div class="price">${rupiah(it.harga)}</div>
-              ${stokMode ? '' : breakdownHtml}
+              ${breakdownHtml}
             </div>
             ${stokMode ? (
               (isChild || isUnlimited) ? `<span style="font-size:11px;color:var(--ink-soft);white-space:nowrap;">${isUnlimited ? 'unlimited' : 'ngikut induk'}</span>` : `
@@ -2038,6 +2054,9 @@ async function renderBesok(){
   syncIcon.style.display = 'none';
   renderDayStrip();
   renderBesokList();
+  renderMenuPicker(); // Tersedia di tab Order dihitung dari allOrders — kalau cuma di-refresh
+                       // pas app baru dibuka doang (init) dan gak disinkron ulang di sini, angkanya
+                       // bisa nyangkut nunjukin Real (demand keitung 0) padahal orderan udah numpuk.
   syncSaldoForUnpaidOrders(allOrders); // fire-and-forget, cuma buat coba auto-lunas FIFO
 }
 function renderBesokList(){
