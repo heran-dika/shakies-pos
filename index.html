@@ -692,6 +692,7 @@ function saveRiwayatUnpaidCache(orders){
 }
 
 // ==== API ====
+const API_TIMEOUT_MS = 18000; // Apps Script kadang hang (bukan error format, beneran gak respond) — tanpa ini fetch nunggu tanpa batas
 async function apiGet(action, params){
   let url = CONFIG.API_URL + '?action=' + encodeURIComponent(action);
   if(params){
@@ -699,7 +700,17 @@ async function apiGet(action, params){
       if(params[k]) url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
     });
   }
-  const res = await fetch(url, { cache: 'no-store' });
+  const controller = new AbortController();
+  const timer = setTimeout(()=>controller.abort(), API_TIMEOUT_MS);
+  let res;
+  try{
+    res = await fetch(url, { cache: 'no-store', signal: controller.signal });
+  } catch(e){
+    if(e.name === 'AbortError') throw new Error('Server lagi bermasalah, coba lagi sebentar');
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
   const text = await res.text();
   let json;
   try{
@@ -714,11 +725,22 @@ async function apiPost(action, payload){
   const mergedPayload = Object.assign({}, payload, {
     session_token: staffSession ? staffSession.session_token : ''
   });
-  const res = await fetch(CONFIG.API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // hindari CORS preflight
-    body: JSON.stringify({ action, payload: mergedPayload })
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(()=>controller.abort(), API_TIMEOUT_MS);
+  let res;
+  try{
+    res = await fetch(CONFIG.API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // hindari CORS preflight
+      body: JSON.stringify({ action, payload: mergedPayload }),
+      signal: controller.signal
+    });
+  } catch(e){
+    if(e.name === 'AbortError') throw new Error('Server lagi bermasalah, coba lagi sebentar');
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
   const text = await res.text();
   let json;
   try{
@@ -1613,7 +1635,15 @@ function mergeSearchResultsIntoAllOrders(orders){
 function mergeLocalPendingOrders(freshList){
   const localOnly = allOrders.filter(o => o._demo || o._pending || o._failed);
   const localIds = new Set(localOnly.map(o=>o.order_id));
-  const freshFiltered = freshList.filter(o => !localIds.has(o.order_id));
+  // Order baru yang masih _pending sempet dikenal browser pakai tempId ('pending_' + uuid),
+  // BEDA dari order_id asli yang baru dibalikin server. Kalau loadOrders() (dipicu misal dari
+  // switchTab('besok') atau abis top up saldo) numpuk pas background save order itu BELUM
+  // selesai reconcile tempId->order_id asli, versi fresh (order_id asli) dan versi lokal
+  // (order_id=tempId) bisa dianggap 2 order beda padahal sama — makanya sempet nongol dobel.
+  // client_order_id konsisten di kedua versi (dikirim ke server pas add_order, dibalikin lagi
+  // di tiap get_orders), jadi dipake juga buat dedupe, bukan cuma order_id.
+  const localClientIds = new Set(localOnly.map(o=>o.client_order_id).filter(Boolean));
+  const freshFiltered = freshList.filter(o => !localIds.has(o.order_id) && !(o.client_order_id && localClientIds.has(o.client_order_id)));
   return localOnly.concat(freshFiltered);
 }
 async function loadOrders(){
