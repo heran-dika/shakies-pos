@@ -132,8 +132,7 @@
   .scroll-bottom-fab.show{opacity:1;pointer-events:auto;animation:fabBounce 1.6s ease-in-out infinite;}
   @keyframes fabBounce{0%,100%{transform:translate(-50%,0);}50%{transform:translate(-50%,6px);}}
   .menu-action-row-sticky{}
-  .stok-mode-fab{position:fixed;left:50%;bottom:calc(70px + env(safe-area-inset-bottom,0px));transform:translate(-50%,0);background:var(--jade);color:#fff;border:none;border-radius:999px;padding:12px 20px;font-size:14px;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.28);z-index:25;cursor:pointer;display:none;align-items:center;gap:6px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .2s ease, top .2s ease, bottom .2s ease;}
-  .stok-mode-fab.at-top{bottom:auto;top:calc(14px + env(safe-area-inset-top,0px));}
+  .stok-mode-fab{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translate(-50%,0);background:var(--jade);color:#fff;border:none;border-radius:999px;padding:12px 20px;font-size:14px;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.28);z-index:25;cursor:pointer;display:none;align-items:center;gap:6px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .2s ease;}
   .stok-mode-fab.show{display:flex;opacity:1;pointer-events:auto;animation:fabBounce 1.6s ease-in-out infinite;}
   nav.tabbar .wrap-inner{max-width:480px;margin:0 auto;display:flex;width:100%;}
   nav.tabbar button{flex:1;background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;color:var(--ink-soft);font-family:'DM Sans',sans-serif;font-size:10.5px;font-weight:600;cursor:pointer;border-radius:10px;}
@@ -1330,19 +1329,21 @@ function updateStokButtonUI(){
   btn.style.background = stokMode ? 'var(--jade)' : 'var(--gold-tint)';
   btn.style.color = stokMode ? '#fff' : 'var(--gold)';
   btn.style.borderColor = stokMode ? 'var(--jade)' : 'var(--gold)';
-  const fab = document.getElementById('stokModeFab');
-  const activeMenuTab = document.getElementById('tab-menu').classList.contains('active');
-  if(fab) fab.classList.toggle('show', stokMode && activeMenuTab);
   updateStokFabPosition();
 }
 function updateStokFabPosition(){
-  // Beda dari scroll-bottom-fab (yang disembunyiin pas deket bawah), tombol "Selesai (simpan
-  // stok)" ini WAJIB tetep bisa dipencet — jadi bukan disembunyiin, tapi pindah ke atas layar
-  // pas user udah scroll ke bawah, biar gak nutupin baris item terakhir.
+  // Fab ini BUKAN duplikat yang nongol bareng pas mode edit aktif. Tombol aslinya
+  // (btnToggleStokMode) ada di header tab Menu, ikut kescroll kayak konten biasa. Fab
+  // cuma nongol (ngambang di ATAS) begitu tombol asli itu udah kescroll ilang dari layar —
+  // biar tetep bisa mencet "Selesai" tanpa harus scroll balik ke atas dulu.
   const fab = document.getElementById('stokModeFab');
-  if(!fab || !fab.classList.contains('show')) return;
-  const nearBottom = (window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - 32);
-  fab.classList.toggle('at-top', nearBottom);
+  const realBtn = document.getElementById('btnToggleStokMode');
+  if(!fab || !realBtn) return;
+  const activeMenuTab = document.getElementById('tab-menu').classList.contains('active');
+  if(!stokMode || !activeMenuTab){ fab.classList.remove('show'); return; }
+  const rect = realBtn.getBoundingClientRect();
+  const realBtnVisible = rect.bottom > 0 && rect.top < window.innerHeight;
+  fab.classList.toggle('show', !realBtnVisible);
 }
 function updateDeleteButtonUI(){
   const btn = document.getElementById('btnToggleDeleteMode');
