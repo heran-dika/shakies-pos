@@ -75,6 +75,8 @@
   button.secondary{width:100%;padding:12px;border:1.5px solid var(--jade);border-radius:var(--radius-sm);background:transparent;color:var(--jade-dark);font-weight:700;font-size:14px;cursor:pointer;}
   button.ghost-sm{border:none;background:none;color:var(--chili);font-weight:600;font-size:13px;cursor:pointer;padding:4px;}
   button.chili-sm{border:1.5px solid var(--chili);color:var(--chili);background:var(--chili-tint);border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;}
+  .discount-toggle-btn{width:34px;height:34px;flex-shrink:0;border:1.5px solid var(--gold);background:var(--gold-tint);color:var(--gold);border-radius:8px;font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;}
+  .discount-toggle-btn.active{background:var(--gold);color:#fff;}
   .edit-banner{display:flex;align-items:center;justify-content:space-between;background:var(--gold-tint);border:1px solid var(--gold);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--gold);font-weight:600;}
   .edit-banner button{background:none;border:none;color:var(--chili);font-weight:700;cursor:pointer;font-size:12.5px;}
   .menu-item-manage{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px dashed var(--border);}
@@ -139,6 +141,7 @@
   nav.tabbar button svg{width:20px;height:20px;}
   nav.tabbar button.active{color:var(--jade);background:var(--jade-tint);}
   .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--jade-dark);color:#fff;padding:12px 18px;border-radius:18px;font-size:15.5px;font-weight:600;z-index:60;opacity:0;transition:all .25s ease;pointer-events:none;white-space:normal;text-align:center;max-width:85vw;line-height:1.4;}
+  .api-status-badge{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:10px;background:#4a4a4a;color:#fff;padding:6px 12px;border-radius:14px;font-size:12px;font-weight:600;z-index:70;display:none;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(0,0,0,.2);max-width:65vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
   .spinner{text-align:center;padding:30px;color:var(--ink-soft);font-size:13px;}
   @keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
@@ -304,18 +307,17 @@
         <label class="field-label">Biaya Ekspedisi (opsional)</label>
         <input type="number" id="shippingFee" placeholder="mis. 15000 (kosongin kalau nggak ada)" oninput="updateOrderTotal()">
       </div>
-      <div class="field" style="margin-bottom:6px;">
-        <button type="button" class="chili-sm" onclick="toggleDiscountPanel()" style="background:var(--gold-tint);border-color:var(--gold);color:var(--gold);">🎟️ Diskon</button>
-        <div id="discountPanel" style="display:none;margin-top:8px;padding:10px;border:1px solid var(--border);border-radius:10px;">
-          <div style="display:flex;gap:16px;margin-bottom:8px;">
-            <label style="display:flex;align-items:center;gap:6px;"><input type="radio" name="discountType" value="persen" onchange="updateOrderTotal()"> Persen (%)</label>
-            <label style="display:flex;align-items:center;gap:6px;"><input type="radio" name="discountType" value="nominal" onchange="updateOrderTotal()"> Nominal (Rp)</label>
-          </div>
-          <input type="number" id="discountValue" placeholder="Besaran diskon" oninput="updateOrderTotal()">
-          <button type="button" class="secondary" style="margin-top:8px;padding:6px 12px;font-size:13px;" onclick="clearDiscount()">Hapus diskon</button>
+      <div id="orderTotalArea"><div class="total-bar" style="justify-content:flex-start;gap:10px;"><button type="button" id="btnDiscountToggle" class="discount-toggle-btn" onclick="toggleDiscountPanel()" aria-label="Diskon">🎟️</button><span class="lbl">Total</span><span class="val" id="orderTotal" style="margin-left:auto;">Rp 0</span></div></div>
+      <div id="discountPanel" style="display:none;margin:8px 0 6px;padding:10px;border:1px solid var(--border);border-radius:10px;">
+        <div style="display:flex;gap:16px;margin-bottom:8px;">
+          <label style="display:flex;align-items:center;gap:6px;"><input type="radio" name="discountType" value="persen" onchange="updateOrderTotal()"> Persen (%)</label>
+          <label style="display:flex;align-items:center;gap:6px;"><input type="radio" name="discountType" value="nominal" onchange="updateOrderTotal()"> Nominal (Rp)</label>
+        </div>
+        <div style="position:relative;">
+          <input type="number" id="discountValue" placeholder="Besaran diskon" oninput="onDiscountValueInput()" style="width:100%;box-sizing:border-box;padding-right:36px;">
+          <button type="button" id="btnClearDiscountValue" onclick="clearDiscountValueOnly()" style="display:none;position:absolute;right:2px;top:50%;transform:translateY(-50%);width:30px;height:30px;border:none;background:none;color:var(--ink-soft);font-size:17px;line-height:1;cursor:pointer;align-items:center;justify-content:center;">✕</button>
         </div>
       </div>
-      <div id="orderTotalArea"><div class="total-bar"><span class="lbl">Total</span><span class="val" id="orderTotal">Rp 0</span></div></div>
       <button class="primary" id="btnSubmitOrder" onclick="submitOrder()" disabled>Simpan Orderan</button>
       <button class="secondary" id="btnDeleteOrder" onclick="deleteCurrentOrder()" style="display:none;margin-top:10px;border-color:var(--chili);color:var(--chili);">Hapus Orderan</button>
     </section>
@@ -524,6 +526,7 @@
   </div>
 
   <div class="toast" id="toast"></div>
+  <div class="api-status-badge" id="apiStatusBadge"></div>
 </div>
 
 <script>
@@ -705,77 +708,120 @@ function saveRiwayatUnpaidCache(orders){
 }
 
 // ==== API ====
+// Revisi 12 Agt 2026: badge kecil di pojok kanan atas nunjukin proses backend apa yang lagi
+// jalan (dan tetep nampil kalau lebih dari 1 bareng) — biar pas muncul "server bermasalah"
+// keliatan itu kejadian pas ngapain, bukan cuma toast generik doang.
+const API_ACTION_LABELS = {
+  get_menu:'ambil menu', get_orders:'ambil orderan', get_orders_search:'cari orderan',
+  get_customers:'ambil nama customer', get_customers_saldo:'ambil saldo customer',
+  get_customer_saldo_detail:'ambil detail saldo', get_published_menu:'ambil menu publish',
+  verify_login:'sign in', add_order:'simpan orderan', update_order:'update orderan',
+  delete_order:'hapus orderan', add_menu_item:'tambah menu', update_menu_item:'update menu',
+  update_stok:'update stok', delete_menu_row:'hapus menu', delete_category:'hapus kategori',
+  publish_menu:'publish menu', topup_saldo:'top up saldo', reconcile_saldo:'alokasi saldo'
+};
+let activeApiCalls = {}; // callId -> label proses, dipake render badge
+let apiCallSeq = 0;
+function apiStatusBegin(action){
+  const id = ++apiCallSeq;
+  activeApiCalls[id] = API_ACTION_LABELS[action] || action;
+  renderApiStatusBadge();
+  return id;
+}
+function apiStatusEnd(id){
+  delete activeApiCalls[id];
+  renderApiStatusBadge();
+}
+function renderApiStatusBadge(){
+  const badge = document.getElementById('apiStatusBadge');
+  if(!badge) return;
+  const labels = Object.values(activeApiCalls);
+  if(labels.length === 0){ badge.style.display = 'none'; return; }
+  const text = labels.length === 1 ? labels[0] : `${labels[0]} +${labels.length-1} lainnya`;
+  badge.textContent = '⏳ ' + text + '...';
+  badge.style.display = 'flex';
+}
 const API_TIMEOUT_MS = 18000; // Apps Script kadang hang (bukan error format, beneran gak respond) — tanpa ini fetch nunggu tanpa batas
 async function apiGet(action, params){
-  // session_token dikirim di SEMUA request GET (harmless buat action publik yg gak butuh login,
-  // backend cuma cek token itu buat action yang emang digembok — lihat doGet() di Code_production.gs)
-  const merged = Object.assign({}, params, { session_token: staffSession ? staffSession.session_token : '' });
-  let url = CONFIG.API_URL + '?action=' + encodeURIComponent(action);
-  Object.keys(merged).forEach(k=>{
-    if(merged[k]) url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(merged[k]);
-  });
-  const controller = new AbortController();
-  const timer = setTimeout(()=>controller.abort(), API_TIMEOUT_MS);
-  let res;
+  const callId = apiStatusBegin(action);
   try{
-    res = await fetch(url, { cache: 'no-store', signal: controller.signal });
-  } catch(e){
-    if(e.name === 'AbortError') throw new Error('Server lagi bermasalah, coba lagi sebentar');
-    throw e;
+    // session_token dikirim di SEMUA request GET (harmless buat action publik yg gak butuh login,
+    // backend cuma cek token itu buat action yang emang digembok — lihat doGet() di Code_production.gs)
+    const merged = Object.assign({}, params, { session_token: staffSession ? staffSession.session_token : '' });
+    let url = CONFIG.API_URL + '?action=' + encodeURIComponent(action);
+    Object.keys(merged).forEach(k=>{
+      if(merged[k]) url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(merged[k]);
+    });
+    const controller = new AbortController();
+    const timer = setTimeout(()=>controller.abort(), API_TIMEOUT_MS);
+    let res;
+    try{
+      res = await fetch(url, { cache: 'no-store', signal: controller.signal });
+    } catch(e){
+      if(e.name === 'AbortError') throw new Error(`Server lagi bermasalah pas ${API_ACTION_LABELS[action] || action} — coba lagi sebentar`);
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
+    const text = await res.text();
+    let json;
+    try{
+      json = JSON.parse(text);
+    } catch(e){
+      throw new Error(`Server lagi bermasalah pas ${API_ACTION_LABELS[action] || action} — coba lagi sebentar`);
+    }
+    if(json.status !== 'ok'){
+      const err = new Error(json.message || 'Error');
+      err.status = json.status; // 'not_registered' dipake caller (Riwayat/Saldo) buat nampilin "Sign in dulu" tanpa toast error
+      throw err;
+    }
+    return json.data;
   } finally {
-    clearTimeout(timer);
+    apiStatusEnd(callId);
   }
-  const text = await res.text();
-  let json;
-  try{
-    json = JSON.parse(text);
-  } catch(e){
-    throw new Error('Server lagi bermasalah, coba lagi sebentar');
-  }
-  if(json.status !== 'ok'){
-    const err = new Error(json.message || 'Error');
-    err.status = json.status; // 'not_registered' dipake caller (Riwayat/Saldo) buat nampilin "Sign in dulu" tanpa toast error
-    throw err;
-  }
-  return json.data;
 }
 async function apiPost(action, payload){
-  const mergedPayload = Object.assign({}, payload, {
-    session_token: staffSession ? staffSession.session_token : ''
-  });
-  const controller = new AbortController();
-  const timer = setTimeout(()=>controller.abort(), API_TIMEOUT_MS);
-  let res;
+  const callId = apiStatusBegin(action);
   try{
-    res = await fetch(CONFIG.API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // hindari CORS preflight
-      body: JSON.stringify({ action, payload: mergedPayload }),
-      signal: controller.signal
+    const mergedPayload = Object.assign({}, payload, {
+      session_token: staffSession ? staffSession.session_token : ''
     });
-  } catch(e){
-    if(e.name === 'AbortError') throw new Error('Server lagi bermasalah, coba lagi sebentar');
-    throw e;
-  } finally {
-    clearTimeout(timer);
-  }
-  const text = await res.text();
-  let json;
-  try{
-    json = JSON.parse(text);
-  } catch(e){
-    throw new Error('Server lagi bermasalah, coba lagi sebentar');
-  }
-  if(json.status !== 'ok'){
-    if(json.status === 'not_registered' && action !== 'verify_login' && staffSession){
-      // Sesi login udah nggak valid lagi di server (expired/dihapus) — bersihin biar kepampang "Sign in" lagi
-      clearStaffSession();
+    const controller = new AbortController();
+    const timer = setTimeout(()=>controller.abort(), API_TIMEOUT_MS);
+    let res;
+    try{
+      res = await fetch(CONFIG.API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // hindari CORS preflight
+        body: JSON.stringify({ action, payload: mergedPayload }),
+        signal: controller.signal
+      });
+    } catch(e){
+      if(e.name === 'AbortError') throw new Error(`Server lagi bermasalah pas ${API_ACTION_LABELS[action] || action} — coba lagi sebentar`);
+      throw e;
+    } finally {
+      clearTimeout(timer);
     }
-    const err = new Error(json.message || 'Error');
-    err.status = json.status;
-    throw err;
+    const text = await res.text();
+    let json;
+    try{
+      json = JSON.parse(text);
+    } catch(e){
+      throw new Error(`Server lagi bermasalah pas ${API_ACTION_LABELS[action] || action} — coba lagi sebentar`);
+    }
+    if(json.status !== 'ok'){
+      if(json.status === 'not_registered' && action !== 'verify_login' && staffSession){
+        // Sesi login udah nggak valid lagi di server (expired/dihapus) — bersihin biar kepampang "Sign in" lagi
+        clearStaffSession();
+      }
+      const err = new Error(json.message || 'Error');
+      err.status = json.status;
+      throw err;
+    }
+    return json.data;
+  } finally {
+    apiStatusEnd(callId);
   }
-  return json.data;
 }
 
 // ==== TABS ====
@@ -1349,10 +1395,14 @@ function computeDemandByStockKey(dates){
 // ==== MODE TOGGLE (Tambah Stok / Hapus) di tab Menu ====
 function updateStokButtonUI(){
   const btn = document.getElementById('btnToggleStokMode');
+  const fab = document.getElementById('stokModeFab');
+  btn.disabled = false;
   btn.textContent = stokMode ? '✓ Selesai (simpan stok)' : '📦 Tambah Stok';
   btn.style.background = stokMode ? 'var(--jade)' : 'var(--gold-tint)';
   btn.style.color = stokMode ? '#fff' : 'var(--gold)';
   btn.style.borderColor = stokMode ? 'var(--jade)' : 'var(--gold)';
+  btn.style.opacity = '1';
+  if(fab){ fab.disabled = false; fab.textContent = '✓ Selesai (simpan stok)'; fab.style.opacity = '1'; }
   updateStokFabPosition();
 }
 function updateStokFabPosition(){
@@ -1402,6 +1452,10 @@ function adjustPendingStok(row, itemId, currentStok, delta){
 async function saveStokChanges(){
   const entries = Object.entries(pendingStok);
   if(entries.length === 0){ exitStokMode(); renderMenuManage(); return; }
+  const btn = document.getElementById('btnToggleStokMode');
+  const fab = document.getElementById('stokModeFab');
+  btn.disabled = true; btn.textContent = '⏳ Menyimpan...'; btn.style.opacity = '.7';
+  if(fab){ fab.disabled = true; fab.textContent = '⏳ Menyimpan...'; fab.style.opacity = '.7'; }
   try{
     for(const [row, stok] of entries){
       await apiPost('update_stok', { row: Number(row), item_id: pendingStokItemId[row] || '', stok, device_label: deviceLabel });
@@ -1418,6 +1472,8 @@ async function saveStokChanges(){
     } else {
       showToast('Gagal update stok: ' + e.message + ' — angka yang udah diubah tetep ada, coba lagi.');
     }
+  } finally {
+    updateStokButtonUI(); // ngebalikin teks/enable tombol — bener sendiri baik sukses (stokMode udah false) maupun gagal (masih true)
   }
 }
 
@@ -1547,13 +1603,41 @@ function changeQty(name, price, delta){
   updateOrderTotal();
 }
 // ==== DISKON (per-order, basis = harga item aja — ONGKIR DIKECUALIIN, keputusan Shakies 11 Agt 2026) ====
+// Revisi 12 Agt 2026: toggle icon 🎟️ = buka/tutup panel SEKALIGUS nyala/matiin diskon dari
+// hitungan Total — tapi NUTUP panel gak ngosongin radio/nominal yang udah diisi (biar gampang
+// nyalain lagi, tinggal tap icon-nya). Buat BENERAN ngosongin angka, pake tombol ✕ di dalem
+// kolom nominal (cuma nongol kalau ada ketikan, abis dipencet langsung ilang).
 function toggleDiscountPanel(){
   const panel = document.getElementById('discountPanel');
-  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  const btn = document.getElementById('btnDiscountToggle');
+  const willOpen = panel.style.display === 'none' || !panel.style.display;
+  panel.style.display = willOpen ? 'block' : 'none';
+  updateOrderTotal(); // ini juga yang nge-render ulang tombol icon-nya (state active/nggak)
+  if(willOpen){
+    // geser dikit ke arah panel biar ketawan jelas ada kolom yang perlu diisi
+    setTimeout(()=> panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+  }
 }
+function onDiscountValueInput(){
+  const valEl = document.getElementById('discountValue');
+  const clearBtn = document.getElementById('btnClearDiscountValue');
+  if(clearBtn) clearBtn.style.display = (valEl.value && String(valEl.value).trim() !== '') ? 'flex' : 'none';
+  updateOrderTotal();
+}
+function clearDiscountValueOnly(){
+  const valEl = document.getElementById('discountValue');
+  valEl.value = '';
+  document.getElementById('btnClearDiscountValue').style.display = 'none';
+  updateOrderTotal();
+  valEl.focus();
+}
+// Dipake pas reset form abis submit/batal edit — hard reset semuanya (radio, nominal, panel ketutup).
 function clearDiscount(){
   document.querySelectorAll('input[name="discountType"]').forEach(r=>r.checked=false);
   document.getElementById('discountValue').value = '';
+  const clearBtn = document.getElementById('btnClearDiscountValue');
+  if(clearBtn) clearBtn.style.display = 'none';
+  document.getElementById('discountPanel').style.display = 'none';
   updateOrderTotal();
 }
 function getDiscountInput(){
@@ -1577,19 +1661,24 @@ function updateOrderTotal(){
   Object.values(orderSelections).forEach(v=> itemsTotal += v.qty * v.price );
   const shipEl = document.getElementById('shippingFee');
   const shipping = shipEl ? (parseInt(shipEl.value, 10) || 0) : 0;
-  const discount = getDiscountInput();
+  const panelEl = document.getElementById('discountPanel');
+  const panelOpen = !!panelEl && panelEl.style.display !== 'none';
+  // Diskon cuma keitung pas panelnya lagi kebuka — nutup panel (tap icon lagi) = diskon berhenti
+  // dipake TANPA ngosongin isian, biar tinggal buka lagi kalau mau nyalain balik.
+  const discount = panelOpen ? getDiscountInput() : { type:'', value:0 };
   const discountAmount = computeDiscountAmount(itemsTotal, discount);
   const total = (itemsTotal - discountAmount) + shipping;
 
   const area = document.getElementById('orderTotalArea');
+  const toggleBtnHtml = `<button type="button" id="btnDiscountToggle" class="discount-toggle-btn${panelOpen ? ' active' : ''}" onclick="toggleDiscountPanel()" aria-label="Diskon">🎟️</button>`;
   if(discount.type && discount.value > 0){
     const discountLabel = discount.type === 'persen' ? `Diskon (${discount.value}%)` : 'Diskon (Nominal)';
     area.innerHTML = `
       <div class="total-bar"><span class="lbl">Subtotal</span><span class="val">${rupiah(itemsTotal)}</span></div>
       <div class="total-bar" style="color:var(--chili);"><span class="lbl">${discountLabel}</span><span class="val">-${rupiah(discountAmount)}</span></div>
-      <div class="total-bar"><span class="lbl">Total</span><span class="val" id="orderTotal">${rupiah(total)}</span></div>`;
+      <div class="total-bar" style="justify-content:flex-start;gap:10px;">${toggleBtnHtml}<span class="lbl">Total</span><span class="val" id="orderTotal" style="margin-left:auto;">${rupiah(total)}</span></div>`;
   } else {
-    area.innerHTML = `<div class="total-bar"><span class="lbl">Total</span><span class="val" id="orderTotal">${rupiah(total)}</span></div>`;
+    area.innerHTML = `<div class="total-bar" style="justify-content:flex-start;gap:10px;">${toggleBtnHtml}<span class="lbl">Total</span><span class="val" id="orderTotal" style="margin-left:auto;">${rupiah(total)}</span></div>`;
   }
 
   const hasItems = Object.keys(orderSelections).length > 0;
@@ -1940,9 +2029,7 @@ function resetOrderForm(){
   document.getElementById('custName').value = '';
   document.getElementById('orderNote').value = '';
   document.getElementById('shippingFee').value = '';
-  document.querySelectorAll('input[name="discountType"]').forEach(r=>r.checked=false);
-  document.getElementById('discountValue').value = '';
-  document.getElementById('discountPanel').style.display = 'none';
+  clearDiscount();
   orderSelections = {};
   document.getElementById('deliveryDate').value = tomorrowISO();
   refreshDateDisplay('deliveryDate');
@@ -1969,6 +2056,8 @@ function openEditOrder(orderId){
   document.querySelectorAll('input[name="discountType"]').forEach(r=>{ r.checked = (r.value === order.discount_type); });
   document.getElementById('discountValue').value = order.discount_value || '';
   document.getElementById('discountPanel').style.display = order.discount_type ? 'block' : 'none';
+  const clearBtn = document.getElementById('btnClearDiscountValue');
+  if(clearBtn) clearBtn.style.display = order.discount_value ? 'flex' : 'none';
   orderSelections = {};
   (order.items || []).forEach(i=>{ orderSelections[i.name] = { qty: i.qty, price: i.price }; });
   switchTab('order');
