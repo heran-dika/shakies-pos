@@ -741,6 +741,14 @@ function renderApiStatusBadge(){
   badge.textContent = '⏳ ' + text + '...';
   badge.style.display = 'flex';
 }
+// Balesan yang gagal di-JSON.parse biasanya halaman HTML dari Google (rate-limit/error akses),
+// bukan dari kode kita. Cuplikan mentahnya disisipin ke pesan error biar kebaca APA sebenernya
+// yang dibales, bukan cuma toast generik — lihat log 12 Agt 2026.
+function rawRespSnippet(text){
+  if(!text) return '(kosong)';
+  const cleaned = String(text).replace(/\s+/g, ' ').trim();
+  return cleaned.slice(0, 100) + (cleaned.length > 100 ? '...' : '');
+}
 const API_TIMEOUT_MS = 18000; // Apps Script kadang hang (bukan error format, beneran gak respond) — tanpa ini fetch nunggu tanpa batas
 async function apiGet(action, params){
   const callId = apiStatusBegin(action);
@@ -768,7 +776,7 @@ async function apiGet(action, params){
     try{
       json = JSON.parse(text);
     } catch(e){
-      throw new Error(`Server lagi bermasalah pas ${API_ACTION_LABELS[action] || action} — coba lagi sebentar`);
+      throw new Error(`Server lagi bermasalah pas ${API_ACTION_LABELS[action] || action} — coba lagi sebentar (resp: ${rawRespSnippet(text)})`);
     }
     if(json.status !== 'ok'){
       const err = new Error(json.message || 'Error');
@@ -807,7 +815,7 @@ async function apiPost(action, payload){
     try{
       json = JSON.parse(text);
     } catch(e){
-      throw new Error(`Server lagi bermasalah pas ${API_ACTION_LABELS[action] || action} — coba lagi sebentar`);
+      throw new Error(`Server lagi bermasalah pas ${API_ACTION_LABELS[action] || action} — coba lagi sebentar (resp: ${rawRespSnippet(text)})`);
     }
     if(json.status !== 'ok'){
       if(json.status === 'not_registered' && action !== 'verify_login' && staffSession){
