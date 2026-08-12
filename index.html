@@ -304,7 +304,18 @@
         <label class="field-label">Biaya Ekspedisi (opsional)</label>
         <input type="number" id="shippingFee" placeholder="mis. 15000 (kosongin kalau nggak ada)" oninput="updateOrderTotal()">
       </div>
-      <div class="total-bar"><span class="lbl">Total</span><span class="val" id="orderTotal">Rp 0</span></div>
+      <div class="field" style="margin-bottom:6px;">
+        <button type="button" class="chili-sm" onclick="toggleDiscountPanel()" style="background:var(--gold-tint);border-color:var(--gold);color:var(--gold);">🎟️ Diskon</button>
+        <div id="discountPanel" style="display:none;margin-top:8px;padding:10px;border:1px solid var(--border);border-radius:10px;">
+          <div style="display:flex;gap:16px;margin-bottom:8px;">
+            <label style="display:flex;align-items:center;gap:6px;"><input type="radio" name="discountType" value="persen" onchange="updateOrderTotal()"> Persen (%)</label>
+            <label style="display:flex;align-items:center;gap:6px;"><input type="radio" name="discountType" value="nominal" onchange="updateOrderTotal()"> Nominal (Rp)</label>
+          </div>
+          <input type="number" id="discountValue" placeholder="Besaran diskon" oninput="updateOrderTotal()">
+          <button type="button" class="secondary" style="margin-top:8px;padding:6px 12px;font-size:13px;" onclick="clearDiscount()">Hapus diskon</button>
+        </div>
+      </div>
+      <div id="orderTotalArea"><div class="total-bar"><span class="lbl">Total</span><span class="val" id="orderTotal">Rp 0</span></div></div>
       <button class="primary" id="btnSubmitOrder" onclick="submitOrder()" disabled>Simpan Orderan</button>
       <button class="secondary" id="btnDeleteOrder" onclick="deleteCurrentOrder()" style="display:none;margin-top:10px;border-color:var(--chili);color:var(--chili);">Hapus Orderan</button>
     </section>
@@ -333,6 +344,7 @@
         <svg id="prepSyncIcon" style="display:none;width:15px;height:15px;color:var(--gold);animation:spin 1s linear infinite;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
       </div>
       <div class="day-strip" id="dayStrip"></div>
+      <div id="besokLoginHint" style="display:none;padding:10px 12px;margin-bottom:10px;border-radius:10px;background:var(--gold-tint,#fff8e6);border:1px solid var(--gold,#d4a017);font-size:13px;">🔒 Belum sign in — cuma orderan coba-coba yang keliatan. Sign in buat lihat semua orderan asli.</div>
       <div id="besokContent"><div class="spinner">Memuat orderan...</div></div>
     </section>
 
@@ -540,6 +552,7 @@ let skipNextHighlightScroll = false; // true kalau abis ini langsung disusul ope
 let stokMode = false; // lagi mode "Tambah Stok" di tab Menu?
 let deleteMode = false; // lagi mode "Hapus" di tab Menu?
 let pendingStok = {}; // row -> nilai stok baru yang belum disimpen ke server
+let pendingStokItemId = {}; // row -> item_id (dipake buat validasi tulis di backend, row cuma buat UI, lihat FIX 12 Agt 2026)
 let editingMenuRow = null; // row yang lagi diedit di modal Tambah/Edit Menu (null = mode tambah)
 let ordersFetchSeq = 0; // nomor urut tiap loadOrders() dipanggil — biar fetch basi yg nyusul telat gak nimpa data baru
 let recentLocalToggles = {}; // order_id -> {prepared?, paid?, until} — proteksi sementara abis tap centang/lunas biar gak ketiban fetch background yang lagi nunggak
@@ -694,12 +707,13 @@ function saveRiwayatUnpaidCache(orders){
 // ==== API ====
 const API_TIMEOUT_MS = 18000; // Apps Script kadang hang (bukan error format, beneran gak respond) — tanpa ini fetch nunggu tanpa batas
 async function apiGet(action, params){
+  // session_token dikirim di SEMUA request GET (harmless buat action publik yg gak butuh login,
+  // backend cuma cek token itu buat action yang emang digembok — lihat doGet() di Code_production.gs)
+  const merged = Object.assign({}, params, { session_token: staffSession ? staffSession.session_token : '' });
   let url = CONFIG.API_URL + '?action=' + encodeURIComponent(action);
-  if(params){
-    Object.keys(params).forEach(k=>{
-      if(params[k]) url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
-    });
-  }
+  Object.keys(merged).forEach(k=>{
+    if(merged[k]) url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(merged[k]);
+  });
   const controller = new AbortController();
   const timer = setTimeout(()=>controller.abort(), API_TIMEOUT_MS);
   let res;
@@ -718,7 +732,11 @@ async function apiGet(action, params){
   } catch(e){
     throw new Error('Server lagi bermasalah, coba lagi sebentar');
   }
-  if(json.status !== 'ok') throw new Error(json.message || 'Error');
+  if(json.status !== 'ok'){
+    const err = new Error(json.message || 'Error');
+    err.status = json.status; // 'not_registered' dipake caller (Riwayat/Saldo) buat nampilin "Sign in dulu" tanpa toast error
+    throw err;
+  }
   return json.data;
 }
 async function apiPost(action, payload){
@@ -950,6 +968,12 @@ function openSaldoPanel(){
   saldoSearchQuery = '';
   document.getElementById('saldoSearchInput').value = '';
   showSaldoListView();
+  if(!staffSession){
+    // Saldo customer nggak punya konsep "punya device ini" — beda dari Prep/Riwayat yang masih
+    // bisa nampilin orderan coba-coba. Jadi Saldo full digembok: sign in dulu, titik.
+    document.getElementById('saldoListArea').innerHTML = `<div class="empty-state"><div class="glyph">🔒</div>Sign in dulu buat lihat saldo customer.</div>`;
+    return;
+  }
   renderSaldoList();
 }
 function closeSaldoPanel(){
@@ -1352,12 +1376,12 @@ function updateDeleteButtonUI(){
   btn.style.color = deleteMode ? 'var(--chili)' : 'var(--ink)';
   btn.textContent = deleteMode ? '✓ Selesai Hapus' : '🗑️ Hapus';
 }
-function exitStokMode(){ stokMode = false; pendingStok = {}; updateStokButtonUI(); }
+function exitStokMode(){ stokMode = false; pendingStok = {}; pendingStokItemId = {}; updateStokButtonUI(); }
 function exitDeleteMode(){ deleteMode = false; updateDeleteButtonUI(); }
 function toggleStokMode(){
   if(stokMode){ saveStokChanges(); return; }
   if(deleteMode) exitDeleteMode();
-  stokMode = true; pendingStok = {};
+  stokMode = true; pendingStok = {}; pendingStokItemId = {};
   updateStokButtonUI();
   renderMenuManage();
 }
@@ -1367,10 +1391,11 @@ function toggleDeleteMode(){
   updateDeleteButtonUI();
   renderMenuManage();
 }
-function adjustPendingStok(row, currentStok, delta){
+function adjustPendingStok(row, itemId, currentStok, delta){
   const base = (row in pendingStok) ? pendingStok[row] : currentStok;
   const next = Math.max(0, base + delta);
   pendingStok[row] = next;
+  pendingStokItemId[row] = itemId;
   const el = document.getElementById('stokval-'+row);
   if(el) el.textContent = next;
 }
@@ -1379,7 +1404,7 @@ async function saveStokChanges(){
   if(entries.length === 0){ exitStokMode(); renderMenuManage(); return; }
   try{
     for(const [row, stok] of entries){
-      await apiPost('update_stok', { row: Number(row), stok, device_label: deviceLabel });
+      await apiPost('update_stok', { row: Number(row), item_id: pendingStokItemId[row] || '', stok, device_label: deviceLabel });
     }
     // Sukses semua — baru sekarang aman keluar mode & buang perubahan pending (udah kesimpen di server).
     exitStokMode();
@@ -1454,11 +1479,11 @@ function renderMenuManage(){
             ${stokMode ? (
               (isChild || isUnlimited) ? `<span style="font-size:11px;color:var(--ink-soft);white-space:nowrap;">${isUnlimited ? 'unlimited' : 'ngikut induk'}</span>` : `
               <div class="stepper">
-                <button onclick="adjustPendingStok(${it.row}, ${it.stok||0}, -1)">−</button>
+                <button onclick="adjustPendingStok(${it.row}, '${it.item_id}', ${it.stok||0}, -1)">−</button>
                 <span class="qty" id="stokval-${it.row}">${stokVal}</span>
-                <button onclick="adjustPendingStok(${it.row}, ${it.stok||0}, 1)">+</button>
+                <button onclick="adjustPendingStok(${it.row}, '${it.item_id}', ${it.stok||0}, 1)">+</button>
               </div>`
-            ) : deleteMode ? `<button class="ghost-sm" onclick="deleteMenuRow(${it.row})">Hapus</button>` : ''}
+            ) : deleteMode ? `<button class="ghost-sm" onclick="deleteMenuRow(${it.row}, '${it.item_id}')">Hapus</button>` : ''}
           </div>`;
         }).join('')}
       </div>`;
@@ -1521,13 +1546,52 @@ function changeQty(name, price, delta){
   if(el) el.textContent = next;
   updateOrderTotal();
 }
+// ==== DISKON (per-order, basis = harga item aja — ONGKIR DIKECUALIIN, keputusan Shakies 11 Agt 2026) ====
+function toggleDiscountPanel(){
+  const panel = document.getElementById('discountPanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+function clearDiscount(){
+  document.querySelectorAll('input[name="discountType"]').forEach(r=>r.checked=false);
+  document.getElementById('discountValue').value = '';
+  updateOrderTotal();
+}
+function getDiscountInput(){
+  const typeEl = document.querySelector('input[name="discountType"]:checked');
+  const valEl = document.getElementById('discountValue');
+  const rawVal = valEl ? parseFloat(valEl.value) : 0;
+  if(!typeEl || !rawVal || rawVal <= 0) return { type:'', value:0 };
+  return { type: typeEl.value, value: rawVal };
+}
+// itemsTotal = basis diskon (harga item doang, TANPA ongkir).
+function computeDiscountAmount(itemsTotal, discount){
+  if(!discount || !discount.type || !discount.value) return 0;
+  if(discount.type === 'persen'){
+    const pct = Math.min(100, Math.max(0, discount.value)); // clamp 0-100
+    return Math.round(itemsTotal * pct / 100);
+  }
+  return Math.min(itemsTotal, Math.max(0, discount.value)); // nominal, clamp maks = itemsTotal (basis diskon)
+}
 function updateOrderTotal(){
-  let total = 0;
-  Object.values(orderSelections).forEach(v=> total += v.qty * v.price );
+  let itemsTotal = 0;
+  Object.values(orderSelections).forEach(v=> itemsTotal += v.qty * v.price );
   const shipEl = document.getElementById('shippingFee');
   const shipping = shipEl ? (parseInt(shipEl.value, 10) || 0) : 0;
-  total += shipping;
-  document.getElementById('orderTotal').textContent = rupiah(total);
+  const discount = getDiscountInput();
+  const discountAmount = computeDiscountAmount(itemsTotal, discount);
+  const total = (itemsTotal - discountAmount) + shipping;
+
+  const area = document.getElementById('orderTotalArea');
+  if(discount.type && discount.value > 0){
+    const discountLabel = discount.type === 'persen' ? `Diskon (${discount.value}%)` : 'Diskon (Nominal)';
+    area.innerHTML = `
+      <div class="total-bar"><span class="lbl">Subtotal</span><span class="val">${rupiah(itemsTotal)}</span></div>
+      <div class="total-bar" style="color:var(--chili);"><span class="lbl">${discountLabel}</span><span class="val">-${rupiah(discountAmount)}</span></div>
+      <div class="total-bar"><span class="lbl">Total</span><span class="val" id="orderTotal">${rupiah(total)}</span></div>`;
+  } else {
+    area.innerHTML = `<div class="total-bar"><span class="lbl">Total</span><span class="val" id="orderTotal">${rupiah(total)}</span></div>`;
+  }
+
   const hasItems = Object.keys(orderSelections).length > 0;
   document.getElementById('btnSubmitOrder').disabled = !hasItems || isSubmittingOrder;
   updateScrollBottomFab();
@@ -1604,7 +1668,7 @@ async function submitAddMenu(){
   btn.disabled = true; btn.textContent = 'Menyimpan...';
   try{
     if(editingMenuRow){
-      await apiPost('update_menu_item', { row: editingMenuRow, kategori, nama, harga, stok_induk: stokInduk, unlimited, device_label: deviceLabel });
+      await apiPost('update_menu_item', { row: editingMenuRow, item_id: currentEditItem ? currentEditItem.item_id : '', kategori, nama, harga, stok_induk: stokInduk, unlimited, device_label: deviceLabel });
       showToast('Item diupdate ✓');
     } else {
       await apiPost('add_menu_item', { kategori, nama, harga, stok_induk: stokInduk, unlimited, device_label: deviceLabel });
@@ -1624,9 +1688,9 @@ async function submitAddMenu(){
     btn.disabled = false; btn.textContent = editingMenuRow ? 'Simpan Perubahan' : 'Simpan Item';
   }
 }
-async function deleteMenuRow(row){
+async function deleteMenuRow(row, itemId){
   if(!confirm('Hapus item ini?')) return;
-  try{ await apiPost('delete_menu_row', { row, device_label: deviceLabel }); showToast('Item dihapus'); await loadMenu(); }
+  try{ await apiPost('delete_menu_row', { row, item_id: itemId || '', device_label: deviceLabel }); showToast('Item dihapus'); await loadMenu(); }
   catch(e){ showToast(e.status === 'not_registered' ? '⚠️ Sesi login habis — item BELUM dihapus. Sign in ulang dulu.' : 'Gagal: ' + e.message); }
 }
 async function deleteCategory(kategori){
@@ -1678,7 +1742,9 @@ async function loadOrders(){
     return true;
   } catch(e){
     if(mySeq !== ordersFetchSeq) return false; // sama — request ini udah basi, gak perlu ganggu state
-    showToast('Gagal ambil orderan: ' + e.message);
+    // not_registered = belum login (device coba-coba / sesi expired), BUKAN error server —
+    // gak usah toast tiap kali app dibuka di device yang emang belum sign in.
+    if(e.status !== 'not_registered') showToast('Gagal ambil orderan: ' + e.message);
     allOrders = demoOrders.concat(previousReal); // gagal fetch — tetep pake data lama drpd kosong
     return false;
   }
@@ -1705,8 +1771,10 @@ async function submitOrder(){
   const shippingFee = parseInt(document.getElementById('shippingFee').value, 10) || 0;
   const items = Object.keys(orderSelections).map(name=>({ name, qty: orderSelections[name].qty, price: orderSelections[name].price }));
   if(items.length===0) return;
+  const discount = getDiscountInput();
   const itemsTotal = items.reduce((s,i)=>s+i.price*i.qty,0);
-  const total = itemsTotal + shippingFee;
+  const discountAmount = computeDiscountAmount(itemsTotal, discount);
+  const total = (itemsTotal - discountAmount) + shippingFee;
   const items_summary = items.map(i=>`${i.name} x${i.qty}`).join(', ');
 
   if(isSubmittingOrder) return; // dobel-pencet cepet -> diabaikan diam-diam, gak ada tampilan loading lagi
@@ -1723,7 +1791,8 @@ async function submitOrder(){
 
   const payloadBase = {
     delivery_date: deliveryDate, customer_name: customerName, items_summary, items, total, note,
-    device_label: deviceLabel || 'Tanpa label', shipping_fee: shippingFee
+    device_label: deviceLabel || 'Tanpa label', shipping_fee: shippingFee,
+    discount_type: discount.type, discount_value: discount.value
   };
 
   try{
@@ -1871,6 +1940,9 @@ function resetOrderForm(){
   document.getElementById('custName').value = '';
   document.getElementById('orderNote').value = '';
   document.getElementById('shippingFee').value = '';
+  document.querySelectorAll('input[name="discountType"]').forEach(r=>r.checked=false);
+  document.getElementById('discountValue').value = '';
+  document.getElementById('discountPanel').style.display = 'none';
   orderSelections = {};
   document.getElementById('deliveryDate').value = tomorrowISO();
   refreshDateDisplay('deliveryDate');
@@ -1894,6 +1966,9 @@ function openEditOrder(orderId){
   refreshDateDisplay('deliveryDate');
   document.getElementById('orderNote').value = order.note || '';
   document.getElementById('shippingFee').value = order.shipping_fee || '';
+  document.querySelectorAll('input[name="discountType"]').forEach(r=>{ r.checked = (r.value === order.discount_type); });
+  document.getElementById('discountValue').value = order.discount_value || '';
+  document.getElementById('discountPanel').style.display = order.discount_type ? 'block' : 'none';
   orderSelections = {};
   (order.items || []).forEach(i=>{ orderSelections[i.name] = { qty: i.qty, price: i.price }; });
   switchTab('order');
@@ -1914,7 +1989,8 @@ async function togglePrepared(orderId){
     await apiPost('update_order', {
       order_id: order.order_id, delivery_date: order.delivery_date, customer_name: order.customer_name,
       items_summary: order.items_summary, items: order.items, total: order.total, note: order.note,
-      prepared: order.prepared, device_label: order.device_label, shipping_fee: order.shipping_fee, paid: order.paid
+      prepared: order.prepared, device_label: order.device_label, shipping_fee: order.shipping_fee, paid: order.paid,
+      discount_type: order.discount_type || '', discount_value: order.discount_value || 0
     });
     savePrepCache(allOrders); // update cache diam-diam biar konsisten pas reload berikutnya
   } catch(e){
@@ -1967,7 +2043,8 @@ async function togglePaid(orderId){
     await apiPost('update_order', {
       order_id: order.order_id, delivery_date: order.delivery_date, customer_name: order.customer_name,
       items_summary: order.items_summary, items: order.items, total: order.total, note: order.note,
-      prepared: order.prepared, device_label: order.device_label, shipping_fee: order.shipping_fee, paid: order.paid
+      prepared: order.prepared, device_label: order.device_label, shipping_fee: order.shipping_fee, paid: order.paid,
+      discount_type: order.discount_type || '', discount_value: order.discount_value || 0
     });
   } catch(e){
     order.paid = prevState; markRecentToggle(orderId, 'paid', order.paid); renderBesokList(); patchRiwayatCardPaidState(orderId, order.paid); showToast('Gagal update: ' + e.message);
@@ -2036,9 +2113,21 @@ async function renderBesok(){
     allOrders = mergeLocalPendingOrders(cached);
     renderDayStrip();
     renderBesokList();
+  } else if(!staffSession){
+    // Belum login — get_orders digembok, jadi orderan ASLI (server) gak ditarik.
+    // Minimal: tetep tampilin card orderan coba-coba (_demo) yang device ini buat sendiri —
+    // itu emang cuma disimpen lokal & gak pernah nyampe server, jadi aman ditampilin.
+    allOrders = allOrders.filter(o => o._demo || o._pending || o._failed);
+    renderDayStrip();
+    renderBesokList();
+    const hintBar = document.getElementById('besokLoginHint');
+    if(hintBar) hintBar.style.display = 'block';
+    return;
   } else {
     document.getElementById('besokContent').innerHTML = `<div class="spinner">Memuat orderan...</div>`;
   }
+  const hintBar = document.getElementById('besokLoginHint');
+  if(hintBar) hintBar.style.display = 'none'; // punya cache atau udah login — hint gak relevan lagi
   // Cuma fetch ulang kalau data terakhir udah agak basi — sebelumnya tiap tab Prep dibuka
   // PASTI fetch baru (3-4 detik), jadi mondar-mandir tab cepat nembak get_orders berkali-kali
   // beruntun (ini juga yang bikin toast "server error" kerasa lebih sering — makin banyak
@@ -2208,6 +2297,10 @@ async function renderRiwayatList(){
   const syncIcon = document.getElementById('riwayatSyncIcon');
 
   if(hasFilter){
+    if(!staffSession){
+      area.innerHTML = `<div class="empty-state"><div class="glyph">🔒</div>Sign in dulu buat nyari riwayat lengkap.</div>`;
+      return;
+    }
     // Ada filter aktif — query LANGSUNG ke server (get_orders_search), yang nyakup sheet aktif
     // + Archive sekaligus. Jauh lebih ringan drpd narik seluruh get_orders lalu filter di HP,
     // apalagi begitu order lama mulai kepindah ke Archive.
@@ -2267,6 +2360,15 @@ async function renderRiwayatList(){
   await loadCustomerSaldoMap(); // refresh fresh (cooldown otomatis ngerem kalau lagi gagal terus)
   syncIcon.style.display = 'none';
   if(!ok){
+    if(!staffSession){
+      // Belum login — get_orders digembok. Minimal: tampilin orderan coba-coba/pending lokal
+      // milik device ini sendiri, drpd nyangkut spinner selamanya.
+      const localOnly = allOrders.filter(o => (o._demo || o._pending || o._failed) && !o.paid)
+        .sort((a,b)=> (a.delivery_date||'').localeCompare(b.delivery_date||''));
+      hint.textContent = '🔒 Belum sign in — cuma orderan coba-coba/pending punya device ini yang keliatan.';
+      renderRiwayatCards(localOnly);
+      return;
+    }
     // Fetch gagal — JANGAN kunci riwayatDefaultSnapshotLoaded, biar next kali Riwayat dibuka
     // dia coba fetch lagi (drpd nyangkut kosong sepanjang sesi). Yang udah kerender (cache/spinner)
     // dari atas dibiarin apa adanya.
@@ -2323,6 +2425,9 @@ function buildReceiptImageHTML(o){
     <div class="receipt-row"><span>${escapeHtml(i.name)} x${i.qty} @${rupiah(i.price)}</span><span>${rupiah(i.qty*i.price)}</span></div>
   `).join('');
   const shippingRow = o.shipping_fee ? `<div class="receipt-row"><span>Ongkir</span><span>${rupiah(o.shipping_fee)}</span></div>` : '';
+  const itemsTotalForReceipt = (o.items||[]).reduce((s,i)=>s+(i.price*i.qty),0);
+  const receiptDiscountAmount = (o.discount_type && o.discount_value) ? computeDiscountAmount(itemsTotalForReceipt, { type:o.discount_type, value:o.discount_value }) : 0;
+  const discountRow = receiptDiscountAmount > 0 ? `<div class="receipt-row"><span>Subtotal</span><span>${rupiah(itemsTotalForReceipt)}</span></div><div class="receipt-row" style="color:var(--chili);"><span>Diskon (${o.discount_type==='persen' ? o.discount_value+'%' : 'Nominal'})</span><span>-${rupiah(receiptDiscountAmount)}</span></div>` : '';
   return `
     <div style="text-align:center;padding-bottom:12px;border-bottom:1px dashed var(--border);">
       ${logoSrc ? `<div style="width:44px;height:44px;border-radius:50%;overflow:hidden;margin:0 auto 6px;"><img src="${logoSrc}" style="width:100%;height:100%;object-fit:cover;"></div>` : ''}
@@ -2334,6 +2439,7 @@ function buildReceiptImageHTML(o){
       <div class="receipt-row"><span>Tgl kirim</span><span style="font-weight:600;">${formatDateLong(o.delivery_date)}</span></div>
       <div class="receipt-divider"></div>
       ${itemsRows}
+      ${discountRow}
       ${shippingRow}
       <div class="receipt-divider" style="border-top-color:var(--jade-dark);border-top-width:1.5px;"></div>
       <div class="receipt-row" style="font-weight:700;color:var(--jade-dark);font-size:14px;"><span>Total</span><span>${rupiah(o.total)}</span></div>
@@ -2440,6 +2546,12 @@ function generateReceiptText(o){
     lines.push(i.name);
     lines.push(`  ${i.qty} x ${rupiah(i.price)} = ${rupiah(i.qty*i.price)}`);
   });
+  if(o.discount_type && o.discount_value){
+    const itemsTotalTxt = (o.items||[]).reduce((s,i)=>s+(i.price*i.qty),0);
+    const discAmountTxt = computeDiscountAmount(itemsTotalTxt, { type:o.discount_type, value:o.discount_value });
+    lines.push('Subtotal: ' + rupiah(itemsTotalTxt));
+    lines.push(`Diskon (${o.discount_type==='persen' ? o.discount_value+'%' : 'Nominal'}): -` + rupiah(discAmountTxt));
+  }
   if(o.shipping_fee) lines.push('Ongkir: ' + rupiah(o.shipping_fee));
   lines.push('------------------------');
   lines.push('Total: ' + rupiah(o.total));
@@ -2697,6 +2809,13 @@ bindDateDisplay('riwayatDateTo', 'riwayatDateToDisplay', { placeholder: 'Sampai 
     renderMenuPicker(); // refresh angka Tersedia di tab Order begitu data orderan udah anget
   });
 })();
+
+// ==== SERVICE WORKER (network-first, sw.js) ====
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./sw.js').catch(()=>{ /* non-fatal — app tetep jalan tanpa SW */ });
+  });
+}
 </script>
 </body>
 </html>
