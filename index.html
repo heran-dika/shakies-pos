@@ -566,6 +566,16 @@ let ordersFetchSeq = 0; // nomor urut tiap loadOrders() dipanggil — biar fetch
 let recentLocalToggles = {}; // order_id -> {prepared?, paid?, until} — proteksi sementara abis tap centang/lunas biar gak ketiban fetch background yang lagi nunggak
 let lastOrdersFetchAt = 0; // kapan loadOrders() terakhir SUKSES — dipake guard biar gak fetch ulang tiap ganti tab kalau datanya masih anget
 const ORDERS_STALE_MS = 15000; // 15 detik — di bawah ini, buka tab Prep/Menu gak nembak get_orders baru, langsung pake data yg ada
+// In-flight dedup — beda dari staleness guard di atas (yg cuma cek jarak waktu dari fetch SUKSES terakhir).
+// Tanpa ini: mondar-mandir tab cepet SAAT fetch pertama masih nunggu jawaban server tetep lolos staleness
+// guard (belum ada fetch sukses buat dibandingin) dan nembak fetch baru lagi tiap tap — bisa numpuk
+// belasan/puluhan request nganggur nunggu di belakang, kandidat kuat bikin Apps Script rate-limit nolak
+// (lihat log 12-13 Agt 2026). Fix: kalau fetch yg sama masih jalan, tap berikutnya numpang promise yg ada,
+// gak nembak fetch baru sama sekali.
+let ordersFetchPromise = null;
+let menuFetchPromise = null;
+let customersFetchPromise = null;
+let saldoFetchPromise = null;
 const PREP_CACHE_KEY = 'prep-orders-cache-v1';
 const MENU_CACHE_KEY = 'menu-cache-v1';
 const RIWAYAT_UNPAID_CACHE_KEY = 'riwayat-unpaid-cache-v1';
@@ -933,40 +943,48 @@ async function handleCredentialResponse(response){
 
 // ==== MENU ====
 async function loadMenu(){
-  // Menu jarang berubah — tampilin cache dulu (kalau ada) biar nggak nunggu,
-  // baru refresh diam-diam di background.
-  const cached = loadMenuCache();
-  if(cached && cached.length){
-    menuItems = cached;
+  if(menuFetchPromise) return menuFetchPromise; // fetch get_menu lain masih jalan — numpang itu aja, jangan nembak baru
+  menuFetchPromise = (async () => {
+    // Menu jarang berubah — tampilin cache dulu (kalau ada) biar nggak nunggu,
+    // baru refresh diam-diam di background.
+    const cached = loadMenuCache();
+    if(cached && cached.length){
+      menuItems = cached;
+      renderMenuPicker();
+      renderMenuManage();
+    }
+    try{
+      const fresh = await apiGet('get_menu');
+      menuItems = fresh;
+      saveMenuCache(fresh);
+    } catch(e){
+      if(!cached){ showToast('Gagal ambil data menu: ' + e.message); menuItems = []; }
+      // kalau ada cache, gagal refresh nggak masalah — tetep pakai yang lama diam-diam
+    }
     renderMenuPicker();
     renderMenuManage();
-  }
-  try{
-    const fresh = await apiGet('get_menu');
-    menuItems = fresh;
-    saveMenuCache(fresh);
-  } catch(e){
-    if(!cached){ showToast('Gagal ambil data menu: ' + e.message); menuItems = []; }
-    // kalau ada cache, gagal refresh nggak masalah — tetep pakai yang lama diam-diam
-  }
-  renderMenuPicker();
-  renderMenuManage();
+  })();
+  try{ await menuFetchPromise; } finally { menuFetchPromise = null; }
 }
 async function loadCustomers(){
-  const datalist = document.getElementById('customerList');
-  const cached = loadCustomerCache();
-  if(cached && cached.length){
-    datalist.innerHTML = cached.map(n=>`<option value="${escapeHtml(n)}">`).join('');
-  }
-  try{
-    const names = await apiGet('get_customers');
-    datalist.innerHTML = names.map(n=>`<option value="${escapeHtml(n)}">`).join('');
-    saveCustomerCache(names);
-  } catch(e){
-    console.error('Gagal ambil daftar customer:', e);
-    // Gagal ambil daftar customer bukan hal fatal — kalau ada cache lama, itu tetep kepake dari atas;
-    // kalau nggak ada cache, input nama tetep bisa dipakai manual tanpa saran.
-  }
+  if(customersFetchPromise) return customersFetchPromise; // fetch get_customers lain masih jalan — numpang itu aja
+  customersFetchPromise = (async () => {
+    const datalist = document.getElementById('customerList');
+    const cached = loadCustomerCache();
+    if(cached && cached.length){
+      datalist.innerHTML = cached.map(n=>`<option value="${escapeHtml(n)}">`).join('');
+    }
+    try{
+      const names = await apiGet('get_customers');
+      datalist.innerHTML = names.map(n=>`<option value="${escapeHtml(n)}">`).join('');
+      saveCustomerCache(names);
+    } catch(e){
+      console.error('Gagal ambil daftar customer:', e);
+      // Gagal ambil daftar customer bukan hal fatal — kalau ada cache lama, itu tetep kepake dari atas;
+      // kalau nggak ada cache, input nama tetep bisa dipakai manual tanpa saran.
+    }
+  })();
+  try{ await customersFetchPromise; } finally { customersFetchPromise = null; }
 }
 
 // ==== SALDO CUSTOMER ====
@@ -1005,20 +1023,24 @@ function loadSaldoMapFromCache(){
 
 async function loadCustomerSaldoMap(){
   if(Date.now() < saldoFetchCooldownUntil) return; // masih cooldown dari kegagalan sebelumnya — skip, jangan nembak lagi
-  try{
-    const list = await apiGet('get_customers_saldo');
-    const map = {};
-    list.forEach(c=>{ map[c.nama.toLowerCase()] = c; });
-    customerSaldoMap = map;
-    saveSaldoCache(map);
-    saldoFetchFailCount = 0;
-  } catch(e){
-    console.error('Gagal ambil saldo customer:', e);
-    saldoFetchFailCount++;
-    // Backoff: 5 detik, 10, 20, 40... maks 60 detik — biar kalau backend lagi bermasalah,
-    // app gak nembak get_customers_saldo berkali-kali tiap kali Prep/Riwayat dibuka.
-    saldoFetchCooldownUntil = Date.now() + Math.min(60000, 5000 * Math.pow(2, saldoFetchFailCount - 1));
-  }
+  if(saldoFetchPromise) return saldoFetchPromise; // fetch get_customers_saldo lain masih jalan — numpang itu aja
+  saldoFetchPromise = (async () => {
+    try{
+      const list = await apiGet('get_customers_saldo');
+      const map = {};
+      list.forEach(c=>{ map[c.nama.toLowerCase()] = c; });
+      customerSaldoMap = map;
+      saveSaldoCache(map);
+      saldoFetchFailCount = 0;
+    } catch(e){
+      console.error('Gagal ambil saldo customer:', e);
+      saldoFetchFailCount++;
+      // Backoff: 5 detik, 10, 20, 40... maks 60 detik — biar kalau backend lagi bermasalah,
+      // app gak nembak get_customers_saldo berkali-kali tiap kali Prep/Riwayat dibuka.
+      saldoFetchCooldownUntil = Date.now() + Math.min(60000, 5000 * Math.pow(2, saldoFetchFailCount - 1));
+    }
+  })();
+  try{ await saldoFetchPromise; } finally { saldoFetchPromise = null; }
 }
 
 function openSaldoPanel(){
@@ -1840,24 +1862,28 @@ function mergeLocalPendingOrders(freshList){
   return localOnly.concat(freshFiltered);
 }
 async function loadOrders(){
-  const mySeq = ++ordersFetchSeq; // tandain request ini nomor berapa
-  const demoOrders = allOrders.filter(o=>o._demo);
-  const previousReal = allOrders.filter(o=>!o._demo);
-  try{
-    const fresh = await apiGet('get_orders');
-    if(mySeq !== ordersFetchSeq) return false; // ada loadOrders() lain yg lebih baru nyusul — hasil ini basi, buang
-    applyRecentToggleGuards(fresh); // biar field yg baru aja di-tap gak ketiban data lama dari fetch ini
-    allOrders = mergeLocalPendingOrders(fresh); // order _demo/_pending/_failed dilindungin, gak ketimpa fetch ini
-    lastOrdersFetchAt = Date.now(); // dipake guard staleness di renderBesok()/refreshMenuStokContext() biar gak fetch ulang tiap ganti tab
-    return true;
-  } catch(e){
-    if(mySeq !== ordersFetchSeq) return false; // sama — request ini udah basi, gak perlu ganggu state
-    // not_registered = belum login (device coba-coba / sesi expired), BUKAN error server —
-    // gak usah toast tiap kali app dibuka di device yang emang belum sign in.
-    if(e.status !== 'not_registered') showToast('Gagal ambil orderan: ' + e.message);
-    allOrders = demoOrders.concat(previousReal); // gagal fetch — tetep pake data lama drpd kosong
-    return false;
-  }
+  if(ordersFetchPromise) return ordersFetchPromise; // fetch get_orders lain (dari tab lain / caller lain) masih jalan — numpang hasil itu, jangan nembak baru
+  ordersFetchPromise = (async () => {
+    const mySeq = ++ordersFetchSeq; // tandain request ini nomor berapa
+    const demoOrders = allOrders.filter(o=>o._demo);
+    const previousReal = allOrders.filter(o=>!o._demo);
+    try{
+      const fresh = await apiGet('get_orders');
+      if(mySeq !== ordersFetchSeq) return false; // ada loadOrders() lain yg lebih baru nyusul — hasil ini basi, buang
+      applyRecentToggleGuards(fresh); // biar field yg baru aja di-tap gak ketiban data lama dari fetch ini
+      allOrders = mergeLocalPendingOrders(fresh); // order _demo/_pending/_failed dilindungin, gak ketimpa fetch ini
+      lastOrdersFetchAt = Date.now(); // dipake guard staleness di renderBesok()/refreshMenuStokContext() biar gak fetch ulang tiap ganti tab
+      return true;
+    } catch(e){
+      if(mySeq !== ordersFetchSeq) return false; // sama — request ini udah basi, gak perlu ganggu state
+      // not_registered = belum login (device coba-coba / sesi expired), BUKAN error server —
+      // gak usah toast tiap kali app dibuka di device yang emang belum sign in.
+      if(e.status !== 'not_registered') showToast('Gagal ambil orderan: ' + e.message);
+      allOrders = demoOrders.concat(previousReal); // gagal fetch — tetep pake data lama drpd kosong
+      return false;
+    }
+  })();
+  try{ return await ordersFetchPromise; } finally { ordersFetchPromise = null; }
 }
 // Terapin nilai prepared/paid dari toggle lokal yang masih dalam window proteksi ke data fresh dari server,
 // biar tap yang baru aja dilakuin gak "lompat balik" gara-gara ketiban fetch background yang lagi nunggak.
