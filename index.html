@@ -567,6 +567,7 @@ let deleteMode = false; // lagi mode "Hapus" di tab Menu?
 let pendingStok = {}; // row -> nilai stok baru yang belum disimpen ke server
 let pendingStokItemId = {}; // row -> item_id (dipake buat validasi tulis di backend, row cuma buat UI, lihat FIX 12 Agt 2026)
 let editingMenuRow = null; // row yang lagi diedit di modal Tambah/Edit Menu (null = mode tambah)
+let pendingMenuClientId = null; // idempotency key add_menu_item — sekali per sesi buka modal Tambah (bukan Edit), dipake ulang kalau tap Simpan diulang abis error. Reset begitu sukses/modal ditutup.
 let ordersFetchSeq = 0; // nomor urut tiap loadOrders() dipanggil — biar fetch basi yg nyusul telat gak nimpa data baru
 let recentLocalToggles = {}; // order_id -> {prepared?, paid?, until} — proteksi sementara abis tap centang/lunas biar gak ketiban fetch background yang lagi nunggak
 let lastOrdersFetchAt = 0; // kapan loadOrders() terakhir SUKSES — dipake guard biar gak fetch ulang tiap ganti tab kalau datanya masih anget
@@ -854,6 +855,12 @@ async function apiPost(action, payload){
 
 // ==== TABS ====
 function switchTab(name){
+  // Safety net: kalau ada modal (Saldo/Struk) yang overflow-lock-nya nyangkut gara-gara
+  // dicabut di tengah jalan (misal error API pas modal kebuka), body ketinggalan
+  // "overflow:hidden" permanen — dan itu bisa bikin header (position:sticky) berhenti
+  // nempel pas discroll. Pindah tab adalah titik aman yang PASTI kejalanin terus, jadi
+  // paksa reset di sini gak peduli kondisi sebelumnya (lihat log 14 Agt 2026).
+  document.body.style.overflow = '';
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
@@ -1065,6 +1072,8 @@ function openSaldoPanel(){
 function closeSaldoPanel(){
   document.getElementById('saldoModal').classList.add('hidden');
   document.body.style.overflow = '';
+  pendingTopupClientId = null; // panel ditutup — batalin idempotency key yang lagi nunggak, kalau dibuka lagi itu topup baru
+  clearTopupFailedBanner();
 }
 function showSaldoListView(){
   document.getElementById('saldoListView').style.display = 'block';
@@ -1224,6 +1233,7 @@ async function refreshSaldoDetailInPlace(customerId){
 }
 let topupInFlight = false; // guard diam-diam anti dobel-pencet, gak ada tampilan loading lagi
 let lastFailedTopup = null;
+let pendingTopupClientId = null; // idempotency key topup_saldo — dibikin sekali per percobaan topup, dipake ulang kalau di-retry, direset begitu sukses. Sama pola kayak pendingOrderClientId.
 
 async function ensureNotifyPermission(){
   if(!('Notification' in window)) return false;
@@ -1271,6 +1281,7 @@ async function submitTopupSaldo(){
   if(topupInFlight) return; // dobel-pencet cepet -> diabaikan diam-diam
   topupInFlight = true;
   clearTopupFailedBanner();
+  if(!pendingTopupClientId) pendingTopupClientId = crypto.randomUUID(); // baru dibikin kalau ini bukan lanjutan retry
   const customerIdAtStart = saldoDetailCustomerId; // mungkin masih kosong kalau ini top up PERTAMA customer ini
   document.getElementById('saldoTopupAmount').value = '';
 
@@ -1290,7 +1301,8 @@ async function submitTopupSaldo(){
   renderSaldoHistory(optimisticHistory);
 
   try{
-    const result = await apiPost('topup_saldo', { nama, amount });
+    const result = await apiPost('topup_saldo', { nama, amount, client_topup_id: pendingTopupClientId });
+    pendingTopupClientId = null; // sukses — reset, biar top up BERIKUTNYA (bukan retry) dapet ID baru
     // Abis top up, langsung coba alokasiin ke order belum lunas yang mungkin sekarang udah kecukup.
     await apiPost('reconcile_saldo', { customer_id: result.customer_id });
     saldoFetchCooldownUntil = 0; // topup barusan sukses -> reset cooldown, biar refresh berikutnya gak ketahan
@@ -1754,6 +1766,7 @@ function onStokTypeChange(){
 }
 function openAddMenuModal(){
   editingMenuRow = null;
+  pendingMenuClientId = crypto.randomUUID(); // idempotency key baru — sekali per sesi buka modal Tambah
   document.getElementById('addMenuModalTitle').textContent = 'Tambah Menu';
   document.getElementById('addMenuModalDesc').textContent = 'Pilih kategori yang udah ada, atau tambah kategori baru.';
   document.getElementById('btnSubmitAddMenu').textContent = 'Simpan Item';
@@ -1790,7 +1803,7 @@ function openEditMenuModal(row){
   onStokTypeChange();
   document.getElementById('addMenuModal').classList.remove('hidden');
 }
-function closeAddMenuModal(){ document.getElementById('addMenuModal').classList.add('hidden'); editingMenuRow = null; }
+function closeAddMenuModal(){ document.getElementById('addMenuModal').classList.add('hidden'); editingMenuRow = null; pendingMenuClientId = null; }
 function onCatSelectChange(){
   const sel = document.getElementById('addMenuCatSelect');
   document.getElementById('addMenuCatNew').style.display = sel.value==='__new__' ? 'block' : 'none';
@@ -1814,11 +1827,12 @@ async function submitAddMenu(){
       await apiPost('update_menu_item', { row: editingMenuRow, item_id: currentEditItem ? currentEditItem.item_id : '', kategori, nama, harga, stok_induk: stokInduk, unlimited, device_label: deviceLabel });
       showToast('Item diupdate ✓');
     } else {
-      await apiPost('add_menu_item', { kategori, nama, harga, stok_induk: stokInduk, unlimited, device_label: deviceLabel });
+      await apiPost('add_menu_item', { kategori, nama, harga, stok_induk: stokInduk, unlimited, device_label: deviceLabel, client_item_id: pendingMenuClientId });
       showToast('Menu ditambahkan ✓');
     }
     document.getElementById('addMenuModal').classList.add('hidden');
     editingMenuRow = null;
+    pendingMenuClientId = null;
     await loadMenu();
   } catch(e){
     if(e.status === 'not_registered'){
