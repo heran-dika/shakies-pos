@@ -553,6 +553,11 @@ let isSubmittingOrder = false; // dipake updateOrderTotal() biar gak diem-diem n
 let pendingOrderClientId = null; // idempotency key add_order — dibikin sekali per sesi isi form, dipake ulang kalau di-retry (manual/otomatis), biar gak dobel kalau respon gagal balik padahal sheet udah ketulis
 let editingOrderPrepared = false;
 let editingOrderPaid = false;
+// Set order_id yang lagi diproses retryFailedOrder() — nyegah tap "Coba Lagi" beruntun kirim
+// add_order/update_order dobel SEBELUM request pertama kelar (lihat log 13 Agt 2026: race
+// condition ini + addOrder() yg gak ada LockService bikin order bisa kedobel di Sheet).
+let retryingOrderIds = new Set();
+let lastRetryTapAt = {}; // order_id / 'saldo' -> timestamp tap "Coba Lagi" terakhir, buat cooldown anti-badai-request
 let selectedBesokDate = null;
 let activeItemFilter = null; // nama item yang lagi difilter di tab Prep
 let pendingHighlightOrderId = null; // order_id yang mau disorot abis balik ke Prep
@@ -1246,6 +1251,12 @@ function showTopupFailedBanner(nama, amount, customerId){
 }
 async function retryFailedTopup(){
   if(!lastFailedTopup) return;
+  const now = Date.now();
+  if(now - (lastRetryTapAt['saldo'] || 0) < RETRY_COOLDOWN_MS){
+    showToast('Tunggu sebentar sebelum coba lagi ya');
+    return;
+  }
+  lastRetryTapAt['saldo'] = now;
   const { amount } = lastFailedTopup;
   clearTopupFailedBanner();
   document.getElementById('saldoTopupAmount').value = amount;
@@ -2025,15 +2036,28 @@ async function saveOrderInBackground(payload, tempOrRealId, isEdit){
     showToast('Gagal simpan orderan: ' + e.message);
   }
 }
+const RETRY_COOLDOWN_MS = 4000; // jeda minimum antar tap "Coba Lagi" per order — nyegah badai request beruntun yang bisa micu halaman "unusual traffic" Google (lihat log 13 Agt 2026)
 async function retryFailedOrder(orderId){
+  if(retryingOrderIds.has(orderId)) return; // masih ada retry yg sama lagi jalan — abaikan tap ini
+  const now = Date.now();
+  if(now - (lastRetryTapAt[orderId] || 0) < RETRY_COOLDOWN_MS){
+    showToast('Tunggu sebentar sebelum coba lagi ya');
+    return;
+  }
+  lastRetryTapAt[orderId] = now;
   const order = allOrders.find(o=>o.order_id===orderId);
   if(!order || !order._failed) return;
+  retryingOrderIds.add(orderId);
   order._failed = false;
   order._pending = true;
   const payload = order._failedPayload;
   const isEdit = order._failedIsEdit;
   renderBesokList();
-  await saveOrderInBackground(payload, orderId, isEdit);
+  try{
+    await saveOrderInBackground(payload, orderId, isEdit);
+  } finally {
+    retryingOrderIds.delete(orderId);
+  }
 }
 async function deleteCurrentOrder(){
   if(!editingOrderId) return;
