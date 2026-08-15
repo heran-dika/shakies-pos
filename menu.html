@@ -107,13 +107,14 @@ async function load(){
 }
 load();
 
-// Gesture seret ke bawah buat nutup halaman ini. Kenapa perlu: pas link ini dibuka dari
-// dalam PWA Shakies POS yang udah ke-install, Android/Chrome kadang "nangkep" navigasi ke
-// URL satu-scope dan buka langsung di jendela standalone app itu — TANPA address bar/tombol
-// back sama sekali. window.close() cuma jalan kalau jendelanya emang dibuka lewat script
-// (termasuk lewat mekanisme capture di atas, yang perilakunya mirip window.open()); di tab
-// browser biasa manggil ini gak ngefek apa-apa (aman, cuma no-op — nggak bakal nge-crash).
-(function setupSwipeDownToClose(){
+// Gesture seret ke bawah buat balik ke halaman sebelumnya. Kenapa perlu: pas link ini
+// dibuka dari dalam PWA Shakies POS yang udah ke-install, Android/Chrome kadang "nangkep"
+// navigasi ke URL satu-scope dan nampilinnya di JENDELA APP YANG SAMA (dipake ulang, bukan
+// jendela baru) — tanpa address bar/tombol back sama sekali. history.back() aman dipake di
+// sini karena riwayat navigasi App itu sendiri tetap ada (cuma UI-nya doang yang nggak
+// nyediain tombol back). CATATAN: sengaja BUKAN window.close() — itu nutup SELURUH app POS
+// yang lagi dipake ulang itu (bukan cuma halaman ini), keliatan kayak bug/nge-crash.
+(function setupSwipeDownToBack(){
   let startY = null, tracking = false;
   const THRESHOLD = 90;
   window.addEventListener('touchstart', e=>{
@@ -131,7 +132,7 @@ load();
     if(!tracking) return;
     tracking = false;
     const dy = e.changedTouches[0].clientY - startY;
-    if(dy > THRESHOLD) window.close();
+    if(dy > THRESHOLD) history.back();
   });
 })();
 </script>
