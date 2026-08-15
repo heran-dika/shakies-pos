@@ -246,7 +246,8 @@
   #shareKertasContent .item-line .dots{ flex:1; border-bottom:1.5px dotted #C9C2B6; transform:translateY(-3px); }
   #shareKertasContent .item-line .harga{ font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--jade-dark); font-size:calc(12.5px * var(--s)); white-space:nowrap; }
   #shareKertasScreen .k-foot{ text-align:center; flex-shrink:0; color:var(--ink-soft); padding:6px 16px calc(env(safe-area-inset-bottom,0px) + 8px); font-size:10px; }
-  #shareKertasScreen .k-live-link{ display:block; flex-shrink:0; text-align:center; text-decoration:none; margin:0 22px calc(env(safe-area-inset-bottom,0px) + 14px); padding:11px 14px; border-radius:12px; background:var(--jade-tint); border:1.5px solid var(--jade); color:var(--jade-dark); font-weight:700; font-size:13px; }
+  #shareKertasScreen .k-live-link{ position:absolute; left:22px; right:22px; bottom:calc(env(safe-area-inset-bottom,0px) + 14px); text-align:center; text-decoration:none; padding:11px 14px; border-radius:12px; background:var(--jade-tint); border:1.5px solid var(--jade); color:var(--jade-dark); font-weight:700; font-size:13px; z-index:50; opacity:0; transition:opacity .3s ease; pointer-events:none; }
+  #shareKertasScreen .k-live-link.show{ opacity:1; pointer-events:auto; }
   .k-close{ position:absolute; top:calc(env(safe-area-inset-top,0px) + 8px); right:14px; width:34px; height:34px; border-radius:50%; background:rgba(0,0,0,.35); color:#fff; border:none; display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; z-index:50; opacity:0; transition:opacity .3s ease; pointer-events:none; }
   .k-close.show{ opacity:1; pointer-events:auto; }
   .k-publish{ position:absolute; top:calc(env(safe-area-inset-top,0px) + 8px); right:56px; height:34px; padding:0 14px; border-radius:17px; background:rgba(0,0,0,.35); color:#fff; border:none; display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:700; white-space:nowrap; cursor:pointer; z-index:50; opacity:0; transition:opacity .3s ease; pointer-events:none; }
@@ -546,7 +547,7 @@
       </div>
       <div class="k-body"><div id="shareKertasContent"></div></div>
       <div class="k-foot">Order via chat / DM — kuota terbatas per hari</div>
-      <a class="k-live-link" href="https://heran-dika.github.io/shakies/" target="_blank" rel="noopener">🔗 Lihat Menu Live</a>
+      <a class="k-live-link" id="kLiveLink" href="https://heran-dika.github.io/shakies/" target="_blank" rel="noopener">🔗 Lihat Menu Live</a>
     </div>
   </div>
 
@@ -3018,9 +3019,11 @@ function showShareCloseButtonTemporarily(){
   const closeBtn = document.getElementById('kClose');
   const publishBtn = document.getElementById('kPublish');
   const lastPublishEl = document.getElementById('kLastPublish');
+  const liveLinkEl = document.getElementById('kLiveLink');
   closeBtn.classList.add('show');
   publishBtn.classList.add('show');
   lastPublishEl.classList.add('show');
+  liveLinkEl.classList.add('show');
   clearTimeout(shareCloseTimer);
   shareCloseTimer = setTimeout(hideShareControlsNow, 2000);
 }
@@ -3029,6 +3032,7 @@ function hideShareControlsNow(){
   document.getElementById('kClose').classList.remove('show');
   document.getElementById('kPublish').classList.remove('show');
   document.getElementById('kLastPublish').classList.remove('show');
+  document.getElementById('kLiveLink').classList.remove('show');
 }
 document.getElementById('shareKertasScreen').addEventListener('click', (e)=>{
   if(e.target.id === 'kClose' || e.target.id === 'kPublish' || e.target.closest('.k-live-link')) return;
