@@ -159,6 +159,12 @@
   .saldo-icon-btn{background:var(--jade-tint);border:1.5px solid var(--jade);border-radius:var(--radius-sm);width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--jade-dark);opacity:1;flex-shrink:0;}
   .saldo-icon-btn:active{opacity:.8;}
   .saldo-icon-btn svg{width:19px;height:19px;}
+  .today-quick-btn{background:var(--jade-tint);border:1.5px solid var(--jade);border-radius:var(--radius-sm);width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--jade-dark);flex-shrink:0;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:15px;line-height:1;}
+  .today-quick-btn:active{opacity:.8;}
+  .riwayat-refresh-btn{background:var(--jade-tint);border:1.5px solid var(--jade);border-radius:var(--radius-sm);width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--jade-dark);flex-shrink:0;}
+  .riwayat-refresh-btn:active{opacity:.8;}
+  .riwayat-refresh-btn svg{width:16px;height:16px;}
+  .riwayat-refresh-btn.spinning svg{animation:spin 1s linear infinite;}
   .saldo-list-row{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-bottom:1px solid var(--border);cursor:pointer;border-radius:8px;}
   .saldo-list-row:nth-child(even){background:#FDF0F0;}
   .saldo-list-row:active{background:#FDF0F0;}
@@ -301,9 +307,12 @@
       </div>
       <div class="field">
         <label class="field-label">Tanggal Kirim</label>
-        <div class="date-field">
-          <input type="date" id="deliveryDate">
-          <span class="date-display" id="deliveryDateDisplay"></span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="date-field" style="flex:1;min-width:0;">
+            <input type="date" id="deliveryDate">
+            <span class="date-display" id="deliveryDateDisplay"></span>
+          </div>
+          <button type="button" class="today-quick-btn" id="todayQuickBtn" onclick="setDeliveryDateToday()" aria-label="Set tanggal ke hari ini"></button>
         </div>
       </div>
       <div class="field search-clear-field">
@@ -369,7 +378,12 @@
         <h2 class="section-title" style="margin-bottom:0;display:flex;align-items:center;gap:6px;">Riwayat Orderan
           <svg id="riwayatSyncIcon" style="display:none;width:14px;height:14px;color:var(--gold);animation:spin 1s linear infinite;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
         </h2>
-        <span id="riwayatTotalRevenue" style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:600;color:var(--jade-dark);white-space:nowrap;flex-shrink:0;">Rp 0</span>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          <span id="riwayatTotalRevenue" style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:600;color:var(--jade-dark);white-space:nowrap;">Rp 0</span>
+          <button type="button" class="riwayat-refresh-btn" id="riwayatRefreshBtn" onclick="forceRefreshRiwayat()" aria-label="Refresh riwayat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+          </button>
+        </div>
       </div>
       <p class="section-sub" id="riwayatModeHint">Nampilin yang belum lunas aja.</p>
       <div class="field"><input type="text" id="riwayatSearch" list="customerList" autocomplete="off" placeholder="Cari nama customer..." oninput="debouncedRenderRiwayat()"></div>
@@ -680,6 +694,16 @@ function toLocalTimestamp(d){
   return `${y}-${m}-${day} ${hh}:${mm}:${ss}`;
 }
 function tomorrowISO(){ const d=new Date(); d.setDate(d.getDate()+1); return toLocalISODate(d); }
+// Tombol "hari ini" di sebelah Tanggal Kirim — angka di tombol ikut tanggal hari ini,
+// klik = langsung set deliveryDate ke hari ini (default field ini emang besok, ini cuma shortcut).
+function setDeliveryDateToday(){
+  document.getElementById('deliveryDate').value = toLocalISODate(new Date());
+  refreshDateDisplay('deliveryDate');
+}
+function updateTodayQuickBtnLabel(){
+  const btn = document.getElementById('todayQuickBtn');
+  if(btn) btn.textContent = new Date().getDate();
+}
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(showToast._t); showToast._t=setTimeout(()=>t.classList.remove('show'),4500); }
 function escapeHtml(str){ const d=document.createElement('div'); d.textContent = str==null?'':String(str); return d.innerHTML; }
 
@@ -2626,6 +2650,21 @@ async function renderRiwayatList(){
   renderRiwayatCards(riwayatDefaultSnapshot);
   syncSaldoForUnpaidOrders(riwayatDefaultSnapshot);
 }
+// Snapshot "belum lunas" di Riwayat sengaja cuma di-fetch SEKALI per sesi (lihat renderRiwayatList),
+// jadi orderan baru yang disubmit dari tab Order (yang optimistic-nya cuma nongol di allOrders +
+// tab Prep) gak otomatis muncul di sini. Tombol refresh ini yang manual "paksa" ambil ulang dari
+// server — bukan bug snapshot-nya, tapi memang belum ada auto-push order baru ke snapshot ini.
+async function forceRefreshRiwayat(){
+  const btn = document.getElementById('riwayatRefreshBtn');
+  if(btn) btn.classList.add('spinning');
+  riwayatDefaultSnapshotLoaded = false; // buang kuncian sesi biar renderRiwayatList() fetch ulang
+  Object.keys(riwayatSearchCache).forEach(k => delete riwayatSearchCache[k]); // buang cache hasil search 60 detik juga, biar filter aktif ikut ke-refresh
+  try{
+    await renderRiwayat();
+  } finally {
+    if(btn) btn.classList.remove('spinning');
+  }
+}
 function renderRiwayatCards(list){
   const area = document.getElementById('riwayatContent');
   const revenueTotal = list.reduce((sum,o)=> sum + (Number(o.total)||0), 0);
@@ -3092,6 +3131,7 @@ syncHeaderHeightVar();
 window.addEventListener('resize', syncHeaderHeightVar);
 document.getElementById('deliveryDate').value = tomorrowISO();
 bindDateDisplay('deliveryDate', 'deliveryDateDisplay', { relative: true });
+updateTodayQuickBtnLabel();
 bindDateDisplay('riwayatDateFrom', 'riwayatDateFromDisplay', { placeholder: 'Dari tanggal' });
 bindDateDisplay('riwayatDateTo', 'riwayatDateToDisplay', { placeholder: 'Sampai tanggal' });
 (async function init(){
