@@ -163,6 +163,7 @@
   .today-quick-btn:active{opacity:.8;}
   .riwayat-refresh-btn{background:var(--jade-tint);border:1.5px solid var(--jade);border-radius:var(--radius-sm);width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--jade-dark);flex-shrink:0;}
   .riwayat-refresh-btn:active{opacity:.8;}
+  .riwayat-refresh-btn:disabled{opacity:.5;cursor:default;}
   .riwayat-refresh-btn svg{width:16px;height:16px;}
   .riwayat-refresh-btn.spinning svg{animation:spin 1s linear infinite;}
   .saldo-list-row{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-bottom:1px solid var(--border);cursor:pointer;border-radius:8px;}
@@ -375,9 +376,7 @@
     <!-- RIWAYAT -->
     <section class="tab" id="tab-riwayat">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
-        <h2 class="section-title" style="margin-bottom:0;display:flex;align-items:center;gap:6px;">Riwayat Orderan
-          <svg id="riwayatSyncIcon" style="display:none;width:14px;height:14px;color:var(--gold);animation:spin 1s linear infinite;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
-        </h2>
+        <h2 class="section-title" style="margin-bottom:0;">Riwayat Orderan</h2>
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
           <span id="riwayatTotalRevenue" style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:600;color:var(--jade-dark);white-space:nowrap;">Rp 0</span>
           <button type="button" class="riwayat-refresh-btn" id="riwayatRefreshBtn" onclick="forceRefreshRiwayat()" aria-label="Refresh riwayat">
@@ -2564,7 +2563,6 @@ async function renderRiwayatList(){
   const hasFilter = !!search || !!dateFrom || !!dateTo;
   const hint = document.getElementById('riwayatModeHint');
   const area = document.getElementById('riwayatContent');
-  const syncIcon = document.getElementById('riwayatSyncIcon');
 
   if(hasFilter){
     if(!staffSession){
@@ -2584,13 +2582,16 @@ async function renderRiwayatList(){
       filtered = cachedResult.data;
     } else {
       area.innerHTML = `<div class="spinner">Memuat riwayat...</div>`;
+      setRiwayatRefreshLoading(true);
       try{
         filtered = await apiGet('get_orders_search', { name: search, date_from: dateFrom, date_to: dateTo });
       } catch(e){
+        setRiwayatRefreshLoading(false);
         if(mySeq !== riwayatSearchSeq) return; // udah ada ketikan baru lagi setelah ini, hasil error ini gak relevan lagi
         area.innerHTML = `<div class="empty-state"><div class="glyph">⚠️</div>Gagal cari riwayat: ${escapeHtml(e.message)}</div>`;
         return;
       }
+      setRiwayatRefreshLoading(false);
       riwayatSearchCache[cacheKey] = { data: filtered, cachedAt: Date.now() };
     }
     // PENTING: kalau udah ada request search yang LEBIH BARU (user ngetik lagi setelah request
@@ -2625,10 +2626,10 @@ async function renderRiwayatList(){
   } else {
     area.innerHTML = `<div class="spinner">Memuat riwayat...</div>`;
   }
-  syncIcon.style.display = 'block';
+  setRiwayatRefreshLoading(true);
   const ok = await loadOrders();
   await loadCustomerSaldoMap(); // refresh fresh (cooldown otomatis ngerem kalau lagi gagal terus)
-  syncIcon.style.display = 'none';
+  setRiwayatRefreshLoading(false);
   if(!ok){
     if(!staffSession){
       // Belum login — get_orders digembok. Minimal: tampilin orderan coba-coba/pending lokal
@@ -2654,16 +2655,18 @@ async function renderRiwayatList(){
 // jadi orderan baru yang disubmit dari tab Order (yang optimistic-nya cuma nongol di allOrders +
 // tab Prep) gak otomatis muncul di sini. Tombol refresh ini yang manual "paksa" ambil ulang dari
 // server — bukan bug snapshot-nya, tapi memang belum ada auto-push order baru ke snapshot ini.
+function setRiwayatRefreshLoading(loading){
+  const btn = document.getElementById('riwayatRefreshBtn');
+  if(!btn) return;
+  btn.disabled = loading;
+  btn.classList.toggle('spinning', loading);
+}
 async function forceRefreshRiwayat(){
   const btn = document.getElementById('riwayatRefreshBtn');
-  if(btn) btn.classList.add('spinning');
+  if(btn && btn.disabled) return; // lagi loading — jangan numpuk request dari tap berkali-kali
   riwayatDefaultSnapshotLoaded = false; // buang kuncian sesi biar renderRiwayatList() fetch ulang
   Object.keys(riwayatSearchCache).forEach(k => delete riwayatSearchCache[k]); // buang cache hasil search 60 detik juga, biar filter aktif ikut ke-refresh
-  try{
-    await renderRiwayat();
-  } finally {
-    if(btn) btn.classList.remove('spinning');
-  }
+  await renderRiwayat();
 }
 function renderRiwayatCards(list){
   const area = document.getElementById('riwayatContent');
