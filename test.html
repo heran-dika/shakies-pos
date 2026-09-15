@@ -268,7 +268,7 @@
 </head>
 <body>
 <div style="position:sticky;top:0;z-index:9999;background:#111;color:#ffd54a;text-align:center;font:bold 13px/1.6 monospace;padding:4px 8px;">
-  ⚠️ TEST MODE — nunjuk ke pos.shakies.workers.dev (D1), BUKAN sistem produksi GAS. Data di sini gak nyambung ke order/menu asli.
+  ⚠️ TEST MODE — nunjuk ke pos.shakies.workers.dev (D1), BUKAN sistem produksi GAS. Login/session kepisah, tapi cache menu/order SHARED sama app asli.
 </div>
 <div class="wrap">
   <header>
@@ -593,7 +593,7 @@ let menuItems = [];      // [{row,kategori,nama,harga,stok}]
 let allOrders = [];
 let deviceLabel = ''; // diisi dari alias hasil Google Sign-In (lihat STAFF SESSION di bawah)
 let staffSession = null; // {session_token, alias, email} — null kalau belum login / mode coba-coba
-const STAFF_SESSION_KEY = 'test-staff-session-v1';
+const STAFF_SESSION_KEY = 'test-staff-session-v1'; // sengaja DIPISAH dari index.html asli — cache lain di bawah ini SENGAJA TETEP SHARED
 let orderSelections = {}; // nama_item -> qty
 let editingOrderId = null;
 let isSubmittingOrder = false; // dipake updateOrderTotal() biar gak diem-diem nge-enable tombol Simpan pas masih ada request nyangkut
@@ -629,12 +629,12 @@ let ordersFetchPromise = null;
 let menuFetchPromise = null;
 let customersFetchPromise = null;
 let saldoFetchPromise = null;
-const PREP_CACHE_KEY = 'test-prep-orders-cache-v1';
-const MENU_CACHE_KEY = 'test-menu-cache-v1';
-const RIWAYAT_UNPAID_CACHE_KEY = 'test-riwayat-unpaid-cache-v1';
-const CUSTOMER_CACHE_KEY = 'test-customer-cache-v1';
-const SALDO_CACHE_KEY = 'test-saldo-cache-v1';
-const ACTIVE_TAB_KEY = 'test-active-tab-v1';
+const PREP_CACHE_KEY = 'prep-orders-cache-v1';
+const MENU_CACHE_KEY = 'menu-cache-v1';
+const RIWAYAT_UNPAID_CACHE_KEY = 'riwayat-unpaid-cache-v1';
+const CUSTOMER_CACHE_KEY = 'customer-cache-v1';
+const SALDO_CACHE_KEY = 'saldo-cache-v1';
+const ACTIVE_TAB_KEY = 'active-tab-v1';
 let riwayatDefaultSnapshotLoaded = false; // udah pernah fetch snapshot "belum lunas" di sesi ini?
 let riwayatDefaultSnapshot = []; // list order belum-lunas yang lagi ditampilin (nggak refilter otomatis)
 
@@ -1224,12 +1224,12 @@ function openSaldoDetailByName(nama){
 }
 function loadSaldoDetailCache(customerId){
   try{
-    const raw = localStorage.getItem('test-saldo-detail-cache-' + customerId);
+    const raw = localStorage.getItem('saldo-detail-cache-' + customerId);
     return raw ? JSON.parse(raw) : null;
   } catch(e){ return null; }
 }
 function saveSaldoDetailCache(customerId, detail){
-  try{ localStorage.setItem('test-saldo-detail-cache-' + customerId, JSON.stringify(detail)); }
+  try{ localStorage.setItem('saldo-detail-cache-' + customerId, JSON.stringify(detail)); }
   catch(e){ /* nggak fatal */ }
 }
 
