@@ -22,7 +22,10 @@
     --jade:#2F5D50; --jade-dark:#1E3D35; --jade-tint:#E4EDE9;
     --chili:#C1443C; --chili-tint:#F8E5E2; --gold:#B9852D; --gold-tint:#F5EAD3;
     --border:#E7E1D6; --radius:16px; --radius-sm:10px;
+    --header-h:56px; /* FIX 15 Sep 2026: fallback, nilai asli di-set JS (syncHeaderHeightVar) sesuai tinggi header asli device (beda-beda krn safe-area-inset notch) */
   }
+  /* FIX 15 Sep 2026: search box "Cari menu"/"Cari nama menu" nempel di bawah header pas discroll, gak ilang ke atas ditengah list */
+  .sticky-menu-search{ position:sticky; top:var(--header-h); z-index:6; background:var(--bg); padding-top:6px; padding-bottom:6px; }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;touch-action:pan-y;overflow-x:clip;}
   body{background:var(--bg);color:var(--ink);font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh;padding-bottom:78px;}
@@ -319,7 +322,7 @@
           <button type="button" class="today-quick-btn" id="todayQuickBtn" onclick="setDeliveryDateToday()" aria-label="Set tanggal ke hari ini"></button>
         </div>
       </div>
-      <div class="field search-clear-field">
+      <div class="field search-clear-field sticky-menu-search">
         <input type="text" id="orderMenuSearch" placeholder="Cari menu..." oninput="renderMenuPicker(); toggleSearchClear('orderMenuSearch')">
         <button type="button" class="search-clear-btn" id="orderMenuSearchClear" onclick="clearSearchField('orderMenuSearch', renderMenuPicker)" aria-label="Hapus pencarian">×</button>
       </div>
@@ -358,7 +361,7 @@
         <button class="chili-sm" style="background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark);" onclick="openShareMenu()">🖨️ Bagikan Menu</button>
       </div>
       <p class="section-sub">Kelola kategori &amp; item menu.</p>
-      <div class="field search-clear-field">
+      <div class="field search-clear-field sticky-menu-search">
         <input type="text" id="menuSearch" placeholder="Cari nama menu..." oninput="renderMenuManage(); toggleSearchClear('menuSearch')">
         <button type="button" class="search-clear-btn" id="menuSearchClear" onclick="clearSearchField('menuSearch', renderMenuManage)" aria-label="Hapus pencarian">×</button>
       </div>
@@ -899,6 +902,7 @@ async function apiPost(action, payload){
       if(json.status === 'not_registered' && action !== 'verify_login' && staffSession){
         // Sesi login udah nggak valid lagi di server (expired/dihapus) — bersihin biar kepampang "Sign in" lagi
         clearStaffSession();
+        showToast('Sesi login abis / gak valid lagi — sign in ulang ya'); // FIX 15 Sep 2026: dulu gak ada pesan, jadi kayak nge-freeze diam-diam
       }
       const err = new Error(json.message || 'Error');
       err.status = json.status;
@@ -2102,11 +2106,16 @@ async function submitOrder(){
         editedOrderId, true
       );
     } else {
-      const tempId = 'pending_' + pendingOrderClientId;
+      // FIX 15 Sep 2026: pendingOrderClientId HARUS disalin ke variabel lokal SEBELUM
+      // resetOrderForm() dipanggil — resetOrderForm() nge-null-in pendingOrderClientId,
+      // dan kalau dibaca lagi SETELAH itu (kayak kode lama), client_order_id yang
+      // kekirim ke server jadi null terus, proteksi anti-double-submit gak pernah jalan.
+      const orderClientId = pendingOrderClientId;
+      const tempId = 'pending_' + orderClientId;
       const tempOrder = {
         order_id: tempId, created_at: new Date().toISOString(), ...payloadBase,
         prepared: false, updated_at: new Date().toISOString(), paid: false,
-        client_order_id: pendingOrderClientId, saldo_used: 0, saldo_deducted: false, saldo_sisa_after: null,
+        client_order_id: orderClientId, saldo_used: 0, saldo_deducted: false, saldo_sisa_after: null,
         _pending: true
       };
       allOrders.unshift(tempOrder);
@@ -2114,7 +2123,7 @@ async function submitOrder(){
       resetOrderForm();
       goToPrepAndHighlight(tempId, deliveryDate, { skipScroll: true });
       openReceiptView(tempId); // langsung siap share, sesuai maunya Shakies (butuh cepet buat share ke customer)
-      saveOrderInBackground({ ...payloadBase, client_order_id: pendingOrderClientId }, tempId, false);
+      saveOrderInBackground({ ...payloadBase, client_order_id: orderClientId }, tempId, false);
     }
   } finally {
     isSubmittingOrder = false;
