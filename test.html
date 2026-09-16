@@ -77,7 +77,7 @@
   .item-row.flash{ animation:itemFlash .5s ease; }
   /* FIX 16 Sep 2026: stepper +/- buat field angka (Biaya Ekspedisi, Nominal Diskon) — bisa jadi kelipatan 1000/1, mentok di 0, scroll-wheel-able */
   .numstep{display:flex;align-items:stretch;border:1.5px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;}
-  .numstep-btn{width:42px;flex-shrink:0;border:none;background:var(--jade-tint);color:var(--jade-dark);font-size:19px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;}
+  .numstep-btn{width:42px;flex-shrink:0;border:none;background:var(--jade-tint);color:var(--jade-dark);font-size:19px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation;}
   .numstep-btn:active{background:var(--jade);color:#fff;}
   .numstep input[type=number]{flex:1;min-width:0;border:none;border-radius:0;text-align:center;padding:12px 6px;font-family:'IBM Plex Mono',monospace;}
   .numstep input[type=number]:focus{outline:none;}
@@ -85,6 +85,12 @@
   .discount-type-chip{position:relative;flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);cursor:pointer;font-size:13px;font-weight:600;color:var(--ink-soft);-webkit-tap-highlight-color:transparent;user-select:none;transition:background .15s ease,border-color .15s ease,color .15s ease;}
   .discount-type-chip input{position:absolute;opacity:0;width:0;height:0;pointer-events:none;}
   .discount-type-chip:has(input:checked){background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark);}
+  /* FIX 16 Sep 2026 (v4): panel diskon "nempel" ke bawah total-bar (bukan kotak baru ngambang) + buka/tutup smooth
+     pakai trik grid-template-rows 0fr<->1fr (gak perlu ngitung tinggi px manual, otomatis nyesuain isi). */
+  .discount-panel-wrap{display:grid;grid-template-rows:0fr;transition:grid-template-rows .3s cubic-bezier(.22,1,.36,1);background:var(--jade-tint);border-bottom-left-radius:var(--radius);border-bottom-right-radius:var(--radius);margin-top:-16px;overflow:hidden;}
+  .discount-panel-wrap.open{grid-template-rows:1fr;margin-bottom:6px;}
+  .discount-panel-inner{min-height:0;overflow:hidden;}
+  .discount-panel-body{padding:12px 14px 14px;}
   .empty-state{text-align:center;padding:32px 18px;color:var(--ink-soft);}
   .empty-state .glyph{font-size:28px;margin-bottom:8px;}
   .empty-state button{margin-top:12px;}
@@ -371,7 +377,8 @@
         </div>
       </div>
       <div id="orderTotalTop"><div class="total-bar" style="justify-content:flex-start;gap:10px;"><button type="button" id="btnDiscountToggle" class="discount-toggle-btn" onclick="toggleDiscountPanel()" aria-label="Diskon">%</button><span class="lbl">Total</span><span class="val" id="orderTotal" style="margin-left:auto;">Rp 0</span></div></div>
-      <div id="discountPanel" style="display:none;margin:8px 0 6px;padding:10px;border:1px solid var(--border);border-radius:10px;">
+      <div id="discountPanel" class="discount-panel-wrap">
+        <div class="discount-panel-inner"><div class="discount-panel-body">
         <div style="display:flex;gap:8px;margin-bottom:8px;">
           <label class="discount-type-chip"><input type="radio" name="discountType" value="persen" onchange="onDiscountTypeChange()"> Persen (%)</label>
           <label class="discount-type-chip"><input type="radio" name="discountType" value="nominal" onchange="onDiscountTypeChange()"> Nominal (Rp)</label>
@@ -382,6 +389,7 @@
           <button type="button" class="numstep-btn" id="btnDiscPlus" aria-label="Tambah">+</button>
           <button type="button" id="btnClearDiscountValue" onclick="clearDiscountValueOnly()" style="display:none;position:absolute;right:44px;top:50%;transform:translateY(-50%);width:30px;height:30px;border:none;background:none;color:var(--ink-soft);font-size:17px;line-height:1;cursor:pointer;align-items:center;justify-content:center;">✕</button>
         </div>
+        </div></div>
       </div>
       <div id="orderTotalBottom"></div>
       <button class="primary" id="btnSubmitOrder" onclick="submitOrder()" disabled>Simpan Orderan</button>
@@ -1867,13 +1875,13 @@ function changeQty(name, price, delta){
 // kolom nominal (cuma nongol kalau ada ketikan, abis dipencet langsung ilang).
 function toggleDiscountPanel(){
   const panel = document.getElementById('discountPanel');
-  const willOpen = panel.style.display === 'none' || !panel.style.display;
-  panel.style.display = willOpen ? 'block' : 'none';
+  const willOpen = !panel.classList.contains('open');
+  panel.classList.toggle('open', willOpen);
   updateOrderTotal(); // ini juga yang nge-render ulang tombol icon-nya (state active/nggak)
   if(willOpen){
     // geser ke arah panel biar ketawan jelas ada kolom yang perlu diisi — 'center' dipaksa
     // (bukan 'nearest') soalnya browser suka nganggep udah "cukup keliatan" padahal masih ketutup keyboard/fold
-    setTimeout(()=> panel.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+    setTimeout(()=> panel.scrollIntoView({ behavior: 'smooth', block: 'center' }), 120);
   }
 }
 // ==== FIX 16 Sep 2026: stepper +/- & scroll-wheel buat field angka (Ekspedisi, Nominal Diskon) ====
@@ -1933,6 +1941,7 @@ function attachLongPressRepeat(el, actionFn){
   el.addEventListener('pointerup', stop);
   el.addEventListener('pointerleave', stop);
   el.addEventListener('pointercancel', stop);
+  el.addEventListener('contextmenu', (e)=> e.preventDefault()); // FIX 16 Sep 2026 (v3): matiin menu klik-kanan/long-press bawaan
 }
 attachLongPressRepeat(document.getElementById('btnShipMinus'), ()=> stepShippingFee(-1000));
 attachLongPressRepeat(document.getElementById('btnShipPlus'), ()=> stepShippingFee(1000));
@@ -1986,7 +1995,7 @@ function clearDiscount(){
   lastDiscountValueByType = { persen:'', nominal:'' };
   const clearBtn = document.getElementById('btnClearDiscountValue');
   if(clearBtn) clearBtn.style.display = 'none';
-  document.getElementById('discountPanel').style.display = 'none';
+  document.getElementById('discountPanel').classList.remove('open');
   updateOrderTotal();
 }
 function getDiscountInput(){
@@ -2039,7 +2048,7 @@ function updateOrderTotal(){
   const shipEl = document.getElementById('shippingFee');
   const shipping = shipEl ? (parseInt(shipEl.value, 10) || 0) : 0;
   const panelEl = document.getElementById('discountPanel');
-  const panelOpen = !!panelEl && panelEl.style.display !== 'none';
+  const panelOpen = !!panelEl && panelEl.classList.contains('open');
   // Diskon cuma keitung pas panelnya lagi kebuka — nutup panel (tap icon lagi) = diskon berhenti
   // dipake TANPA ngosongin isian, biar tinggal buka lagi kalau mau nyalain balik.
   const discount = panelOpen ? getDiscountInput() : { type:'', value:0 };
@@ -2049,8 +2058,10 @@ function updateOrderTotal(){
   const top = document.getElementById('orderTotalTop');
   const bottom = document.getElementById('orderTotalBottom');
   const toggleBtnHtml = `<button type="button" id="btnDiscountToggle" class="discount-toggle-btn${panelOpen ? ' active' : ''}" onclick="toggleDiscountPanel()" aria-label="Diskon">%</button>`;
+  // FIX 16 Sep 2026 (v4): sudut bawah total-bar diratain pas panel kebuka, biar nyambung mulus sama panel diskon di bawahnya (bukan kayak kotak kepisah)
+  const topBarRadius = panelOpen ? 'border-bottom-left-radius:0;border-bottom-right-radius:0;' : '';
   if(panelOpen){
-    top.innerHTML = `<div class="total-bar" style="justify-content:flex-start;gap:10px;">${toggleBtnHtml}<span class="lbl">Subtotal</span><span class="val" style="margin-left:auto;">${rupiah(itemsTotal)}</span></div>`;
+    top.innerHTML = `<div class="total-bar" style="justify-content:flex-start;gap:10px;${topBarRadius}">${toggleBtnHtml}<span class="lbl">Subtotal</span><span class="val" style="margin-left:auto;">${rupiah(itemsTotal)}</span></div>`;
     const discountLabel = discount.type === 'persen' ? `Diskon (${discount.value}%)` : (discount.type === 'nominal' ? 'Diskon (Nominal)' : 'Diskon');
     bottom.innerHTML = `
       <div class="total-bar" style="color:var(--chili);"><span class="lbl">${discountLabel}</span><span class="val">-${rupiah(discountAmount)}</span></div>
@@ -2470,7 +2481,7 @@ function openEditOrder(orderId){
   document.getElementById('discountValue').value = order.discount_value || '';
   lastDiscountValueByType = { persen:'', nominal:'' };
   if(order.discount_type) lastDiscountValueByType[order.discount_type] = order.discount_value || '';
-  document.getElementById('discountPanel').style.display = order.discount_type ? 'block' : 'none';
+  document.getElementById('discountPanel').classList.toggle('open', !!order.discount_type);
   const clearBtn = document.getElementById('btnClearDiscountValue');
   if(clearBtn) clearBtn.style.display = order.discount_value ? 'flex' : 'none';
   orderSelections = {};
