@@ -363,22 +363,23 @@
       </div>
       <div class="field">
         <label class="field-label">Biaya Ekspedisi (opsional)</label>
-        <div class="numstep">
-          <button type="button" class="numstep-btn" onclick="stepShippingFee(-1000)" aria-label="Kurangi 1000">−</button>
-          <input type="number" id="shippingFee" placeholder="mis. 15000 (kosongin kalau nggak ada)" oninput="updateOrderTotal()">
-          <button type="button" class="numstep-btn" onclick="stepShippingFee(1000)" aria-label="Tambah 1000">+</button>
+        <div class="numstep" style="position:relative;">
+          <button type="button" class="numstep-btn" id="btnShipMinus" aria-label="Kurangi 1000">−</button>
+          <input type="number" id="shippingFee" placeholder="mis. 15000 (kosongin kalau nggak ada)" oninput="onShippingFeeInput()" style="padding-right:36px;">
+          <button type="button" class="numstep-btn" id="btnShipPlus" aria-label="Tambah 1000">+</button>
+          <button type="button" id="btnClearShippingFee" onclick="clearShippingFeeOnly()" style="display:none;position:absolute;right:44px;top:50%;transform:translateY(-50%);width:30px;height:30px;border:none;background:none;color:var(--ink-soft);font-size:17px;line-height:1;cursor:pointer;align-items:center;justify-content:center;">✕</button>
         </div>
       </div>
       <div id="orderTotalTop"><div class="total-bar" style="justify-content:flex-start;gap:10px;"><button type="button" id="btnDiscountToggle" class="discount-toggle-btn" onclick="toggleDiscountPanel()" aria-label="Diskon">%</button><span class="lbl">Total</span><span class="val" id="orderTotal" style="margin-left:auto;">Rp 0</span></div></div>
       <div id="discountPanel" style="display:none;margin:8px 0 6px;padding:10px;border:1px solid var(--border);border-radius:10px;">
         <div style="display:flex;gap:8px;margin-bottom:8px;">
-          <label class="discount-type-chip"><input type="radio" name="discountType" value="persen" onchange="updateOrderTotal()"> Persen (%)</label>
-          <label class="discount-type-chip"><input type="radio" name="discountType" value="nominal" onchange="updateOrderTotal()"> Nominal (Rp)</label>
+          <label class="discount-type-chip"><input type="radio" name="discountType" value="persen" onchange="onDiscountTypeChange()"> Persen (%)</label>
+          <label class="discount-type-chip"><input type="radio" name="discountType" value="nominal" onchange="onDiscountTypeChange()"> Nominal (Rp)</label>
         </div>
         <div class="numstep" style="position:relative;">
-          <button type="button" class="numstep-btn" onclick="stepDiscountValue(-1)" aria-label="Kurangi">−</button>
+          <button type="button" class="numstep-btn" id="btnDiscMinus" aria-label="Kurangi">−</button>
           <input type="number" id="discountValue" placeholder="Besaran diskon" oninput="onDiscountValueInput()" style="padding-right:36px;">
-          <button type="button" class="numstep-btn" onclick="stepDiscountValue(1)" aria-label="Tambah">+</button>
+          <button type="button" class="numstep-btn" id="btnDiscPlus" aria-label="Tambah">+</button>
           <button type="button" id="btnClearDiscountValue" onclick="clearDiscountValueOnly()" style="display:none;position:absolute;right:44px;top:50%;transform:translateY(-50%);width:30px;height:30px;border:none;background:none;color:var(--ink-soft);font-size:17px;line-height:1;cursor:pointer;align-items:center;justify-content:center;">✕</button>
         </div>
       </div>
@@ -1911,8 +1912,60 @@ function attachWheelStep(inputId, stepFn){
 }
 attachWheelStep('shippingFee', (dir)=> stepShippingFee(dir*1000));
 attachWheelStep('discountValue', stepDiscountValue);
+// FIX 16 Sep 2026 (v2): tombol +/- ditekan-tahan (long-press) = ngulang otomatis. SENGAJA kecepatannya
+// KONSTAN terus (gak makin cepet kayak proposal awal) — request eksplisit Shakies.
+function attachLongPressRepeat(el, actionFn){
+  if(!el) return;
+  const REPEAT_INTERVAL = 130; // ms, tetep segini terus selama ditahan
+  const INITIAL_DELAY = 400;   // jeda sebelum mulai ngulang otomatis, biar tap biasa gak ke-double
+  let startTimer = null, repeatTimer = null;
+  function stop(){
+    if(startTimer){ clearTimeout(startTimer); startTimer = null; }
+    if(repeatTimer){ clearInterval(repeatTimer); repeatTimer = null; }
+  }
+  function start(e){
+    e.preventDefault();
+    actionFn(); // langsung jalan sekali pas ditekan
+    stop();
+    startTimer = setTimeout(()=>{ repeatTimer = setInterval(actionFn, REPEAT_INTERVAL); }, INITIAL_DELAY);
+  }
+  el.addEventListener('pointerdown', start);
+  el.addEventListener('pointerup', stop);
+  el.addEventListener('pointerleave', stop);
+  el.addEventListener('pointercancel', stop);
+}
+attachLongPressRepeat(document.getElementById('btnShipMinus'), ()=> stepShippingFee(-1000));
+attachLongPressRepeat(document.getElementById('btnShipPlus'), ()=> stepShippingFee(1000));
+attachLongPressRepeat(document.getElementById('btnDiscMinus'), ()=> stepDiscountValue(-1));
+attachLongPressRepeat(document.getElementById('btnDiscPlus'), ()=> stepDiscountValue(1));
+// FIX 16 Sep 2026 (v2): tombol ✕ buat Biaya Ekspedisi (ngosongin field-nya doang, sama kayak pola di kolom Nominal Diskon)
+function onShippingFeeInput(){
+  const el = document.getElementById('shippingFee');
+  const clearBtn = document.getElementById('btnClearShippingFee');
+  if(clearBtn) clearBtn.style.display = (el.value && String(el.value).trim() !== '') ? 'flex' : 'none';
+  updateOrderTotal();
+}
+function clearShippingFeeOnly(){
+  const el = document.getElementById('shippingFee');
+  el.value = '';
+  document.getElementById('btnClearShippingFee').style.display = 'none';
+  updateOrderTotal();
+  el.focus();
+}
+// FIX 16 Sep 2026 (v2): inget nilai terakhir masing-masing mode (Persen/Nominal) terpisah — pindah
+// mode gak lagi kebawa angka mentahnya (misal abis isi 5% terus pindah Nominal, gak nongol "5" yang
+// gak masuk akal buat rupiah; masing-masing mode simpen state sendiri).
+let lastDiscountValueByType = { persen:'', nominal:'' };
+function onDiscountTypeChange(){
+  const typeEl = document.querySelector('input[name="discountType"]:checked');
+  const valEl = document.getElementById('discountValue');
+  if(typeEl) valEl.value = lastDiscountValueByType[typeEl.value] || '';
+  onDiscountValueInput();
+}
 function onDiscountValueInput(){
   const valEl = document.getElementById('discountValue');
+  const typeEl = document.querySelector('input[name="discountType"]:checked');
+  if(typeEl) lastDiscountValueByType[typeEl.value] = valEl.value; // simpen ke memori per-mode
   const clearBtn = document.getElementById('btnClearDiscountValue');
   if(clearBtn) clearBtn.style.display = (valEl.value && String(valEl.value).trim() !== '') ? 'flex' : 'none';
   updateOrderTotal();
@@ -1920,6 +1973,8 @@ function onDiscountValueInput(){
 function clearDiscountValueOnly(){
   const valEl = document.getElementById('discountValue');
   valEl.value = '';
+  const typeEl = document.querySelector('input[name="discountType"]:checked');
+  if(typeEl) lastDiscountValueByType[typeEl.value] = '';
   document.getElementById('btnClearDiscountValue').style.display = 'none';
   updateOrderTotal();
   valEl.focus();
@@ -1928,6 +1983,7 @@ function clearDiscountValueOnly(){
 function clearDiscount(){
   document.querySelectorAll('input[name="discountType"]').forEach(r=>r.checked=false);
   document.getElementById('discountValue').value = '';
+  lastDiscountValueByType = { persen:'', nominal:'' };
   const clearBtn = document.getElementById('btnClearDiscountValue');
   if(clearBtn) clearBtn.style.display = 'none';
   document.getElementById('discountPanel').style.display = 'none';
@@ -2382,6 +2438,8 @@ function resetOrderForm(){
   document.getElementById('custName').value = '';
   document.getElementById('orderNote').value = '';
   document.getElementById('shippingFee').value = '';
+  const shipClearBtnReset = document.getElementById('btnClearShippingFee');
+  if(shipClearBtnReset) shipClearBtnReset.style.display = 'none';
   clearDiscount();
   orderSelections = {};
   document.getElementById('deliveryDate').value = tomorrowISO();
@@ -2406,8 +2464,12 @@ function openEditOrder(orderId){
   refreshDateDisplay('deliveryDate');
   document.getElementById('orderNote').value = order.note || '';
   document.getElementById('shippingFee').value = order.shipping_fee || '';
+  const shipClearBtn = document.getElementById('btnClearShippingFee');
+  if(shipClearBtn) shipClearBtn.style.display = order.shipping_fee ? 'flex' : 'none';
   document.querySelectorAll('input[name="discountType"]').forEach(r=>{ r.checked = (r.value === order.discount_type); });
   document.getElementById('discountValue').value = order.discount_value || '';
+  lastDiscountValueByType = { persen:'', nominal:'' };
+  if(order.discount_type) lastDiscountValueByType[order.discount_type] = order.discount_value || '';
   document.getElementById('discountPanel').style.display = order.discount_type ? 'block' : 'none';
   const clearBtn = document.getElementById('btnClearDiscountValue');
   if(clearBtn) clearBtn.style.display = order.discount_value ? 'flex' : 'none';
