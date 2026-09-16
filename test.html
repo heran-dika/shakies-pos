@@ -75,6 +75,16 @@
   /* FIX 16 Sep 2026: flash highlight singkat di baris item pas qty-nya diubah */
   @keyframes itemFlash{ 0%{ background:var(--jade-tint); } 100%{ background:var(--surface); } }
   .item-row.flash{ animation:itemFlash .5s ease; }
+  /* FIX 16 Sep 2026: stepper +/- buat field angka (Biaya Ekspedisi, Nominal Diskon) — bisa jadi kelipatan 1000/1, mentok di 0, scroll-wheel-able */
+  .numstep{display:flex;align-items:stretch;border:1.5px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;}
+  .numstep-btn{width:42px;flex-shrink:0;border:none;background:var(--jade-tint);color:var(--jade-dark);font-size:19px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;}
+  .numstep-btn:active{background:var(--jade);color:#fff;}
+  .numstep input[type=number]{flex:1;min-width:0;border:none;border-radius:0;text-align:center;padding:12px 6px;font-family:'IBM Plex Mono',monospace;}
+  .numstep input[type=number]:focus{outline:none;}
+  /* FIX 16 Sep 2026: pilihan Persen/Nominal jadi chip (bukan radio+label polos) — sekalian matiin default tap-highlight abu-abu bawaan mobile yang keliatan kayak "nge-block" area pas dipencet */
+  .discount-type-chip{position:relative;flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);cursor:pointer;font-size:13px;font-weight:600;color:var(--ink-soft);-webkit-tap-highlight-color:transparent;user-select:none;transition:background .15s ease,border-color .15s ease,color .15s ease;}
+  .discount-type-chip input{position:absolute;opacity:0;width:0;height:0;pointer-events:none;}
+  .discount-type-chip:has(input:checked){background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark);}
   .empty-state{text-align:center;padding:32px 18px;color:var(--ink-soft);}
   .empty-state .glyph{font-size:28px;margin-bottom:8px;}
   .empty-state button{margin-top:12px;}
@@ -353,17 +363,23 @@
       </div>
       <div class="field">
         <label class="field-label">Biaya Ekspedisi (opsional)</label>
-        <input type="number" id="shippingFee" placeholder="mis. 15000 (kosongin kalau nggak ada)" oninput="updateOrderTotal()">
+        <div class="numstep">
+          <button type="button" class="numstep-btn" onclick="stepShippingFee(-1000)" aria-label="Kurangi 1000">−</button>
+          <input type="number" id="shippingFee" placeholder="mis. 15000 (kosongin kalau nggak ada)" oninput="updateOrderTotal()">
+          <button type="button" class="numstep-btn" onclick="stepShippingFee(1000)" aria-label="Tambah 1000">+</button>
+        </div>
       </div>
       <div id="orderTotalTop"><div class="total-bar" style="justify-content:flex-start;gap:10px;"><button type="button" id="btnDiscountToggle" class="discount-toggle-btn" onclick="toggleDiscountPanel()" aria-label="Diskon">%</button><span class="lbl">Total</span><span class="val" id="orderTotal" style="margin-left:auto;">Rp 0</span></div></div>
       <div id="discountPanel" style="display:none;margin:8px 0 6px;padding:10px;border:1px solid var(--border);border-radius:10px;">
-        <div style="display:flex;gap:16px;margin-bottom:8px;">
-          <label style="display:flex;align-items:center;gap:6px;"><input type="radio" name="discountType" value="persen" onchange="updateOrderTotal()"> Persen (%)</label>
-          <label style="display:flex;align-items:center;gap:6px;"><input type="radio" name="discountType" value="nominal" onchange="updateOrderTotal()"> Nominal (Rp)</label>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <label class="discount-type-chip"><input type="radio" name="discountType" value="persen" onchange="updateOrderTotal()"> Persen (%)</label>
+          <label class="discount-type-chip"><input type="radio" name="discountType" value="nominal" onchange="updateOrderTotal()"> Nominal (Rp)</label>
         </div>
-        <div style="position:relative;">
-          <input type="number" id="discountValue" placeholder="Besaran diskon" oninput="onDiscountValueInput()" style="width:100%;box-sizing:border-box;padding-right:36px;">
-          <button type="button" id="btnClearDiscountValue" onclick="clearDiscountValueOnly()" style="display:none;position:absolute;right:2px;top:50%;transform:translateY(-50%);width:30px;height:30px;border:none;background:none;color:var(--ink-soft);font-size:17px;line-height:1;cursor:pointer;align-items:center;justify-content:center;">✕</button>
+        <div class="numstep" style="position:relative;">
+          <button type="button" class="numstep-btn" onclick="stepDiscountValue(-1)" aria-label="Kurangi">−</button>
+          <input type="number" id="discountValue" placeholder="Besaran diskon" oninput="onDiscountValueInput()" style="padding-right:36px;">
+          <button type="button" class="numstep-btn" onclick="stepDiscountValue(1)" aria-label="Tambah">+</button>
+          <button type="button" id="btnClearDiscountValue" onclick="clearDiscountValueOnly()" style="display:none;position:absolute;right:44px;top:50%;transform:translateY(-50%);width:30px;height:30px;border:none;background:none;color:var(--ink-soft);font-size:17px;line-height:1;cursor:pointer;align-items:center;justify-content:center;">✕</button>
         </div>
       </div>
       <div id="orderTotalBottom"></div>
@@ -1859,6 +1875,42 @@ function toggleDiscountPanel(){
     setTimeout(()=> panel.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
   }
 }
+// ==== FIX 16 Sep 2026: stepper +/- & scroll-wheel buat field angka (Ekspedisi, Nominal Diskon) ====
+// Generic: ubah value input kelipatan `delta`, mentok minimum `min` (default 0, gak boleh minus),
+// terus nembak event 'input' biar handler oninput yang udah ada (updateOrderTotal/onDiscountValueInput) tetep kepanggil.
+function stepNumberInput(inputId, delta, min){
+  const el = document.getElementById(inputId);
+  if(!el) return;
+  const cur = parseFloat(el.value) || 0;
+  let next = cur + delta;
+  if(typeof min === 'number') next = Math.max(min, next);
+  el.value = next;
+  el.dispatchEvent(new Event('input', { bubbles:true }));
+}
+function stepShippingFee(delta){ stepNumberInput('shippingFee', delta, 0); }
+// Diskon: step 1000 kalau modenya Nominal, step 1 kalau Persen (belum pilih mode = anggap 1000).
+function stepDiscountValue(sign){
+  const typeEl = document.querySelector('input[name="discountType"]:checked');
+  const isPersen = typeEl && typeEl.value === 'persen';
+  const step = isPersen ? 1 : 1000;
+  let min = 0, max = isPersen ? 100 : Infinity; // persen dibatasin maks 100 — samain sama clamp di computeDiscountAmount()
+  const el = document.getElementById('discountValue');
+  const cur = parseFloat(el.value) || 0;
+  const next = Math.min(max, Math.max(min, cur + sign*step));
+  el.value = next;
+  el.dispatchEvent(new Event('input', { bubbles:true }));
+}
+// Scroll wheel di atas field angka = geser nilainya (scroll ke atas = nambah, ke bawah = kurang), buat yang males ngetik pake mouse.
+function attachWheelStep(inputId, stepFn){
+  const el = document.getElementById(inputId);
+  if(!el) return;
+  el.addEventListener('wheel', function(e){
+    e.preventDefault();
+    stepFn(e.deltaY < 0 ? 1 : -1);
+  }, { passive:false });
+}
+attachWheelStep('shippingFee', (dir)=> stepShippingFee(dir*1000));
+attachWheelStep('discountValue', stepDiscountValue);
 function onDiscountValueInput(){
   const valEl = document.getElementById('discountValue');
   const clearBtn = document.getElementById('btnClearDiscountValue');
