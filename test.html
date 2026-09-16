@@ -25,7 +25,7 @@
     --header-h:56px; /* FIX 15 Sep 2026: fallback, nilai asli di-set JS (syncHeaderHeightVar) sesuai tinggi header asli device (beda-beda krn safe-area-inset notch) */
   }
   /* FIX 15 Sep 2026: search box "Cari menu"/"Cari nama menu" nempel di bawah header pas discroll, gak ilang ke atas ditengah list */
-  .sticky-menu-search{ position:sticky; top:var(--header-h); z-index:6; background:var(--bg); padding-top:6px; padding-bottom:6px; }
+  .field.sticky-menu-search{ position:sticky; top:var(--header-h); z-index:6; background:var(--bg); padding-top:6px; padding-bottom:6px; } /* FIX 16 Sep 2026: dinaikin specificity-nya (.field.sticky-menu-search) krn sebelumnya keimpas .search-clear-field{position:relative;} yg letaknya lebih bawah di stylesheet — sticky-nya gak pernah kepake meski class-nya udah kepasang di HTML */
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;touch-action:pan-y;overflow-x:clip;}
   body{background:var(--bg);color:var(--ink);font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh;padding-bottom:78px;}
@@ -270,9 +270,10 @@
 </style>
 </head>
 <body>
-<div style="position:sticky;top:0;z-index:9999;background:#111;color:#ffd54a;text-align:center;font:bold 13px/1.6 monospace;padding:4px 8px;">
+<div style="position:static;background:#111;color:#ffd54a;text-align:center;font:bold 13px/1.6 monospace;padding:4px 8px;">
   ⚠️ TEST MODE — nunjuk ke pos.shakies.workers.dev (D1), BUKAN sistem produksi GAS. Login/session kepisah, tapi cache menu/order SHARED sama app asli.
 </div>
+<!-- FIX 16 Sep 2026: banner ini sebelumnya position:sticky;top:0;z-index:9999 — nabrak header (juga sticky top:0) pas discroll, banner-nya nutupin header krn z-index-nya lebih gede. Sekarang static aja, ikut kescroll normal, biar header bisa freeze bersih di paling atas. -->
 <div class="wrap">
   <header>
     <div class="brand">
