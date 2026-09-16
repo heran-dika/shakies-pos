@@ -98,8 +98,11 @@
   .stok-breakdown .stok-neg{color:var(--chili);font-weight:700;}
   .cat-manage{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
   .cat-manage .cname{font-family:'Fraunces',serif;font-weight:600;color:var(--jade-dark);}
-  .modal-overlay{position:fixed;inset:0;background:rgba(38,48,44,.5);z-index:50;display:flex;align-items:flex-end;justify-content:center;}
-  .modal-overlay.hidden{display:none;}
+  .modal-overlay{position:fixed;inset:0;background:rgba(38,48,44,.5);z-index:50;display:flex;align-items:flex-end;justify-content:center;opacity:1;visibility:visible;transition:opacity .18s ease,visibility 0s linear 0s;}
+  .modal-overlay.hidden{opacity:0;visibility:hidden;pointer-events:none;transition:opacity .15s ease,visibility 0s linear .15s;}
+  /* FIX 16 Sep 2026: sheet naik cepet pas dibuka, turun cepet pas ditutup — sebelumnya cuma display:none/flex instan tanpa animasi */
+  .modal-overlay .modal-sheet{transform:translateY(0);transition:transform .2s cubic-bezier(.22,1,.36,1);}
+  .modal-overlay.hidden .modal-sheet{transform:translateY(100%);transition:transform .16s cubic-bezier(.4,0,1,1);}
   .modal-sheet{background:var(--surface);width:100%;max-width:480px;max-height:88vh;overflow-y:auto;overscroll-behavior:contain;border-radius:20px 20px 0 0;padding:22px 18px calc(22px + env(safe-area-inset-bottom));}
   #saldoListView{display:flex;flex-direction:column;min-height:0;}
   #saldoSearchInput{position:sticky;top:0;background:var(--surface);z-index:3;}
@@ -178,6 +181,9 @@
   .saldo-icon-btn svg{width:19px;height:19px;}
   .today-quick-btn{background:var(--jade-tint);border:1.5px solid var(--jade);border-radius:var(--radius-sm);width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--jade-dark);flex-shrink:0;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:15px;line-height:1;}
   .today-quick-btn:active{opacity:.8;}
+  /* FIX 16 Sep 2026: angka "terbang" cepet ke tengah tombol tiap dipencet, kasih feedback klik */
+  @keyframes dateBtnPop{ 0%{ transform:scale(.55); opacity:.3; } 60%{ transform:scale(1.18); opacity:1; } 100%{ transform:scale(1); opacity:1; } }
+  .today-quick-btn.pop{ animation:dateBtnPop .22s cubic-bezier(.34,1.56,.64,1); }
   .riwayat-refresh-btn{background:var(--jade-tint);border:1.5px solid var(--jade);border-radius:var(--radius-sm);width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--jade-dark);flex-shrink:0;}
   .riwayat-refresh-btn:active{opacity:.8;}
   .riwayat-refresh-btn:disabled{opacity:.5;cursor:default;}
@@ -727,14 +733,23 @@ function toLocalTimestamp(d){
 }
 function tomorrowISO(){ const d=new Date(); d.setDate(d.getDate()+1); return toLocalISODate(d); }
 // Tombol "hari ini" di sebelah Tanggal Kirim — angka di tombol ikut tanggal hari ini,
-// klik = langsung set deliveryDate ke hari ini (default field ini emang besok, ini cuma shortcut).
+// klik = toggle deliveryDate antara hari ini <-> besok (FIX 16 Sep 2026: sebelumnya cuma
+// bisa "lompat ke hari ini" doang, sekarang gantian tiap dipencet: 16 -> 17 -> 16 -> ...).
 function setDeliveryDateToday(){
-  document.getElementById('deliveryDate').value = toLocalISODate(new Date());
+  const dateInput = document.getElementById('deliveryDate');
+  const todayISO = toLocalISODate(new Date());
+  dateInput.value = (dateInput.value === todayISO) ? tomorrowISO() : todayISO;
   refreshDateDisplay('deliveryDate');
+  const btn = document.getElementById('todayQuickBtn');
+  if(btn){
+    btn.classList.remove('pop');
+    void btn.offsetWidth;
+    btn.classList.add('pop');
+  }
 }
 function updateTodayQuickBtnLabel(){
   const btn = document.getElementById('todayQuickBtn');
-  if(btn) btn.textContent = new Date().getDate();
+  if(btn) btn.textContent = String(new Date().getDate()).padStart(2,'0'); // FIX 16 Sep 2026: leading zero buat tanggal 1 digit
 }
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(showToast._t); showToast._t=setTimeout(()=>t.classList.remove('show'),4500); }
 function escapeHtml(str){ const d=document.createElement('div'); d.textContent = str==null?'':String(str); return d.innerHTML; }
