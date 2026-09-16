@@ -181,9 +181,8 @@
   .saldo-icon-btn svg{width:19px;height:19px;}
   .today-quick-btn{background:var(--jade-tint);border:1.5px solid var(--jade);border-radius:var(--radius-sm);width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--jade-dark);flex-shrink:0;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:15px;line-height:1;}
   .today-quick-btn:active{opacity:.8;}
-  /* FIX 16 Sep 2026: angka "terbang" cepet ke tengah tombol tiap dipencet, kasih feedback klik */
-  @keyframes dateBtnPop{ 0%{ transform:scale(.55); opacity:.3; } 60%{ transform:scale(1.18); opacity:1; } 100%{ transform:scale(1); opacity:1; } }
-  .today-quick-btn.pop{ animation:dateBtnPop .22s cubic-bezier(.34,1.56,.64,1); }
+  /* FIX 16 Sep 2026 (v2): ganti dari "pop" jadi angka yang beneran terbang dari tombol ke kolom tanggal tengah — .date-fly-num dibuat & dihapus lewat JS (flyDateNumber), posisi awal/akhir di-set inline per klik */
+  .date-fly-num{position:fixed;z-index:60;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--jade-dark);pointer-events:none;transition:transform .3s cubic-bezier(.22,1,.36,1),opacity .3s ease .05s;will-change:transform,opacity;}
   .riwayat-refresh-btn{background:var(--jade-tint);border:1.5px solid var(--jade);border-radius:var(--radius-sm);width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--jade-dark);flex-shrink:0;}
   .riwayat-refresh-btn:active{opacity:.8;}
   .riwayat-refresh-btn:disabled{opacity:.5;cursor:default;}
@@ -735,21 +734,51 @@ function tomorrowISO(){ const d=new Date(); d.setDate(d.getDate()+1); return toL
 // Tombol "hari ini" di sebelah Tanggal Kirim — angka di tombol ikut tanggal hari ini,
 // klik = toggle deliveryDate antara hari ini <-> besok (FIX 16 Sep 2026: sebelumnya cuma
 // bisa "lompat ke hari ini" doang, sekarang gantian tiap dipencet: 16 -> 17 -> 16 -> ...).
+// FIX 16 Sep 2026 (v2): angka yang kepencet "terbang" dari tombol ke kolom tanggal tengah
+// (bukan cuma pop di tempat), dan label tombol jadi nunjukin LAWAN dari tanggal yang lagi aktif
+// (kalo tengah=16, tombol nunjukin 17 buat lompat ke besok, dan sebaliknya).
 function setDeliveryDateToday(){
   const dateInput = document.getElementById('deliveryDate');
-  const todayISO = toLocalISODate(new Date());
-  dateInput.value = (dateInput.value === todayISO) ? tomorrowISO() : todayISO;
-  refreshDateDisplay('deliveryDate');
   const btn = document.getElementById('todayQuickBtn');
-  if(btn){
-    btn.classList.remove('pop');
-    void btn.offsetWidth;
-    btn.classList.add('pop');
-  }
+  const displayEl = document.getElementById('deliveryDateDisplay');
+  const todayISOVal = toLocalISODate(new Date());
+  const flownText = btn ? btn.textContent : '';
+  dateInput.value = (dateInput.value === todayISOVal) ? tomorrowISO() : todayISOVal;
+  refreshDateDisplay('deliveryDate');
+  if(btn && displayEl) flyDateNumber(btn, displayEl, flownText);
+  updateTodayQuickBtnLabel();
+}
+// Terbangin klon angka dari elemen `fromEl` ke posisi tengah elemen `toEl`, lalu ilang.
+function flyDateNumber(fromEl, toEl, text){
+  const fromRect = fromEl.getBoundingClientRect();
+  const toRect = toEl.getBoundingClientRect();
+  const clone = document.createElement('span');
+  clone.className = 'date-fly-num';
+  clone.textContent = text;
+  clone.style.left = fromRect.left + 'px';
+  clone.style.top = fromRect.top + 'px';
+  clone.style.width = fromRect.width + 'px';
+  clone.style.height = fromRect.height + 'px';
+  clone.style.fontSize = getComputedStyle(fromEl).fontSize;
+  clone.style.transform = 'translate(0,0) scale(1)';
+  clone.style.opacity = '1';
+  document.body.appendChild(clone);
+  const dx = (toRect.left + toRect.width/2) - (fromRect.left + fromRect.width/2);
+  const dy = (toRect.top + toRect.height/2) - (fromRect.top + fromRect.height/2);
+  requestAnimationFrame(()=>{
+    clone.style.transform = `translate(${dx}px, ${dy}px) scale(.55)`;
+    clone.style.opacity = '0';
+  });
+  setTimeout(()=> clone.remove(), 350);
 }
 function updateTodayQuickBtnLabel(){
   const btn = document.getElementById('todayQuickBtn');
-  if(btn) btn.textContent = String(new Date().getDate()).padStart(2,'0'); // FIX 16 Sep 2026: leading zero buat tanggal 1 digit
+  if(!btn) return;
+  const dateInput = document.getElementById('deliveryDate');
+  const todayISOVal = toLocalISODate(new Date());
+  // tombol nunjukin tanggal LAWAN dari yang lagi aktif di field tengah (target kalo dipencet)
+  const target = (dateInput && dateInput.value === todayISOVal) ? tomorrowISO() : todayISOVal;
+  btn.textContent = target.slice(-2); // yyyy-mm-dd -> ambil dd, udah otomatis 2 digit
 }
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(showToast._t); showToast._t=setTimeout(()=>t.classList.remove('show'),4500); }
 function escapeHtml(str){ const d=document.createElement('div'); d.textContent = str==null?'':String(str); return d.innerHTML; }
