@@ -87,8 +87,8 @@
   .discount-type-chip:has(input:checked){background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark);}
   /* FIX 16 Sep 2026 (v4): panel diskon "nempel" ke bawah total-bar (bukan kotak baru ngambang) + buka/tutup smooth
      pakai trik grid-template-rows 0fr<->1fr (gak perlu ngitung tinggi px manual, otomatis nyesuain isi). */
-  .discount-panel-wrap{display:grid;grid-template-rows:0fr;transition:grid-template-rows .3s cubic-bezier(.22,1,.36,1);background:var(--jade-tint);border-bottom-left-radius:var(--radius);border-bottom-right-radius:var(--radius);margin-top:-16px;overflow:hidden;}
-  .discount-panel-wrap.open{grid-template-rows:1fr;margin-bottom:6px;}
+  .discount-panel-wrap{display:grid;grid-template-rows:0fr;transition:grid-template-rows .3s cubic-bezier(.22,1,.36,1),margin-top .3s cubic-bezier(.22,1,.36,1);background:var(--jade-tint);border-bottom-left-radius:var(--radius);border-bottom-right-radius:var(--radius);overflow:hidden;}
+  .discount-panel-wrap.open{grid-template-rows:1fr;margin-top:-16px;margin-bottom:6px;}
   .discount-panel-inner{min-height:0;overflow:hidden;}
   .discount-panel-body{padding:12px 14px 14px;}
   .empty-state{text-align:center;padding:32px 18px;color:var(--ink-soft);}
