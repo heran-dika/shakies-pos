@@ -41,7 +41,11 @@
   .brand-mark svg{width:19px;height:19px;}
   .brand-text h1{font-family:'Fraunces',serif;font-weight:600;font-size:15.5px;line-height:1.15;margin:0;color:var(--ink);letter-spacing:-0.01em;}
   .brand-text span{font-size:10.5px;color:var(--subtitle);font-weight:600;}
-  .device-chip{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--jade-dark);background:var(--jade-tint);border:1px solid var(--border);padding:6px 10px;border-radius:20px;display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+  .device-chip{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--jade-dark);background:var(--jade-tint);border:1px solid var(--border);padding:6px 10px;border-radius:20px;display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap;flex-shrink:0;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none;}
+  /* FIX 16 Sep 2026 (v6): bukan cuma <button>, banyak "tombol" di app ini beneran <div onclick=...>
+     (device-chip/login, day-chip, check-toggle, card Prep/Riwayat) — samain treatment-nya di sini,
+     satu rule buat semua elemen ber-onclick, jangan nunggu dilaporin satu-satu. */
+  [onclick]{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none;}
   main{padding:18px 16px 24px;min-height:60vh;}
   .tab{display:none;} .tab.active{display:block;animation:fadein .18s ease;}
   @keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
@@ -92,10 +96,10 @@
   .numstep{display:flex;align-items:stretch;border:1.5px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;}
   .numstep-btn{width:42px;flex-shrink:0;border:none;background:var(--jade-tint);color:var(--jade-dark);font-size:19px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation;}
   .numstep-btn:active{background:var(--jade);color:#fff;}
-  .numstep input[type=number]{flex:1;min-width:0;border:none;border-radius:0;text-align:center;padding:12px 6px;font-family:'IBM Plex Mono',monospace;}
+  .numstep input[type=number]{flex:1;min-width:0;border:none;border-radius:0;text-align:center;padding:8px 6px;font-family:'IBM Plex Mono',monospace;}
   .numstep input[type=number]:focus{outline:none;}
   /* FIX 16 Sep 2026: pilihan Persen/Nominal jadi chip (bukan radio+label polos) — sekalian matiin default tap-highlight abu-abu bawaan mobile yang keliatan kayak "nge-block" area pas dipencet */
-  .discount-type-chip{position:relative;flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 10px;border:1.5px solid var(--border);border-radius:999px;background:var(--surface);cursor:pointer;font-size:13px;font-weight:600;color:var(--ink-soft);-webkit-tap-highlight-color:transparent;user-select:none;transition:background .15s ease,border-color .15s ease,color .15s ease;}
+  .discount-type-chip{position:relative;flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:5px 10px;border:1.5px solid var(--border);border-radius:999px;background:var(--surface);cursor:pointer;font-size:12.5px;font-weight:600;color:var(--ink-soft);-webkit-tap-highlight-color:transparent;user-select:none;transition:background .15s ease,border-color .15s ease,color .15s ease;}
   .discount-type-chip input{position:absolute;opacity:0;width:0;height:0;pointer-events:none;}
   .discount-type-chip:has(input:checked){background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark);}
   /* FIX 16 Sep 2026 (v4): panel diskon "nempel" ke bawah total-bar (bukan kotak baru ngambang) + buka/tutup smooth
@@ -379,7 +383,7 @@
       <div class="field">
         <div class="field-label-row">
           <label class="field-label" style="margin:0;">Catatan (opsional)</label>
-          <button type="button" class="field-toggle-pill" id="btnToggleNote" onclick="toggleCollapseField('note')">(open)</button>
+          <button type="button" class="field-toggle-pill" id="btnToggleNote" onclick="toggleCollapseField('note')">open</button>
         </div>
         <div class="collapse-wrap" id="noteCollapse">
           <div class="collapse-inner"><div style="padding-top:1px;">
@@ -390,7 +394,7 @@
       <div class="field">
         <div class="field-label-row">
           <label class="field-label" style="margin:0;">Biaya Ekspedisi (opsional)</label>
-          <button type="button" class="field-toggle-pill" id="btnToggleShip" onclick="toggleCollapseField('ship')">(open)</button>
+          <button type="button" class="field-toggle-pill" id="btnToggleShip" onclick="toggleCollapseField('ship')">open</button>
         </div>
         <div class="collapse-wrap" id="shipCollapse">
           <div class="collapse-inner"><div style="padding-top:1px;">
@@ -672,6 +676,7 @@ let staffSession = null; // {session_token, alias, email} — null kalau belum l
 const STAFF_SESSION_KEY = 'test-staff-session-v1'; // sengaja DIPISAH dari index.html asli — cache lain di bawah ini SENGAJA TETEP SHARED
 let orderSelections = {}; // nama_item -> qty
 let editingOrderId = null;
+let editOriginTab = null; // FIX 16 Sep 2026 (v6): inget tab asal sebelum masuk mode edit, biar "Batal" balik ke situ lagi
 let isSubmittingOrder = false; // dipake updateOrderTotal() biar gak diem-diem nge-enable tombol Simpan pas masih ada request nyangkut
 let pendingOrderClientId = null; // idempotency key add_order — dibikin sekali per sesi isi form, dipake ulang kalau di-retry (manual/otomatis), biar gak dobel kalau respon gagal balik padahal sheet udah ketulis
 let editingOrderPrepared = false;
@@ -1913,7 +1918,7 @@ function toggleCollapseField(key){
   const btn = document.getElementById(cfg.btnId);
   const willOpen = !wrap.classList.contains('open');
   wrap.classList.toggle('open', willOpen);
-  if(btn) btn.textContent = willOpen ? '(close)' : '(open)';
+  if(btn) btn.textContent = willOpen ? 'close' : 'open';
 }
 function toggleDiscountPanel(){
   const panel = document.getElementById('discountPanel');
@@ -2484,6 +2489,7 @@ function goToPrepAndHighlight(orderId, deliveryDate, opts){
 }
 function resetOrderForm(){
   editingOrderId = null; editingOrderPrepared = false; editingOrderPaid = false;
+  editOriginTab = null; // FIX 16 Sep 2026 (v6): dibersihin di sini juga biar gak nyangkut stale buat sesi order berikutnya
   pendingOrderClientId = null; // sesi isi order ini beres/dibatalin — key berikutnya digenerate baru
   document.getElementById('editBanner').style.display = 'none';
   document.getElementById('btnSubmitOrder').textContent = 'Simpan Orderan';
@@ -2495,16 +2501,21 @@ function resetOrderForm(){
   if(shipClearBtnReset) shipClearBtnReset.style.display = 'none';
   // FIX 16 Sep 2026 (v5): balikin Catatan & Ekspedisi ke default ketutup
   document.getElementById('noteCollapse').classList.remove('open');
-  document.getElementById('btnToggleNote').textContent = '(open)';
+  document.getElementById('btnToggleNote').textContent = 'open';
   document.getElementById('shipCollapse').classList.remove('open');
-  document.getElementById('btnToggleShip').textContent = '(open)';
+  document.getElementById('btnToggleShip').textContent = 'open';
   clearDiscount();
   orderSelections = {};
   document.getElementById('deliveryDate').value = tomorrowISO();
   refreshDateDisplay('deliveryDate');
   renderMenuPicker();
 }
-function cancelEdit(){ resetOrderForm(); showToast('Edit dibatalin'); }
+function cancelEdit(){
+  const originTab = editOriginTab; // simpen dulu SEBELUM resetOrderForm() (yang ikut ngosongin editOriginTab)
+  resetOrderForm();
+  showToast('Edit dibatalin');
+  if(originTab) switchTab(originTab);
+}
 
 function openEditOrder(orderId){
   const order = allOrders.find(o=>o.order_id===orderId);
@@ -2527,9 +2538,9 @@ function openEditOrder(orderId){
   // FIX 16 Sep 2026 (v5): auto-buka collapse Catatan/Ekspedisi kalau order lama emang ada isinya,
   // biar staff langsung keliatan pas edit (gak perlu nebak2 pencet "(open)" dulu)
   document.getElementById('noteCollapse').classList.toggle('open', !!(order.note && order.note.trim()));
-  document.getElementById('btnToggleNote').textContent = (order.note && order.note.trim()) ? '(close)' : '(open)';
+  document.getElementById('btnToggleNote').textContent = (order.note && order.note.trim()) ? 'close' : 'open';
   document.getElementById('shipCollapse').classList.toggle('open', !!order.shipping_fee);
-  document.getElementById('btnToggleShip').textContent = order.shipping_fee ? '(close)' : '(open)';
+  document.getElementById('btnToggleShip').textContent = order.shipping_fee ? 'close' : 'open';
   document.querySelectorAll('input[name="discountType"]').forEach(r=>{ r.checked = (r.value === order.discount_type); });
   document.getElementById('discountValue').value = order.discount_value || '';
   lastDiscountValueByType = { persen:'', nominal:'' };
@@ -2539,6 +2550,11 @@ function openEditOrder(orderId){
   if(clearBtn) clearBtn.style.display = order.discount_value ? 'flex' : 'none';
   orderSelections = {};
   (order.items || []).forEach(i=>{ orderSelections[i.name] = { qty: i.qty, price: i.price }; });
+  // FIX 16 Sep 2026 (v6): rekam lagi di tab mana sebelum lompat ke Order (misal dipencet dari
+  // card Prep) — dipake cancelEdit() buat balik ke situ kalau editnya dibatalin
+  const currentTab = document.querySelector('.tab.active');
+  const currentTabName = currentTab ? currentTab.id.replace('tab-','') : null;
+  editOriginTab = (currentTabName && currentTabName !== 'order') ? currentTabName : null;
   switchTab('order');
   renderMenuPicker();
 }
@@ -3481,8 +3497,40 @@ function konfirmasiKeluarApp(){
 // (event delegation di document, jadi otomatis nyakup tombol yang di-render belakangan juga
 // — stepper qty item menu, dsb — tanpa perlu attach listener satu-satu).
 document.addEventListener('contextmenu', function(e){
-  if(e.target.closest('button')) e.preventDefault();
+  if(e.target.closest('button, [onclick]')) e.preventDefault();
 });
+// FIX 16 Sep 2026 (v6): stepper +/- "Tambah Stok" (Menu > mode stok) — beda sama numstep
+// Ekspedisi/Diskon yang SENGAJA konstan. Ini SENGAJA dipercepat, makin lama ditahan makin
+// cepet. Target kasar: ~50x dalam 3 detik. Delegasi event di #categoryListArea (bukan attach
+// per-tombol) krn baris menu ini di-render ulang tiap kali stok mode nyala/ada perubahan.
+(function attachStokLongPressAccel(){
+  const container = document.getElementById('categoryListArea');
+  if(!container) return;
+  const START_INTERVAL = 320, MIN_INTERVAL = 22, RAMP_MS = 2200;
+  let timer = null, activeBtn = null, startTime = 0;
+  function stop(){ if(timer){ clearTimeout(timer); timer = null; } activeBtn = null; }
+  function tick(){
+    if(!activeBtn) return;
+    activeBtn.click();
+    const elapsed = performance.now() - startTime;
+    const t = Math.min(1, elapsed / RAMP_MS);
+    const interval = START_INTERVAL - (START_INTERVAL - MIN_INTERVAL) * t;
+    timer = setTimeout(tick, interval);
+  }
+  container.addEventListener('pointerdown', function(e){
+    const btn = e.target.closest('.stepper button');
+    if(!btn) return;
+    e.preventDefault();
+    stop();
+    activeBtn = btn;
+    startTime = performance.now();
+    btn.click(); // klik pertama langsung, sisanya lewat ramp di atas
+    timer = setTimeout(tick, START_INTERVAL);
+  });
+  container.addEventListener('pointerup', stop);
+  container.addEventListener('pointerleave', stop);
+  container.addEventListener('pointercancel', stop);
+})();
 function syncHeaderHeightVar(){
   const h = document.querySelector('header');
   if(h) document.documentElement.style.setProperty('--header-h', h.offsetHeight + 'px');
