@@ -26,6 +26,11 @@
   }
   /* FIX 15 Sep 2026: search box "Cari menu"/"Cari nama menu" nempel di bawah header pas discroll, gak ilang ke atas ditengah list */
   .field.sticky-menu-search{ position:sticky; top:var(--header-h); z-index:6; background:var(--bg); padding-top:6px; padding-bottom:6px; } /* FIX 16 Sep 2026: dinaikin specificity-nya (.field.sticky-menu-search) krn sebelumnya keimpas .search-clear-field{position:relative;} yg letaknya lebih bawah di stylesheet — sticky-nya gak pernah kepake meski class-nya udah kepasang di HTML */
+  /* FIX 16 Sep 2026 (v5): SEMUA tombol app-wide — matiin block/select bawaan pas ditekan lama,
+     ganti sama feedback highlight yang lebih halus (filter brightness). Rule lebih spesifik
+     yang udah ada (numstep-btn dkk) tetep menang di atas ini kalau ada :active sendiri. */
+  button{-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation;}
+  button:active{filter:brightness(.92);}
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;touch-action:pan-y;overflow-x:clip;}
   body{background:var(--bg);color:var(--ink);font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh;padding-bottom:78px;}
@@ -43,6 +48,14 @@
   h2.section-title{font-family:'Fraunces',serif;font-weight:600;font-size:20px;color:var(--jade-dark);margin:0 0 4px;letter-spacing:-0.01em;}
   p.section-sub{color:var(--subtitle);font-size:13px;margin:0 0 16px;font-weight:600;}
   label.field-label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-soft);margin:0 0 6px;text-transform:uppercase;letter-spacing:.04em;}
+  /* FIX 16 Sep 2026 (v5): baris label + pill toggle (buat field collapsible spt Catatan & Ekspedisi) */
+  .field-label-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;}
+  .field-label-row .field-label{margin:0;}
+  .field-toggle-pill{border:1.5px solid var(--jade);background:var(--jade-tint);color:var(--jade-dark);font-size:11px;font-weight:700;padding:3px 11px;border-radius:999px;cursor:pointer;flex-shrink:0;}
+  /* Collapse generic — sama kayak trik grid-rows di panel diskon, tapi polos (gak ada styling nempel/warna khusus) */
+  .collapse-wrap{display:grid;grid-template-rows:0fr;transition:grid-template-rows .26s cubic-bezier(.22,1,.36,1);}
+  .collapse-wrap.open{grid-template-rows:1fr;}
+  .collapse-inner{overflow:hidden;min-height:0;}
   input[type=text],input[type=date],input[type=number],textarea,select{width:100%;padding:12px 13px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:15px;background:var(--surface);color:var(--ink);}
   /* iOS Safari kadang ngerender input[type=date] lebih lebar dari box-nya sendiri (chrome
      kalender bawaan iOS ngukur lebar sendiri, nggak selalu nurut ke width:100% + box-sizing).
@@ -82,7 +95,7 @@
   .numstep input[type=number]{flex:1;min-width:0;border:none;border-radius:0;text-align:center;padding:12px 6px;font-family:'IBM Plex Mono',monospace;}
   .numstep input[type=number]:focus{outline:none;}
   /* FIX 16 Sep 2026: pilihan Persen/Nominal jadi chip (bukan radio+label polos) — sekalian matiin default tap-highlight abu-abu bawaan mobile yang keliatan kayak "nge-block" area pas dipencet */
-  .discount-type-chip{position:relative;flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);cursor:pointer;font-size:13px;font-weight:600;color:var(--ink-soft);-webkit-tap-highlight-color:transparent;user-select:none;transition:background .15s ease,border-color .15s ease,color .15s ease;}
+  .discount-type-chip{position:relative;flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 10px;border:1.5px solid var(--border);border-radius:999px;background:var(--surface);cursor:pointer;font-size:13px;font-weight:600;color:var(--ink-soft);-webkit-tap-highlight-color:transparent;user-select:none;transition:background .15s ease,border-color .15s ease,color .15s ease;}
   .discount-type-chip input{position:absolute;opacity:0;width:0;height:0;pointer-events:none;}
   .discount-type-chip:has(input:checked){background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark);}
   /* FIX 16 Sep 2026 (v4): panel diskon "nempel" ke bawah total-bar (bukan kotak baru ngambang) + buka/tutup smooth
@@ -364,16 +377,30 @@
       </div>
       <div id="menuPickerArea"><div class="spinner">Memuat menu...</div></div>
       <div class="field">
-        <label class="field-label">Catatan (opsional)</label>
-        <textarea id="orderNote" placeholder="Catatan tambahan"></textarea>
+        <div class="field-label-row">
+          <label class="field-label" style="margin:0;">Catatan (opsional)</label>
+          <button type="button" class="field-toggle-pill" id="btnToggleNote" onclick="toggleCollapseField('note')">(open)</button>
+        </div>
+        <div class="collapse-wrap" id="noteCollapse">
+          <div class="collapse-inner"><div style="padding-top:1px;">
+            <textarea id="orderNote" placeholder="Catatan tambahan"></textarea>
+          </div></div>
+        </div>
       </div>
       <div class="field">
-        <label class="field-label">Biaya Ekspedisi (opsional)</label>
-        <div class="numstep" style="position:relative;">
-          <button type="button" class="numstep-btn" id="btnShipMinus" aria-label="Kurangi 1000">−</button>
-          <input type="number" id="shippingFee" placeholder="mis. 15000 (kosongin kalau nggak ada)" oninput="onShippingFeeInput()" style="padding-right:36px;">
-          <button type="button" class="numstep-btn" id="btnShipPlus" aria-label="Tambah 1000">+</button>
-          <button type="button" id="btnClearShippingFee" onclick="clearShippingFeeOnly()" style="display:none;position:absolute;right:44px;top:50%;transform:translateY(-50%);width:30px;height:30px;border:none;background:none;color:var(--ink-soft);font-size:17px;line-height:1;cursor:pointer;align-items:center;justify-content:center;">✕</button>
+        <div class="field-label-row">
+          <label class="field-label" style="margin:0;">Biaya Ekspedisi (opsional)</label>
+          <button type="button" class="field-toggle-pill" id="btnToggleShip" onclick="toggleCollapseField('ship')">(open)</button>
+        </div>
+        <div class="collapse-wrap" id="shipCollapse">
+          <div class="collapse-inner"><div style="padding-top:1px;">
+            <div class="numstep" style="position:relative;">
+              <button type="button" class="numstep-btn" id="btnShipMinus" aria-label="Kurangi 1000">−</button>
+              <input type="number" id="shippingFee" placeholder="mis. 15000 (kosongin kalau nggak ada)" oninput="onShippingFeeInput()" style="padding-right:36px;">
+              <button type="button" class="numstep-btn" id="btnShipPlus" aria-label="Tambah 1000">+</button>
+              <button type="button" id="btnClearShippingFee" onclick="clearShippingFeeOnly()" style="display:none;position:absolute;right:44px;top:50%;transform:translateY(-50%);width:30px;height:30px;border:none;background:none;color:var(--ink-soft);font-size:17px;line-height:1;cursor:pointer;align-items:center;justify-content:center;">✕</button>
+            </div>
+          </div></div>
         </div>
       </div>
       <div id="orderTotalTop"><div class="total-bar" style="justify-content:flex-start;gap:10px;"><button type="button" id="btnDiscountToggle" class="discount-toggle-btn" onclick="toggleDiscountPanel()" aria-label="Diskon">%</button><span class="lbl">Total</span><span class="val" id="orderTotal" style="margin-left:auto;">Rp 0</span></div></div>
@@ -1873,6 +1900,21 @@ function changeQty(name, price, delta){
 // hitungan Total — tapi NUTUP panel gak ngosongin radio/nominal yang udah diisi (biar gampang
 // nyalain lagi, tinggal tap icon-nya). Buat BENERAN ngosongin angka, pake tombol ✕ di dalem
 // kolom nominal (cuma nongol kalau ada ketikan, abis dipencet langsung ilang).
+// FIX 16 Sep 2026 (v5): Catatan & Ekspedisi jadi collapsible (pola sama kayak panel Diskon,
+// tapi versi generic/ringan — gak perlu nempel-warna kayak diskon). Default ketutup.
+const collapseFieldMap = {
+  note: { wrapId:'noteCollapse', btnId:'btnToggleNote' },
+  ship: { wrapId:'shipCollapse', btnId:'btnToggleShip' },
+};
+function toggleCollapseField(key){
+  const cfg = collapseFieldMap[key];
+  if(!cfg) return;
+  const wrap = document.getElementById(cfg.wrapId);
+  const btn = document.getElementById(cfg.btnId);
+  const willOpen = !wrap.classList.contains('open');
+  wrap.classList.toggle('open', willOpen);
+  if(btn) btn.textContent = willOpen ? '(close)' : '(open)';
+}
 function toggleDiscountPanel(){
   const panel = document.getElementById('discountPanel');
   const willOpen = !panel.classList.contains('open');
@@ -1959,7 +2001,7 @@ function clearShippingFeeOnly(){
   el.value = '';
   document.getElementById('btnClearShippingFee').style.display = 'none';
   updateOrderTotal();
-  el.focus();
+  // FIX 16 Sep 2026 (v5): sengaja GAK di-focus() lagi — biar keyboard mobile gak ke-trigger abis pencet ✕
 }
 // FIX 16 Sep 2026 (v2): inget nilai terakhir masing-masing mode (Persen/Nominal) terpisah — pindah
 // mode gak lagi kebawa angka mentahnya (misal abis isi 5% terus pindah Nominal, gak nongol "5" yang
@@ -1986,7 +2028,7 @@ function clearDiscountValueOnly(){
   if(typeEl) lastDiscountValueByType[typeEl.value] = '';
   document.getElementById('btnClearDiscountValue').style.display = 'none';
   updateOrderTotal();
-  valEl.focus();
+  // FIX 16 Sep 2026 (v5): sengaja GAK di-focus() lagi — biar keyboard mobile gak ke-trigger abis pencet ✕
 }
 // Dipake pas reset form abis submit/batal edit — hard reset semuanya (radio, nominal, panel ketutup).
 function clearDiscount(){
@@ -2451,6 +2493,11 @@ function resetOrderForm(){
   document.getElementById('shippingFee').value = '';
   const shipClearBtnReset = document.getElementById('btnClearShippingFee');
   if(shipClearBtnReset) shipClearBtnReset.style.display = 'none';
+  // FIX 16 Sep 2026 (v5): balikin Catatan & Ekspedisi ke default ketutup
+  document.getElementById('noteCollapse').classList.remove('open');
+  document.getElementById('btnToggleNote').textContent = '(open)';
+  document.getElementById('shipCollapse').classList.remove('open');
+  document.getElementById('btnToggleShip').textContent = '(open)';
   clearDiscount();
   orderSelections = {};
   document.getElementById('deliveryDate').value = tomorrowISO();
@@ -2477,6 +2524,12 @@ function openEditOrder(orderId){
   document.getElementById('shippingFee').value = order.shipping_fee || '';
   const shipClearBtn = document.getElementById('btnClearShippingFee');
   if(shipClearBtn) shipClearBtn.style.display = order.shipping_fee ? 'flex' : 'none';
+  // FIX 16 Sep 2026 (v5): auto-buka collapse Catatan/Ekspedisi kalau order lama emang ada isinya,
+  // biar staff langsung keliatan pas edit (gak perlu nebak2 pencet "(open)" dulu)
+  document.getElementById('noteCollapse').classList.toggle('open', !!(order.note && order.note.trim()));
+  document.getElementById('btnToggleNote').textContent = (order.note && order.note.trim()) ? '(close)' : '(open)';
+  document.getElementById('shipCollapse').classList.toggle('open', !!order.shipping_fee);
+  document.getElementById('btnToggleShip').textContent = order.shipping_fee ? '(close)' : '(open)';
   document.querySelectorAll('input[name="discountType"]').forEach(r=>{ r.checked = (r.value === order.discount_type); });
   document.getElementById('discountValue').value = order.discount_value || '';
   lastDiscountValueByType = { persen:'', nominal:'' };
@@ -3424,6 +3477,12 @@ function konfirmasiKeluarApp(){
 }
 
 // ==== INIT ====
+// FIX 16 Sep 2026 (v5): cegat klik-kanan/long-press-context-menu di SEMUA tombol app-wide
+// (event delegation di document, jadi otomatis nyakup tombol yang di-render belakangan juga
+// — stepper qty item menu, dsb — tanpa perlu attach listener satu-satu).
+document.addEventListener('contextmenu', function(e){
+  if(e.target.closest('button')) e.preventDefault();
+});
 function syncHeaderHeightVar(){
   const h = document.querySelector('header');
   if(h) document.documentElement.style.setProperty('--header-h', h.offsetHeight + 'px');
