@@ -124,6 +124,9 @@
   .edit-banner{display:flex;align-items:center;justify-content:space-between;background:var(--gold-tint);border:1px solid var(--gold);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--gold);font-weight:600;}
   .edit-banner button{background:none;border:none;color:var(--chili);font-weight:700;cursor:pointer;font-size:12.5px;}
   .menu-item-manage{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px dashed var(--border);}
+  /* FIX 16 Sep 2026 (v9): buletan toggle "tampil di Order tab" — kanan pas mode biasa, kiri pas mode Stock (biar gak numpuk sama stepper) */
+  .avail-toggle{width:26px;height:26px;border-radius:50%;border:2px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;color:transparent;font-size:14px;font-weight:900;line-height:1;transition:background .15s ease,border-color .15s ease,color .15s ease;}
+  .avail-toggle.on{background:var(--jade);border-color:var(--jade);color:#fff;}
   .menu-item-manage:last-child{border-bottom:none;}
   .menu-item-manage .name{font-size:14px;font-weight:600;}
   .menu-item-manage .price{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink-soft);}
@@ -432,7 +435,7 @@
       <h2 class="section-title" style="margin-bottom:8px;">Menu</h2>
       <div id="menuActionRow" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
         <button class="chili-sm" style="background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark);" onclick="openAddMenuModal()">+ Tambah Menu</button>
-        <button class="chili-sm" id="btnToggleStokMode" onclick="toggleStokMode()" style="background:var(--gold-tint);border-color:var(--gold);color:var(--gold);">📦 Tambah Stok</button>
+        <button class="chili-sm" id="btnToggleStokMode" onclick="toggleStokMode()" style="background:var(--gold-tint);border-color:var(--gold);color:var(--gold);">📦 Stock / Available</button>
         <button class="chili-sm" id="btnToggleDeleteMode" onclick="toggleDeleteMode()" style="background:#fff;margin-left:auto;">🗑️ Hapus</button>
         <button class="chili-sm" style="background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark);" onclick="openShareMenu()">🖨️ Bagikan Menu</button>
       </div>
@@ -1683,7 +1686,7 @@ function updateStokButtonUI(){
   const btn = document.getElementById('btnToggleStokMode');
   const fab = document.getElementById('stokModeFab');
   btn.disabled = false;
-  btn.textContent = stokMode ? '✓ Selesai (simpan stok)' : '📦 Tambah Stok';
+  btn.textContent = stokMode ? '✓ Selesai (simpan stok)' : '📦 Stock / Available';
   btn.style.background = stokMode ? 'var(--jade)' : 'var(--gold-tint)';
   btn.style.color = stokMode ? '#fff' : 'var(--gold)';
   btn.style.borderColor = stokMode ? 'var(--jade)' : 'var(--gold)';
@@ -1714,6 +1717,24 @@ function updateDeleteButtonUI(){
 }
 function exitStokMode(){ stokMode = false; pendingStok = {}; pendingStokItemId = {}; updateStokButtonUI(); }
 function exitDeleteMode(){ deleteMode = false; updateDeleteButtonUI(); }
+// FIX 16 Sep 2026 (v9): toggle "tampil di Order tab" per item — independen dari mode Stock/Delete,
+// langsung update + sync ke server begitu diklik (bukan pending-batch kayak stok). Optimistic UI:
+// update lokal dulu biar responsif, rollback kalau gagal sync.
+async function toggleMenuAktif(row, itemId, currentAktif){
+  const newVal = !currentAktif;
+  const it = menuItems.find(m=>m.row===row);
+  if(it) it.aktif = newVal;
+  renderMenuManage();
+  renderMenuPicker(); // Order tab ikut ke-update seketika
+  try{
+    await apiPost('update_menu_aktif', { row, item_id: itemId, aktif: newVal, device_label: deviceLabel });
+  } catch(e){
+    if(it) it.aktif = currentAktif; // gagal sync -> rollback, jangan nyimpen state yang cuma ada di klien
+    renderMenuManage();
+    renderMenuPicker();
+    showToast('Gagal update ketersediaan: ' + e.message);
+  }
+}
 function toggleStokMode(){
   if(stokMode){ saveStokChanges(); return; }
   if(deleteMode) exitDeleteMode();
@@ -1799,6 +1820,8 @@ function renderMenuManage(){
           const itemPrep = prepMapItem[it.item_id] || 0; // dipake buat ditampilin — punya item ini doang
           const available = real - pooledPrep;
           const indukNama = isChild && !indukBroken ? menuById[induk].nama : '';
+          const aktif = it.aktif !== false; // FIX 16 Sep 2026 (v9): default true kalau field belum ada di data lama (kompatibel mundur)
+          const availToggleHtml = `<button type="button" class="avail-toggle${aktif?' on':''}" onclick="event.stopPropagation(); toggleMenuAktif(${it.row}, '${it.item_id}', ${aktif})" aria-label="Tampil di Order">✓</button>`;
           let breakdownHtml;
           if(isUnlimited){
             breakdownHtml = `<div class="stok-breakdown">♾️ Stok unlimited${isChild ? ` (ngikut "${escapeHtml(indukNama)}")` : ''}</div>`;
@@ -1813,6 +1836,7 @@ function renderMenuManage(){
           }
           return `
           <div class="menu-item-manage">
+            ${stokMode ? availToggleHtml : ''}
             <div ${idleMode ? `onclick="openEditMenuModal(${it.row})" style="cursor:pointer;"` : ''}>
               <div class="name">${escapeHtml(it.nama)}</div>
               <div class="price">${rupiah(it.harga)}</div>
@@ -1825,7 +1849,7 @@ function renderMenuManage(){
                 <span class="qty" id="stokval-${it.row}">${stokVal}</span>
                 <button onclick="adjustPendingStok(${it.row}, '${it.item_id}', ${it.stok||0}, 1)">+</button>
               </div>`
-            ) : deleteMode ? `<button class="ghost-sm" onclick="deleteMenuRow(${it.row}, '${it.item_id}')">Hapus</button>` : ''}
+            ) : deleteMode ? `<button class="ghost-sm" onclick="deleteMenuRow(${it.row}, '${it.item_id}')">Hapus</button>` : availToggleHtml}
           </div>`;
         }).join('')}
       </div>`;
@@ -1848,6 +1872,7 @@ function renderMenuPicker(){
   const demandPicker = computeDemandByStockKey(prepWindowDates());
   const html = cats.map(cat=>{
     let items = menuItems.filter(i=>i.kategori===cat);
+    items = items.filter(i=> i.aktif !== false); // FIX 16 Sep 2026 (v9): item yang di-nonaktifin gak muncul di Order tab
     if(search) items = items.filter(i=>i.nama.toLowerCase().includes(search));
     if(items.length===0) return '';
     anyMatch = true;
@@ -3491,22 +3516,35 @@ function tutupSemuaLayar(closeFn){
   if(layarStack.length > 0) history.go(-layarStack.length);
 }
 let bolehKeluarSekarang = false; // true sesaat abis user pencet "Ya" di modal quit, biar popstate abis itu gak ke-trap ulang
+let modalQuitLagiKebuka = false; // FIX 16 Sep 2026 (v8): biar back KEDUA (pas modal quit masih kebuka) dianggep cancel, bukan nge-re-show modal yang sama berkali2
 window.addEventListener('popstate', function(){
   const undoFn = layarStack.pop();
   if(undoFn){ undoFn(); return; }
   if(bolehKeluarSekarang) return; // udah confirm sebelumnya -- biarin browser/OS lanjutin exit/minimize
+  if(modalQuitLagiKebuka){
+    // Back lagi pas modal konfirmasi keluar masih kebuka = CANCEL (sama kayak pencet "Batal"),
+    // bukan exit dan bukan nge-loop nunjukin modal yang sama. Re-trap lagi biar back
+    // BERIKUTNYA (yang ketiga) balik minta konfirmasi dari nol, bukan langsung keluar polos.
+    modalQuitLagiKebuka = false;
+    document.getElementById('confirmQuitModal').classList.add('hidden');
+    history.pushState(null, '');
+    return;
+  }
   cekKeluarApp();
 });
 function cekKeluarApp(){
   // Re-trap SEGERA biar kalau user pencet Batal, back berikutnya balik ke sini lagi
   // (bukan beneran keluar).
   history.pushState(null, '');
+  modalQuitLagiKebuka = true;
   document.getElementById('confirmQuitModal').classList.remove('hidden');
 }
 function batalKeluarApp(){
+  modalQuitLagiKebuka = false;
   document.getElementById('confirmQuitModal').classList.add('hidden');
 }
 function konfirmasiKeluarApp(){
+  modalQuitLagiKebuka = false;
   document.getElementById('confirmQuitModal').classList.add('hidden');
   bolehKeluarSekarang = true;
   history.back(); // konsumsi sentinel dari cekKeluarApp() -> abis ini balik ke sentinel awal (dari init) yang gak punya "belakang" lagi -> browser/OS jalanin default exit/minimize, sama kayak Cost Tracker di root
