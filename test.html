@@ -2678,15 +2678,35 @@ function computeLiveItemsSummary(o, menuById){
     return `${nama} x${it.qty}`;
   }).join(', ');
 }
-function computeLiveOrderTotal(o, menuById){
+function computeLiveItemsTotal(o, menuById){
   let total = 0;
   (o.items||[]).forEach(it=>{
     const m = resolveMenuItemForOrderItem(it, menuById);
     const price = m ? m.harga : (Number(it.price)||0);
     total += price * (Number(it.qty)||0);
   });
-  total += Number(o.shipping_fee)||0;
   return total;
+}
+function computeLiveOrderTotal(o, menuById){
+  const itemsTotal = computeLiveItemsTotal(o, menuById);
+  // FIX 16 Sep 2026 (v7): sebelumnya diskon SAMA SEKALI gak diitung di sini — Total di card Prep
+  // jadi lebih gede dari seharusnya buat order yang ada diskonnya. Sekarang ngikutin urutan yang
+  // sama kayak pas order dibuat: (itemsTotal - diskon) + ongkir.
+  const discountAmount = (o.discount_type && o.discount_value) ? computeDiscountAmount(itemsTotal, { type:o.discount_type, value:o.discount_value }) : 0;
+  return (itemsTotal - discountAmount) + (Number(o.shipping_fee)||0);
+}
+// FIX 16 Sep 2026 (v7): baris "Ongkir: X" + "Diskon: -Y" bareng satu baris (ongkir kiri, diskon
+// kanan) — dipake di card Prep & Riwayat, biar diskon KELIATAN di card (sebelumnya cuma ada di
+// Struk/teks WA, gak pernah ditampilin di card list). itemsTotalForDiscount beda basisnya:
+// Prep pakai harga LIVE (computeLiveItemsTotal), Riwayat pakai harga BEKU (sum it.price*it.qty).
+function ongkirDiskonRowHtml(o, itemsTotalForDiscount, clickOrderId){
+  const discountAmount = (o.discount_type && o.discount_value) ? computeDiscountAmount(itemsTotalForDiscount, { type:o.discount_type, value:o.discount_value }) : 0;
+  if(!o.shipping_fee && discountAmount<=0) return '';
+  const clickAttr = clickOrderId ? ` onclick="openReceiptView('${clickOrderId}')"` : '';
+  return `<div class="items-list" style="display:flex;justify-content:space-between;gap:8px;"${clickAttr}>
+    <span>${o.shipping_fee ? 'Ongkir: '+rupiah(o.shipping_fee) : ''}</span>
+    <span style="color:var(--chili);">${discountAmount>0 ? 'Diskon: -'+rupiah(discountAmount) : ''}</span>
+  </div>`;
 }
 function toggleItemFilter(name){ activeItemFilter = (activeItemFilter === name) ? null : name; renderBesokList(); }
 async function renderBesok(){
@@ -2829,7 +2849,7 @@ function renderBesokList(){
       </div>
       <div class="items-list" onclick="openEditOrder('${o.order_id}')">${escapeHtml(computeLiveItemsSummary(o, menuByIdBesok))}</div>
       ${o.note ? `<div class="items-list" style="font-style:italic;">"${escapeHtml(o.note)}"</div>` : ''}
-      ${o.shipping_fee ? `<div class="items-list">Ongkir: ${rupiah(o.shipping_fee)}</div>` : ''}
+      ${ongkirDiskonRowHtml(o, computeLiveItemsTotal(o, menuByIdBesok))}
       ${saldoLineHtml(o)}
       <div class="bottom-row">
         <span class="price">${rupiah(liveTotal)}</span>
@@ -2999,7 +3019,7 @@ function renderRiwayatCards(list){
         <button class="pay-toggle ${o.paid?'paid':''}" onclick="togglePaid('${o.order_id}')">${o.paid?'✓ Lunas':'Belum Lunas'}</button>
       </div>
       <div class="items-list" onclick="openReceiptView('${o.order_id}')">${escapeHtml(o.items_summary)}</div>
-      ${o.shipping_fee ? `<div class="items-list" onclick="openReceiptView('${o.order_id}')">Ongkir: ${rupiah(o.shipping_fee)}</div>` : ''}
+      ${ongkirDiskonRowHtml(o, (o.items||[]).reduce((s,i)=> s+(Number(i.price)||0)*(Number(i.qty)||0), 0), o.order_id)}
       ${saldoLineHtml(o)}
       <div class="bottom-row">
         <span class="price">${rupiah(o.total)}</span>
