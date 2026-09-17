@@ -127,7 +127,7 @@
   /* FIX 16 Sep 2026 (v9): buletan toggle "tampil di Order tab" — kanan pas mode biasa, kiri pas mode Stock (biar gak numpuk sama stepper) */
   .avail-toggle{width:13px;height:13px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;color:transparent;font-size:8px;font-weight:900;line-height:1;transition:background .15s ease,border-color .15s ease,color .15s ease;}
   .avail-toggle.on{background:var(--jade);border-color:var(--jade);color:#fff;}
-  .avail-toggle-readonly{cursor:default;} /* FIX 16 Sep 2026 (v10): versi read-only (mode biasa) — sekadar indikator, gak bisa diklik */
+  .avail-toggle-readonly{cursor:pointer;} /* FIX 16 Sep 2026 (v13): balik jadi tappable — bukan buat toggle langsung, tapi shortcut munculin FAB "Edit Stock" */
   /* FIX 16 Sep 2026 (v10): animasi masuk pas transisi KE mode Stock — buletan geser dari kiri,
      teks item geser dikit ke kanan (natural, ngikut buletan yang nongol di kiri), stepper "pop" masuk */
   @keyframes availEnterLeft{ from{ transform:translateX(-14px); opacity:0; } to{ transform:translateX(0); opacity:1; } }
@@ -147,7 +147,7 @@
   .stok-breakdown{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);margin-top:2px;}
   .stok-breakdown .stok-neg{color:var(--chili);font-weight:700;}
   .cat-manage{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
-  .cat-manage .cname{font-family:'Fraunces',serif;font-weight:600;color:var(--jade-dark);}
+  .cat-manage .cname{font-family:'Fraunces',serif;font-weight:600;color:var(--chili);} /* FIX 16 Sep 2026 (v13): disamain sama warna judul kategori di tab Order (var(--chili), merah) */
   .modal-overlay{position:fixed;inset:0;background:rgba(38,48,44,.5);z-index:50;display:flex;align-items:flex-end;justify-content:center;opacity:1;visibility:visible;transition:opacity .18s ease,visibility 0s linear 0s;}
   .modal-overlay.hidden{opacity:0;visibility:hidden;pointer-events:none;transition:opacity .15s ease,visibility 0s linear .15s;}
   /* FIX 16 Sep 2026: sheet naik cepet pas dibuka, turun cepet pas ditutup — sebelumnya cuma display:none/flex instan tanpa animasi */
@@ -206,6 +206,9 @@
   .menu-action-row-sticky{}
   .stok-mode-fab{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translate(-50%,0);background:var(--jade);color:#fff;border:none;border-radius:999px;padding:12px 20px;font-size:14px;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.28);z-index:25;cursor:pointer;display:none;align-items:center;gap:6px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .2s ease;}
   .stok-mode-fab.show{display:flex;opacity:1;pointer-events:auto;animation:fabBounce 1.6s ease-in-out infinite;}
+  /* FIX 16 Sep 2026 (v13): FAB shortcut "Edit Stock" — turun dari atas layar pas dipencet centang read-only */
+  .quick-edit-stok-fab{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translate(-50%,-70px);background:var(--jade);color:#fff;border:none;border-radius:999px;padding:12px 20px;font-size:14px;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.28);z-index:26;cursor:pointer;display:none;align-items:center;gap:6px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .24s ease,transform .24s cubic-bezier(.22,1,.36,1);}
+  .quick-edit-stok-fab.show{display:flex;opacity:1;pointer-events:auto;transform:translate(-50%,0);}
   nav.tabbar .wrap-inner{max-width:480px;margin:0 auto;display:flex;width:100%;}
   nav.tabbar button{flex:1;background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;color:var(--ink-soft);font-family:'DM Sans',sans-serif;font-size:10.5px;font-weight:600;cursor:pointer;border-radius:10px;}
   nav.tabbar button svg{width:20px;height:20px;}
@@ -505,6 +508,8 @@
   </button>
 
   <button type="button" class="stok-mode-fab" id="stokModeFab" onclick="toggleStokMode()">✓ Selesai (simpan stok)</button>
+  <!-- FIX 16 Sep 2026 (v13): FAB shortcut, nongol pas buletan read-only (mode biasa) dipencet -->
+  <button type="button" class="quick-edit-stok-fab" id="quickEditStokFab" onclick="quickEnterStokMode()">✏️ Edit Stock</button>
 
   <nav class="tabbar">
     <div class="wrap-inner">
@@ -1052,6 +1057,10 @@ async function apiPost(action, payload){
 
 // ==== TABS ====
 function switchTab(name){
+  // FIX 16 Sep 2026 (v13): FAB shortcut "Edit Stock" ditutup tiap pindah tab, biar gak nyangkut
+  // ngambang di tab lain (dia position:fixed, bisa keliatan di atas layar manapun kalau lupa ditutup)
+  const quickFab = document.getElementById('quickEditStokFab');
+  if(quickFab) quickFab.classList.remove('show');
   // Safety net: kalau ada modal (Saldo/Struk) yang overflow-lock-nya nyangkut gara-gara
   // dicabut di tengah jalan (misal error API pas modal kebuka), body ketinggalan
   // "overflow:hidden" permanen — dan itu bisa bikin header (position:sticky) berhenti
@@ -1751,6 +1760,23 @@ async function toggleMenuAktif(row, itemId, currentAktif){
     showToast('Gagal update ketersediaan: ' + e.message);
   }
 }
+// FIX 16 Sep 2026 (v13): shortcut dari centang read-only (mode biasa) — bukan langsung masuk Stock
+// mode, tapi munculin FAB dulu ("turun dari atas"), baru masuk mode beneran kalau FAB-nya dipencet.
+let quickEditStokFabTimer = null;
+function showQuickEditStokFab(){
+  const fab = document.getElementById('quickEditStokFab');
+  if(!fab) return;
+  fab.classList.remove('show');
+  void fab.offsetWidth; // reflow biar animasi turunnya retrigger tiap centang dipencet
+  fab.classList.add('show');
+  if(quickEditStokFabTimer) clearTimeout(quickEditStokFabTimer);
+  quickEditStokFabTimer = setTimeout(()=> fab.classList.remove('show'), 3500); // ilang sendiri kalau gak disentuh
+}
+function quickEnterStokMode(){
+  document.getElementById('quickEditStokFab').classList.remove('show');
+  if(quickEditStokFabTimer){ clearTimeout(quickEditStokFabTimer); quickEditStokFabTimer = null; }
+  toggleStokMode();
+}
 function toggleStokMode(){
   if(stokMode){ saveStokChanges(); return; }
   if(deleteMode) exitDeleteMode();
@@ -1846,7 +1872,7 @@ function renderMenuManage(){
           // FIX 16 Sep 2026 (v10): cuma bisa diklik/diedit pas LAGI DI MODE STOCK. Di mode biasa
           // (idle), buletan ini read-only — sekadar indikator visual, gak ada onclick sama sekali.
           const availToggleActive = `<button type="button" class="avail-toggle${aktif?' on':''}${animateIn?' avail-enter':''}" onclick="event.stopPropagation(); toggleMenuAktif(${it.row}, '${it.item_id}', ${aktif})" aria-label="Tampil di Order">✓</button>`;
-          const availToggleReadonly = `<span class="avail-toggle avail-toggle-readonly${aktif?' on':''}${animateOut?' avail-exit-pop':''}" aria-hidden="true">✓</span>`;
+          const availToggleReadonly = `<span class="avail-toggle avail-toggle-readonly${aktif?' on':''}${animateOut?' avail-exit-pop':''}" role="button" aria-label="Edit stok item ini" onclick="showQuickEditStokFab()">✓</span>`;
           let breakdownHtml;
           if(isUnlimited){
             breakdownHtml = `<div class="stok-breakdown">♾️ Stok unlimited${isChild ? ` (ngikut "${escapeHtml(indukNama)}")` : ''}</div>`;
