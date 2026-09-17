@@ -1855,11 +1855,13 @@ function renderMenuManage(){
           }
           return `
           <div class="menu-item-manage">
-            ${stokMode ? availToggleActive : ''}
-            <div ${idleMode ? `onclick="openEditMenuModal(${it.row})" style="cursor:pointer;"` : ''}${animateIn ? ' class="text-enter"' : ''}>
-              <div class="name">${escapeHtml(it.nama)}</div>
-              <div class="price">${rupiah(it.harga)}</div>
-              ${breakdownHtml}
+            <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+              ${stokMode ? availToggleActive : ''}
+              <div ${idleMode ? `onclick="openEditMenuModal(${it.row})" style="cursor:pointer;"` : ''}${animateIn ? ' class="text-enter"' : ''}>
+                <div class="name">${escapeHtml(it.nama)}</div>
+                <div class="price">${rupiah(it.harga)}</div>
+                ${breakdownHtml}
+              </div>
             </div>
             ${stokMode ? (
               (isChild || isUnlimited) ? `<span class="${animateIn?'stepper-enter':''}" style="font-size:11px;color:var(--ink-soft);white-space:nowrap;">${isUnlimited ? 'unlimited' : 'ngikut induk'}</span>` : `
@@ -3514,9 +3516,16 @@ document.getElementById('shareKertasScreen').addEventListener('click', (e)=>{
 // "apa yang harus terjadi kalau di-pop" disimpen di layarStack (array fungsi undo), bukan
 // di history API-nya. Tab switch SENGAJA TIDAK ikut mekanisme ini (keputusan 13 Sep 2026).
 let layarStack = [];
+// FIX 16 Sep 2026 (v11): state di pushState() dikasih nilai UNIK tiap panggilan (bukan selalu
+// `null`), best-practice buat kasus gesture "predictive back" Android 13+ yang kadang nge-collapse
+// / optimize pushState beruntun yang keliatan "identik" — belum tentu ini akar masalahnya di device
+// Shakies (gesture back susah di-reproduce di simulator), tapi ini langkah aman & gak ada ruginya.
+function pushSentinel(){
+  history.pushState({ __sentinel: Date.now() + '-' + Math.random() }, '');
+}
 function pushLayar(undoFn){
   layarStack.push(undoFn);
-  history.pushState(null, '');
+  pushSentinel();
 }
 // Dipanggil dari SEMUA aksi "tutup/back" 1 langkah di UI (tombol ×, tombol back sub-layar,
 // backdrop tap, swipe-to-close) — GANTI pemanggilan fungsi close/back langsung. Fungsi
@@ -3546,7 +3555,7 @@ window.addEventListener('popstate', function(){
     // BERIKUTNYA (yang ketiga) balik minta konfirmasi dari nol, bukan langsung keluar polos.
     modalQuitLagiKebuka = false;
     document.getElementById('confirmQuitModal').classList.add('hidden');
-    history.pushState(null, '');
+    pushSentinel();
     return;
   }
   cekKeluarApp();
@@ -3554,7 +3563,7 @@ window.addEventListener('popstate', function(){
 function cekKeluarApp(){
   // Re-trap SEGERA biar kalau user pencet Batal, back berikutnya balik ke sini lagi
   // (bukan beneran keluar).
-  history.pushState(null, '');
+  pushSentinel();
   modalQuitLagiKebuka = true;
   document.getElementById('confirmQuitModal').classList.remove('hidden');
 }
@@ -3627,7 +3636,7 @@ bindDateDisplay('riwayatDateTo', 'riwayatDateToDisplay', { placeholder: 'Sampai 
   // Sentinel awal buat back-button Android — TANPA ini, back pertama kali (sebelum modal
   // apapun kebuka) langsung keluar app dari nol (gak ada popstate yang sempet ke-trigger).
   // Lihat blok "BACK BUTTON ANDROID" di atas buat mekanisme lengkapnya.
-  history.pushState(null, '');
+  pushSentinel();
   loadStaffSession();
   loadSaldoMapFromCache();
 
