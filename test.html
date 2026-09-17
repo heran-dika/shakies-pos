@@ -125,7 +125,7 @@
   .edit-banner button{background:none;border:none;color:var(--chili);font-weight:700;cursor:pointer;font-size:12.5px;}
   .menu-item-manage{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px dashed var(--border);}
   /* FIX 16 Sep 2026 (v9): buletan toggle "tampil di Order tab" — kanan pas mode biasa, kiri pas mode Stock (biar gak numpuk sama stepper) */
-  .avail-toggle{width:26px;height:26px;border-radius:50%;border:2px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;color:transparent;font-size:14px;font-weight:900;line-height:1;transition:background .15s ease,border-color .15s ease,color .15s ease;}
+  .avail-toggle{width:13px;height:13px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;color:transparent;font-size:8px;font-weight:900;line-height:1;transition:background .15s ease,border-color .15s ease,color .15s ease;}
   .avail-toggle.on{background:var(--jade);border-color:var(--jade);color:#fff;}
   .avail-toggle-readonly{cursor:default;} /* FIX 16 Sep 2026 (v10): versi read-only (mode biasa) — sekadar indikator, gak bisa diklik */
   /* FIX 16 Sep 2026 (v10): animasi masuk pas transisi KE mode Stock — buletan geser dari kiri,
@@ -136,6 +136,11 @@
   .text-enter{ animation:textShiftRight .22s cubic-bezier(.22,1,.36,1); }
   @keyframes stepperPop{ from{ transform:scale(.6); opacity:0; } to{ transform:scale(1); opacity:1; } }
   .stepper-enter{ animation:stepperPop .24s cubic-bezier(.34,1.56,.64,1); }
+  /* FIX 16 Sep 2026 (v12): kebalikannya — animasi KELUAR mode Stock (buletan pop nongol di kanan, teks geser balik ke kiri) */
+  @keyframes availExitPop{ from{ transform:scale(.5); opacity:0; } to{ transform:scale(1); opacity:1; } }
+  .avail-exit-pop{ animation:availExitPop .22s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes textShiftLeft{ from{ transform:translateX(8px); } to{ transform:translateX(0); } }
+  .text-exit{ animation:textShiftLeft .22s cubic-bezier(.22,1,.36,1); }
   .menu-item-manage:last-child{border-bottom:none;}
   .menu-item-manage .name{font-size:14px;font-weight:600;}
   .menu-item-manage .price{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink-soft);}
@@ -704,6 +709,7 @@ let pendingHighlightOrderId = null; // order_id yang mau disorot abis balik ke P
 let skipNextHighlightScroll = false; // true kalau abis ini langsung disusul openReceiptView() (scroll jadi percuma)
 let stokMode = false; // lagi mode "Tambah Stok" di tab Menu?
 let stokModeJustEntered = false; // FIX 16 Sep 2026 (v10): true sesaat abis toggleStokMode() nyalain mode — dipake buat trigger animasi masuk sekali doang, bukan tiap render ulang
+let stokModeJustExited = false; // FIX 16 Sep 2026 (v12): sama kayak di atas tapi kebalikannya — animasi KELUAR mode Stock
 let deleteMode = false; // lagi mode "Hapus" di tab Menu?
 let pendingStok = {}; // row -> nilai stok baru yang belum disimpen ke server
 let pendingStokItemId = {}; // row -> item_id (dipake buat validasi tulis di backend, row cuma buat UI, lihat FIX 12 Agt 2026)
@@ -1725,7 +1731,7 @@ function updateDeleteButtonUI(){
   btn.style.color = deleteMode ? 'var(--chili)' : 'var(--ink)';
   btn.textContent = deleteMode ? '✓ Selesai Hapus' : '🗑️ Hapus';
 }
-function exitStokMode(){ stokMode = false; pendingStok = {}; pendingStokItemId = {}; updateStokButtonUI(); }
+function exitStokMode(){ stokMode = false; pendingStok = {}; pendingStokItemId = {}; stokModeJustExited = true; updateStokButtonUI(); }
 function exitDeleteMode(){ deleteMode = false; updateDeleteButtonUI(); }
 // FIX 16 Sep 2026 (v9): toggle "tampil di Order tab" per item — independen dari mode Stock/Delete,
 // langsung update + sync ke server begitu diklik (bukan pending-batch kayak stok). Optimistic UI:
@@ -1800,11 +1806,11 @@ function renderMenuManage(){
   const searchEl = document.getElementById('menuSearch');
   const search = searchEl ? searchEl.value.trim().toLowerCase() : '';
   const cats = getCategories();
-  // FIX 16 Sep 2026 (v10): animasi masuk (buletan/teks/stepper) cuma sekali pas transisi KE stok
-  // mode, dikonsumsi di sini biar toggleMenuAktif() (yang manggil renderMenuManage() lagi selagi
-  // masih di stok mode) gak bikin animasinya nge-replay tiap klik centang.
+  // FIX 16 Sep 2026 (v10/v12): animasi masuk/keluar mode Stock cuma sekali pas transisinya, gak tiap render ulang biasa
   const animateIn = stokMode && stokModeJustEntered;
+  const animateOut = !stokMode && stokModeJustExited;
   stokModeJustEntered = false;
+  stokModeJustExited = false;
   if(cats.length===0){ area.innerHTML = `<div class="empty-state"><div class="glyph">🍢</div>Belum ada menu.<br><button class="secondary" onclick="openAddMenuModal()">+ Tambah Menu</button></div>`; return; }
   // Prep = total yang belum disiapin dalam window 7 hari yang sama kayak tab Prep (biar konsisten,
   // gak bikin bingung "kok prep kosong tapi di sini ada angkanya"). Available = Real - Prep.
@@ -1840,7 +1846,7 @@ function renderMenuManage(){
           // FIX 16 Sep 2026 (v10): cuma bisa diklik/diedit pas LAGI DI MODE STOCK. Di mode biasa
           // (idle), buletan ini read-only — sekadar indikator visual, gak ada onclick sama sekali.
           const availToggleActive = `<button type="button" class="avail-toggle${aktif?' on':''}${animateIn?' avail-enter':''}" onclick="event.stopPropagation(); toggleMenuAktif(${it.row}, '${it.item_id}', ${aktif})" aria-label="Tampil di Order">✓</button>`;
-          const availToggleReadonly = `<span class="avail-toggle avail-toggle-readonly${aktif?' on':''}" aria-hidden="true">✓</span>`;
+          const availToggleReadonly = `<span class="avail-toggle avail-toggle-readonly${aktif?' on':''}${animateOut?' avail-exit-pop':''}" aria-hidden="true">✓</span>`;
           let breakdownHtml;
           if(isUnlimited){
             breakdownHtml = `<div class="stok-breakdown">♾️ Stok unlimited${isChild ? ` (ngikut "${escapeHtml(indukNama)}")` : ''}</div>`;
@@ -1857,7 +1863,7 @@ function renderMenuManage(){
           <div class="menu-item-manage">
             <div style="display:flex;align-items:center;gap:8px;min-width:0;">
               ${stokMode ? availToggleActive : ''}
-              <div ${idleMode ? `onclick="openEditMenuModal(${it.row})" style="cursor:pointer;"` : ''}${animateIn ? ' class="text-enter"' : ''}>
+              <div ${idleMode ? `onclick="openEditMenuModal(${it.row})" style="cursor:pointer;"` : ''}${animateIn ? ' class="text-enter"' : (animateOut ? ' class="text-exit"' : '')}>
                 <div class="name">${escapeHtml(it.nama)}</div>
                 <div class="price">${rupiah(it.harga)}</div>
                 ${breakdownHtml}
