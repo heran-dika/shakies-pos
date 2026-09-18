@@ -299,7 +299,7 @@
   /* ==== BAGIKAN MENU (checklist + kertas fullscreen) ==== */
   #shareMenuOverlay{ position:fixed; inset:0; z-index:200; background:var(--bg); display:none; }
   #shareMenuOverlay.open{ display:block; }
-  .share-screen{ position:absolute; inset:0; display:none; flex-direction:column; }
+  .share-screen{ position:absolute; inset:0; display:none; flex-direction:column; background:var(--bg); }
   .share-screen.active{ display:flex; }
   /* FIX 18 Sep 2026: di layar lebar (PC/iPad) overlay ini sebelumnya inset:0 ke viewport asli,
      jadi kertasnya stretch dari ujung ke ujung layar — beda sama sisa app yang di-cap .wrap
@@ -310,7 +310,7 @@
   @media (min-width:640px){
     #shareMenuOverlay{ align-items:center; justify-content:center; padding:32px; background:rgba(20,20,20,.55); }
     #shareMenuOverlay.open{ display:flex; }
-    .share-screen{ position:relative; inset:auto; width:100%; max-width:420px; height:min(880px, calc(100vh - 64px)); border-radius:22px; overflow:hidden; box-shadow:0 24px 64px rgba(0,0,0,.4); }
+    .share-screen{ position:relative; inset:auto; width:100%; max-width:460px; height:min(880px, calc(100vh - 64px)); border-radius:22px; overflow:hidden; box-shadow:0 24px 64px rgba(0,0,0,.4); }
     .share-screen.active{ display:flex; }
   }
 
