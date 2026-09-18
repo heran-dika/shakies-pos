@@ -301,6 +301,18 @@
   #shareMenuOverlay.open{ display:block; }
   .share-screen{ position:absolute; inset:0; display:none; flex-direction:column; }
   .share-screen.active{ display:flex; }
+  /* FIX 18 Sep 2026: di layar lebar (PC/iPad) overlay ini sebelumnya inset:0 ke viewport asli,
+     jadi kertasnya stretch dari ujung ke ujung layar — beda sama sisa app yang di-cap .wrap
+     (max-width:480px). Dari breakpoint ini overlay jadi backdrop + kartu di tengah, dicap lebar
+     & tinggi kayak .receipt-sheet/.modal-sheet. Perhitungan scale isi kertas (--s di
+     renderShareKertasFrom) otomatis ikut nyesuain karena itu ngukur clientHeight elemen
+     .k-body yang beneran ke-render, bukan window.innerHeight — jadi gak perlu diutak-atik. */
+  @media (min-width:640px){
+    #shareMenuOverlay{ align-items:center; justify-content:center; padding:32px; background:rgba(20,20,20,.55); }
+    #shareMenuOverlay.open{ display:flex; }
+    .share-screen{ position:relative; inset:auto; width:100%; max-width:420px; height:min(880px, calc(100vh - 64px)); border-radius:22px; overflow:hidden; box-shadow:0 24px 64px rgba(0,0,0,.4); }
+    .share-screen.active{ display:flex; }
+  }
 
   #shareChecklistScreen .scl-header{
     padding: calc(env(safe-area-inset-top,0px) + 16px) 18px 12px;
@@ -325,7 +337,7 @@
   .scl-footer #sclContinueBtn:disabled{ background:#B9BEBA; }
   /* FIX 18 Sep 2026: tombol history dipindah kesini (bukan di kertas preview) — shortcut buat
      langsung liat versi TERAKHIR DI-PUBLISH tanpa perlu nyocokin checklist draft dulu. */
-  .scl-history-btn{ width:48px; height:48px; flex-shrink:0; border-radius:50%; border:1.5px solid var(--jade); background:#fff; color:var(--jade-dark); font-size:19px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  .scl-history-btn{ width:48px; height:48px; flex-shrink:0; border-radius:12px; border:1.5px solid var(--jade); background:#fff; color:var(--jade-dark); font-size:19px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
   .scl-history-btn:active{ background:var(--jade-tint); }
   .scl-empty{ text-align:center; padding:32px 18px; color:var(--ink-soft); }
 
