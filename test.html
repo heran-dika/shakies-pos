@@ -635,7 +635,7 @@
         <label class="field-label">Top Up (isi negatif buat koreksi salah input)</label>
         <div id="saldoTopupFailedArea"></div>
         <div class="saldo-topup-row">
-          <input type="number" id="saldoTopupAmount" placeholder="misal 100000 atau -20000">
+          <input type="number" id="saldoTopupAmount" step="1000" placeholder="misal 100000 atau -20000">
           <button id="saldoTopupBtn" onclick="submitTopupSaldo()">Top Up</button>
         </div>
         <label class="field-label">Histori order pake saldo</label>
@@ -1589,7 +1589,13 @@ async function submitTopupSaldo(){
   const cachedDetail = (customerIdAtStart && loadSaldoDetailCache(customerIdAtStart)) || { history: [] };
   const optimisticHistory = (cachedDetail.history || []).concat([{
     type: 'topup', date: toLocalISODate(new Date()),
-    sort_key: toLocalTimestamp(new Date()),
+    // FIX 18 Sep 2026: sebelumnya toLocalTimestamp() ("yyyy-mm-dd hh:mm:ss", spasi) — beda format
+    // sama sort_key dari server yang ISO UTC ("...T...Z"). Karakter spasi (kode 32) selalu lebih
+    // kecil dari huruf T (kode 84) pas dibandingin sebagai string, jadi entry optimistic ini SELALU
+    // ke-sort ke bawah walau sebenernya paling baru — makanya kelihatan "masuk bawah dulu baru naik
+    // ke atas" begitu data asli (format cocok) dateng gantiin punya optimistic. toISOString() match
+    // persis format server.
+    sort_key: new Date().toISOString(),
     amount, saldo_after: optimisticAwal
   }]);
   renderSaldoHistory(optimisticHistory);
