@@ -1431,6 +1431,11 @@ function historyItemKey(h){
   return h.type === 'topup' ? `topup|${h.sort_key||h.date}|${h.amount}|${h.saldo_after}` : `spend|${h.order_id}`;
 }
 let saldoHistoryTopKey = null; // key entri paling atas yang lagi kerender — buat bandingin pas render ulang
+// FIX 18 Sep 2026: sort_key optimistic (client) vs sort_key asli (server) beda walau logically
+// entry yang SAMA — bikin animasi "entry baru" kepanggil 2x (pas optimistic, terus pas ditimpa
+// data asli). Flag ini di-set true abis render optimistic, terus dikonsumsi (dibaca+direset) di
+// render BERIKUTNYA — jadi render "upgrade" optimistic->asli itu gak dianggap entry baru lagi.
+let suppressHistoryAnimationOnce = false;
 function renderSaldoHistory(history){
   const area = document.getElementById('saldoHistoryArea');
   if(!history || history.length === 0){
@@ -1445,7 +1450,8 @@ function renderSaldoHistory(history){
   const keyOf = h => h.sort_key || h.date;
   const sorted = history.slice().sort((a,b) => keyOf(a) < keyOf(b) ? 1 : (keyOf(a) > keyOf(b) ? -1 : 0)); // terbaru di atas
   const topKey = historyItemKey(sorted[0]);
-  const isFreshEntry = saldoHistoryTopKey !== null && topKey !== saldoHistoryTopKey;
+  const isFreshEntry = !suppressHistoryAnimationOnce && saldoHistoryTopKey !== null && topKey !== saldoHistoryTopKey;
+  suppressHistoryAnimationOnce = false; // kepake sekali doang tiap di-set true
   area.innerHTML = sorted.map((h, idx)=>{
     const animateCls = (idx === 0 && isFreshEntry) ? ' history-enter' : '';
     return h.type === 'topup'
@@ -1488,6 +1494,7 @@ async function openSaldoDetail(nama, customerId){
     setSaldoBreakdownVal('saldoDetailSisa', cachedEntry.saldo_sisa);
   }
   saldoHistoryTopKey = null; // reset — buka detail baru gak dianggap "entri fresh", cuma nampilin cache apa adanya
+  suppressHistoryAnimationOnce = false; // jaga-jaga ada sisa flag nyangkut dari alur topup yang kepotong (mis. fetch confirm gagal)
   const cachedDetail = loadSaldoDetailCache(customerId);
   if(cachedDetail){
     renderSaldoHistory(cachedDetail.history);
@@ -1599,6 +1606,7 @@ async function submitTopupSaldo(){
     amount, saldo_after: optimisticAwal
   }]);
   renderSaldoHistory(optimisticHistory);
+  suppressHistoryAnimationOnce = true; // render berikutnya (data asli nimpa optimistic) jangan animasi lagi
 
   try{
     const result = await apiPost('topup_saldo', { nama, amount, client_topup_id: pendingTopupClientId });
