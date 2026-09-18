@@ -530,7 +530,7 @@
 
   <button type="button" class="stok-mode-fab" id="stokModeFab" onclick="toggleStokMode()">✓ Selesai (simpan stok)</button>
   <!-- FIX 16 Sep 2026 (v13): FAB shortcut, nongol pas buletan read-only (mode biasa) dipencet -->
-  <button type="button" class="quick-edit-stok-fab" id="quickEditStokFab" onclick="quickEnterStokMode()">✏️ Edit Stock</button>
+  <button type="button" class="quick-edit-stok-fab" id="quickEditStokFab" onclick="quickEnterStokMode()">✏️ Edit</button>
 
   <nav class="tabbar">
     <div class="wrap-inner">
@@ -1800,6 +1800,12 @@ function shakeElement(el, cls){
   el.classList.add(cls);
   el.addEventListener('animationend', ()=> el.classList.remove(cls), { once:true });
 }
+function quickEditStokFabSlideEndHandler(e){
+  if(e.propertyName !== 'transform') return;
+  const fab = e.currentTarget;
+  fab.removeEventListener('transitionend', quickEditStokFabSlideEndHandler);
+  shakeElement(fab, 'shake'); // getar sebentar begitu kelar geser turun, biar keliatan "landed"
+}
 function showQuickEditStokFab(){
   const realBtn = document.getElementById('btnToggleStokMode');
   if(realBtn){
@@ -1822,10 +1828,13 @@ function showQuickEditStokFab(){
   fab.classList.remove('show', 'shake');
   void fab.offsetWidth; // reflow biar animasi turunnya retrigger tiap centang dipencet
   fab.classList.add('show');
-  fab.addEventListener('transitionend', function onSlideEnd(e){
-    if(e.propertyName !== 'transform') return;
-    shakeElement(fab, 'shake'); // getar sebentar begitu kelar geser turun, biar keliatan "landed"
-  }, { once:true });
+  // FIX 18 Sep 2026: sebelumnya pake {once:true} — tapi transition-nya ada 2 properti (opacity
+  // & transform) yang transitionend-nya nembak sendiri2. "opacity" biasanya kelar/ke-fire duluan
+  // (soalnya ditulis pertama di shorthand), jadi listener keburu kehapus SEBELUM event "transform"
+  // yang beneran kita tunggu itu dateng — makanya shake-nya gak pernah kepanggil. Sekarang listener
+  // baru dilepas manual pas propertyName-nya emang "transform".
+  fab.removeEventListener('transitionend', quickEditStokFabSlideEndHandler);
+  fab.addEventListener('transitionend', quickEditStokFabSlideEndHandler);
   if(quickEditStokFabTimer) clearTimeout(quickEditStokFabTimer);
   quickEditStokFabTimer = setTimeout(()=> fab.classList.remove('show'), 3500); // ilang sendiri kalau gak disentuh
 }
