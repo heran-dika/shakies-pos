@@ -66,9 +66,16 @@
      max-width + min-width:0 maksa dia tetep nempel di dalam container, drpd nongol kepotong
      di luar layar. */
   input[type=date]{max-width:100%;min-width:0;-webkit-appearance:none;appearance:none;}
+  /* FIX 19 Sep 2026: kotak biru "segmen tanggal fokus" itu bukan teks — itu chrome/UI native
+     browser, jadi color:transparent (cuma nyembunyiin TEKS) gak ngefek ke situ, tetep nongol pas
+     diklik. Fix: opacity:0 nyembunyiin SELURUH rendering native input (termasuk highlight itu),
+     input dipindah ke belakang (pointer-events:none) — semua klik sekarang ditangkep .date-display
+     yang manggil showPicker() manual lewat JS. Icon kalender asli yang ikut ilang (opacity:0 juga
+     nutup icon-nya) digantiin ::after biar visualnya tetep ada. */
   .date-field{position:relative;overflow:hidden;}
-  .date-field input[type=date]{color:transparent;-webkit-text-fill-color:transparent;background:transparent;position:relative;z-index:2;}
-  .date-field .date-display{position:absolute;left:13px;top:50%;transform:translateY(-50%);pointer-events:none;font-family:'DM Sans',sans-serif;font-size:15px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(100% - 40px);z-index:1;}
+  .date-field input[type=date]{position:absolute;inset:0;width:100%;opacity:0;pointer-events:none;border:none;}
+  .date-field .date-display{position:absolute;inset:0;display:flex;align-items:center;padding:0 40px 0 13px;cursor:pointer;pointer-events:auto;font-family:'DM Sans',sans-serif;font-size:15px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2;}
+  .date-field .date-display::after{content:'📅';position:absolute;right:13px;top:50%;transform:translateY(-50%);font-size:14px;opacity:.55;pointer-events:none;}
   .date-field .date-display.placeholder{color:#9B958A;}
   input:focus,textarea:focus,select:focus{outline:2px solid var(--jade);outline-offset:1px;border-color:var(--jade);}
   textarea{resize:vertical;min-height:56px;}
@@ -430,8 +437,8 @@
         <label class="field-label">Tanggal Kirim</label>
         <div style="display:flex;gap:8px;align-items:center;">
           <div class="date-field" style="flex:1;min-width:0;">
-            <input type="date" id="deliveryDate" onclick="this.showPicker && this.showPicker()">
-            <span class="date-display" id="deliveryDateDisplay"></span>
+            <input type="date" id="deliveryDate">
+            <span class="date-display" id="deliveryDateDisplay" onclick="openDatePicker('deliveryDate')"></span>
           </div>
           <button type="button" class="today-quick-btn" id="todayQuickBtn" onclick="setDeliveryDateToday()" aria-label="Set tanggal ke hari ini"></button>
         </div>
@@ -531,12 +538,12 @@
       <div class="field"><input type="text" id="riwayatSearch" list="customerList" autocomplete="off" placeholder="Cari nama customer..." oninput="debouncedRenderRiwayat()"></div>
       <div class="filter-row">
         <div class="date-field" style="flex:1;min-width:0;">
-          <input type="date" id="riwayatDateFrom" onchange="renderRiwayat()" onclick="this.showPicker && this.showPicker()" style="width:100%;">
-          <span class="date-display placeholder" id="riwayatDateFromDisplay">Dari tanggal</span>
+          <input type="date" id="riwayatDateFrom" onchange="renderRiwayat()" style="width:100%;">
+          <span class="date-display placeholder" id="riwayatDateFromDisplay" onclick="openDatePicker('riwayatDateFrom')">Dari tanggal</span>
         </div>
         <div class="date-field" style="flex:1;min-width:0;">
-          <input type="date" id="riwayatDateTo" onchange="renderRiwayat()" onclick="this.showPicker && this.showPicker()" style="width:100%;">
-          <span class="date-display placeholder" id="riwayatDateToDisplay">Sampai tanggal</span>
+          <input type="date" id="riwayatDateTo" onchange="renderRiwayat()" style="width:100%;">
+          <span class="date-display placeholder" id="riwayatDateToDisplay" onclick="openDatePicker('riwayatDateTo')">Sampai tanggal</span>
         </div>
       </div>
       <div id="riwayatContent"><div class="spinner">Memuat riwayat...</div></div>
@@ -848,6 +855,14 @@ function bindDateDisplay(inputId, labelId, opts){
 function refreshDateDisplay(inputId){
   const fn = bindDateDisplay._refreshers && bindDateDisplay._refreshers[inputId];
   if(fn) fn();
+}
+// FIX 19 Sep 2026: dipanggil dari klik overlay .date-display (input asli sekarang pointer-events:none
+// & opacity:0, biar UI native-nya — termasuk highlight "segmen fokus" yang bikin visual blocking —
+// gak pernah kepake sama sekali). showPicker() butuh interaksi user; guard biar aman di browser lama.
+function openDatePicker(inputId){
+  const el = document.getElementById(inputId);
+  if(el && el.showPicker){ try{ el.showPicker(); } catch(e){ el.focus(); } }
+  else if(el) el.focus();
 }
 // Clear (×) button di search input — tampil kalau ada isinya, klik = kosongin + re-render + fokus lagi.
 function toggleSearchClear(inputId){
