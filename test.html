@@ -2621,6 +2621,19 @@ async function submitOrder(){
       };
       allOrders.unshift(tempOrder);
       savePrepCache(allOrders); // sama kayak edit di atas — biar refresh mendadak nggak ilang duluan
+      // FIX 19 Sep 2026: riwayatDefaultSnapshot itu snapshot "beku" (sengaja gak auto-refilter tiap
+      // render — lihat komentar di deklarasinya), jadi order BARU yang di-unshift ke allOrders gak
+      // ikut nongol di situ sampe snapshot-nya di-reset manual (refresh). Order baru pasti belum
+      // lunas (paid:false di atas), jadi inject langsung ke snapshot juga kalau udah pernah di-load.
+      if(riwayatDefaultSnapshotLoaded && !tempOrder.paid){
+        riwayatDefaultSnapshot.unshift(tempOrder);
+        saveRiwayatUnpaidCache(riwayatDefaultSnapshot);
+        if(document.querySelector('.tab-btn.active')?.dataset.tab === 'riwayat'){
+          const hasFilter = !!document.getElementById('riwayatSearch').value.trim()
+            || !!document.getElementById('riwayatDateFrom').value || !!document.getElementById('riwayatDateTo').value;
+          if(!hasFilter) renderRiwayatCards(riwayatDefaultSnapshot);
+        }
+      }
       resetOrderForm();
       goToPrepAndHighlight(tempId, deliveryDate, { skipScroll: true });
       openReceiptView(tempId); // langsung siap share, sesuai maunya Shakies (butuh cepet buat share ke customer)
