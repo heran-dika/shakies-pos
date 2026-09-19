@@ -3342,9 +3342,14 @@ async function shareReceiptImage(){
 const KERTAS_SHARE_CAPTION = 'https://tinyurl.com/SHAKIESmenu';
 async function shareKertasImage(){
   const sourceEl = document.getElementById('shareKertasScreen');
-  const captureWrap = document.createElement('div');
-  captureWrap.style.cssText = 'position:fixed;left:-9999px;top:0;background:var(--bg,#fff);width:380px;box-sizing:border-box;display:flex;flex-direction:column;';
-  captureWrap.innerHTML = sourceEl.innerHTML;
+  // FIX 18 Sep 2026: sebelumnya bikin <div> kosong terus copy innerHTML doang — ID-nya
+  // (#shareKertasScreen, #shareKertasContent) gak kebawa, padahal HAMPIR SEMUA styling kertas
+  // (.k-head, .k-body, .kat-title, .item-line, dll) itu di-scope ke ID itu, bukan class biasa.
+  // Hasilnya capture-nya nyaris tanpa styling. Fix: cloneNode(true) elemen ASLINYA biar ID + semua
+  // class turunannya kebawa utuh, CSS yang di-scope ke ID otomatis kepake lagi.
+  const captureWrap = sourceEl.cloneNode(true);
+  captureWrap.style.cssText = 'position:fixed;left:-9999px;top:0;background:var(--bg,#fff);width:390px;max-width:none;height:auto;box-sizing:border-box;display:flex;flex-direction:column;border-radius:0;box-shadow:none;'; // 390px = lebar CSS iPhone 13 Pro, biar hasil share sepadan sama preview di app
+  captureWrap.classList.add('active'); // jaga-jaga kalau ke-capture pas state .active belum sempat kepasang
   captureWrap.querySelectorAll('.k-topbar, .k-lastpublish, .k-live-link').forEach(el=>el.remove());
   document.body.appendChild(captureWrap);
   let canvas;
