@@ -1463,6 +1463,15 @@ function formatDayShort(iso){
   const [y,m,d] = iso.split('-').map(Number);
   return `${DAY_ABBR[new Date(y,m-1,d).getDay()]}, ${formatDateShort(iso)}`;
 }
+// FIX 19 Sep 2026: jam buat row "Top Up" di histori saldo — dari sort_key (ISO UTC), new Date()
+// otomatis convert ke waktu lokal device. Entry lama (sebelum sort_key ke-generate bener) bisa aja
+// gak punya field ini — return '' biar row-nya tetep tampil rapi tanpa jam, bukan error/NaN.
+function formatTimeShort(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return '';
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+}
 // Tap pill "payment" di histori Saldo -> buka struk order itu. Order aktif udah ada di allOrders;
 // order yang udah kepindah ke Archive gak ikut get_orders, jadi diambil dulu lewat get_orders_search
 // (nama customer + tanggal kirim persis) baru dibuka.
@@ -1497,7 +1506,7 @@ function renderSaldoHistory(history){
     const animateCls = (idx === 0 && isFreshEntry) ? ' history-enter' : '';
     return h.type === 'topup'
       ? `<div class="saldo-history-item topup${animateCls}">
-          <span>${formatDateLong(h.date)} · Top Up</span>
+          <span>${formatDayShort(h.date)} · ${formatTimeShort(h.sort_key) ? formatTimeShort(h.sort_key) + ' ' : ''}Top Up</span>
           <span class="${h.amount<0?'negative':''}">${h.amount>=0?'+':''}${rupiah(h.amount)} → saldo ${rupiah(h.saldo_after)}</span>
         </div>`
       : `<div class="saldo-history-item${animateCls}">
@@ -2592,6 +2601,7 @@ async function submitOrder(){
       savePrepCache(allOrders); // langsung kesimpen ke cache lokal — refresh mendadak abis ini nggak bakal nampilin versi lama dulu (lihat log 12 Agt 2026)
       resetOrderForm();
       goToPrepAndHighlight(editedOrderId, deliveryDate);
+      openReceiptView(editedOrderId); // FIX 19 Sep 2026: samain kayak alur order baru — abis update, struknya langsung kebuka lagi
       saveOrderInBackground(
         { order_id: editedOrderId, ...payloadBase, prepared: editedPrepared, paid: editedPaid },
         editedOrderId, true
@@ -3429,9 +3439,12 @@ async function shareReceiptImage(){
 const KERTAS_SHARE_CAPTION = 'https://tinyurl.com/SHAKIESmenu';
 async function shareKertasImage(){
   const sourceEl = document.getElementById('shareKertasScreen');
-  const captureWrap = document.createElement('div');
-  captureWrap.style.cssText = 'position:fixed;left:-9999px;top:0;background:var(--bg,#fff);width:380px;box-sizing:border-box;display:flex;flex-direction:column;';
-  captureWrap.innerHTML = sourceEl.innerHTML;
+  // FIX 18 Sep 2026: cloneNode(true) elemen ASLINYA (bukan bikin <div> kosong + copy innerHTML) —
+  // hampir semua styling kertas (.k-head, .kat-title, .item-line, dll) di-scope ke ID
+  // #shareKertasScreen/#shareKertasContent, jadi ID-nya WAJIB kebawa biar CSS-nya kepake.
+  const captureWrap = sourceEl.cloneNode(true);
+  captureWrap.style.cssText = 'position:fixed;left:-9999px;top:0;background:var(--bg,#fff);width:390px;max-width:none;height:auto;box-sizing:border-box;display:flex;flex-direction:column;border-radius:0;box-shadow:none;'; // 390px = lebar CSS iPhone 13 Pro, biar hasil share sepadan sama preview di app
+  captureWrap.classList.add('active'); // jaga-jaga kalau ke-capture pas state .active belum sempat kepasang
   captureWrap.querySelectorAll('.k-topbar, .k-lastpublish, .k-live-link').forEach(el=>el.remove());
   document.body.appendChild(captureWrap);
   let canvas;
