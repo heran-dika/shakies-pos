@@ -73,7 +73,7 @@
      yang manggil showPicker() manual lewat JS. Icon kalender asli yang ikut ilang (opacity:0 juga
      nutup icon-nya) digantiin ::after biar visualnya tetep ada. */
   .date-field{position:relative;overflow:hidden;}
-  .date-field input[type=date]{position:absolute;inset:0;width:100%;opacity:0;pointer-events:none;border:none;}
+  .date-field input[type=date]{opacity:0;pointer-events:none;border:none;}
   .date-field .date-display{position:absolute;inset:0;display:flex;align-items:center;padding:0 40px 0 13px;cursor:pointer;pointer-events:auto;font-family:'DM Sans',sans-serif;font-size:15px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2;}
   .date-field .date-display::after{content:'📅';position:absolute;right:13px;top:50%;transform:translateY(-50%);font-size:14px;opacity:.55;pointer-events:none;}
   .date-field .date-display.placeholder{color:#9B958A;}
