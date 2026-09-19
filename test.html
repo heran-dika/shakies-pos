@@ -275,7 +275,11 @@
   .saldo-topup-row{display:flex;gap:8px;margin-bottom:16px;}
   .saldo-topup-row input{flex:1;}
   #saldoTopupBtn{background:var(--jade);border:none;border-radius:var(--radius-sm);color:#fff;font-weight:700;font-size:14px;padding:0 18px;cursor:pointer;}
-  .saldo-history-item{display:flex;justify-content:space-between;font-size:12.5px;padding:8px 4px;border-bottom:1px solid var(--border);color:var(--ink-soft);}
+  /* FIX 19 Sep 2026: pill "payment" di histori Saldo — tap = buka struk order itu */
+  .history-payment-pill{border:1.5px solid var(--jade);background:var(--jade-tint);color:var(--jade-dark);font-family:inherit;font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;cursor:pointer;margin-left:2px;}
+  /* struk bisa dibuka dari atas panel Saldo — z-index sama (50) + urutan DOM bikin panel Saldo nutupin struk, jadi struk dinaikin */
+  #receiptModal{z-index:55;}
+  .saldo-history-item{align-items:center;display:flex;justify-content:space-between;font-size:12.5px;padding:8px 4px;border-bottom:1px solid var(--border);color:var(--ink-soft);}
   .saldo-history-item.topup span:last-child{color:var(--ink);font-weight:600;}
   .saldo-history-item.topup span:last-child.negative{color:var(--chili);}
   @keyframes historySlideIn{0%{opacity:0;transform:translateY(-14px) scale(.97);background:var(--jade);}55%{opacity:1;transform:translateY(0) scale(1);background:#FDF0F0;}100%{background:transparent;}}
@@ -1453,6 +1457,26 @@ let saldoHistoryTopKey = null; // key entri paling atas yang lagi kerender — b
 // data asli). Flag ini di-set true abis render optimistic, terus dikonsumsi (dibaca+direset) di
 // render BERIKUTNYA — jadi render "upgrade" optimistic->asli itu gak dianggap entry baru lagi.
 let suppressHistoryAnimationOnce = false;
+// "Min, 20-Sep-2026" — format singkat yang sama kayak badge tanggal di card Riwayat.
+function formatDayShort(iso){
+  if(!iso) return '';
+  const [y,m,d] = iso.split('-').map(Number);
+  return `${DAY_ABBR[new Date(y,m-1,d).getDay()]}, ${formatDateShort(iso)}`;
+}
+// Tap pill "payment" di histori Saldo -> buka struk order itu. Order aktif udah ada di allOrders;
+// order yang udah kepindah ke Archive gak ikut get_orders, jadi diambil dulu lewat get_orders_search
+// (nama customer + tanggal kirim persis) baru dibuka.
+async function openReceiptFromHistory(orderId, dateISO){
+  if(!allOrders.some(o=>o.order_id===orderId)){
+    const nama = document.getElementById('saldoDetailNama').textContent.trim();
+    try{
+      const found = await apiGet('get_orders_search', { name: nama.toLowerCase(), date_from: dateISO, date_to: dateISO });
+      mergeSearchResultsIntoAllOrders(found);
+    } catch(e){ showToast('Gagal ambil struk: ' + e.message); return; }
+    if(!allOrders.some(o=>o.order_id===orderId)){ showToast('Struk order ini nggak ketemu'); return; }
+  }
+  openReceiptView(orderId);
+}
 function renderSaldoHistory(history){
   const area = document.getElementById('saldoHistoryArea');
   if(!history || history.length === 0){
@@ -1477,7 +1501,7 @@ function renderSaldoHistory(history){
           <span class="${h.amount<0?'negative':''}">${h.amount>=0?'+':''}${rupiah(h.amount)} → saldo ${rupiah(h.saldo_after)}</span>
         </div>`
       : `<div class="saldo-history-item${animateCls}">
-          <span>${formatDateLong(h.date)} · ${rupiah(h.total)}</span>
+          <span>${formatDayShort(h.date)} · <button type="button" class="history-payment-pill" onclick="openReceiptFromHistory('${escapeHtml(h.order_id)}', '${escapeHtml(h.date)}')">payment</button></span>
           <span>-${rupiah(h.saldo_used)} → sisa ${h.saldo_sisa_after===null?'-':rupiah(h.saldo_sisa_after)}</span>
         </div>`;
   }).join('');
@@ -3344,7 +3368,7 @@ function openReceiptView(orderId){
 }
 function closeReceiptView(){
   document.getElementById('receiptModal').classList.add('hidden');
-  document.body.style.overflow = '';
+  document.body.style.overflow = document.getElementById('saldoModal').classList.contains('hidden') ? '' : 'hidden';
   currentReceiptOrderId = null;
 }
 // Swipe ke bawah buat nutup — lebih natural di HP drpd nyari area gelap kecil di pinggir.
