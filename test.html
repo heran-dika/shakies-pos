@@ -156,7 +156,9 @@
   .modal-sheet{background:var(--surface);width:100%;max-width:480px;max-height:88vh;overflow-y:auto;overscroll-behavior:contain;border-radius:20px 20px 0 0;padding:22px 18px calc(22px + env(safe-area-inset-bottom));}
   #saldoListView{display:flex;flex-direction:column;min-height:0;}
   #saldoSearchInput{position:sticky;top:0;background:var(--surface);z-index:3;}
-  #saldoListArea{overflow-y:auto;max-height:55vh;}
+  /* FIX 19 Sep 2026: sheet Saldo/Contact langsung full tinggi (sama kayak max-height sheet), bukan cuma setinggi isinya — sebelumnya kalau customer masih dikit, kertasnya nongol pendek di bawah doang */
+  #saldoModal .modal-sheet{min-height:88vh;}
+  #saldoListArea{overflow-y:auto;max-height:calc(88vh - 160px);}
   .search-clear-field{position:relative;}
   .search-clear-field input{padding-right:38px;}
   .search-clear-btn{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:28px;height:28px;border:none;background:none;color:var(--ink-soft);font-size:18px;line-height:1;cursor:pointer;display:none;align-items:center;justify-content:center;border-radius:50%;}
@@ -992,7 +994,8 @@ const API_ACTION_LABELS = {
   verify_login:'sign in', add_order:'simpan orderan', update_order:'update orderan',
   delete_order:'hapus orderan', add_menu_item:'tambah menu', update_menu_item:'update menu',
   update_stok:'update stok', delete_menu_row:'hapus menu', delete_category:'hapus kategori',
-  publish_menu:'publish menu', topup_saldo:'top up saldo', reconcile_saldo:'alokasi saldo'
+  publish_menu:'publish menu', topup_saldo:'top up saldo', reconcile_saldo:'alokasi saldo',
+  update_menu_aktif:'update ketersediaan menu', pay_order_with_saldo:'bayar pakai saldo'
 };
 let activeApiCalls = {}; // callId -> label proses, dipake render badge
 let apiCallSeq = 0;
@@ -1646,10 +1649,22 @@ async function submitTopupSaldo(){
     topupInFlight = false;
   }
 }
+// FIX 19 Sep 2026: sebelumnya manggil renderBesok(), yang SELALU nimpa allOrders pake cache
+// localStorage dulu (basi, belum Lunas) — dan karena fetch terakhir <15 detik, gak ada fetch
+// ulang yang benerin. Sekarang: simpen data segar ke cache DULU, render langsung dari allOrders,
+// dan snapshot "belum lunas" Riwayat (yang sengaja dibekuin per sesi) ikut disegerin field-nya
+// (bukan direfilter — order yang baru Lunas tetap kelihatan, cuma statusnya yang berubah).
 function refreshActiveTabAfterSaldoChange(){
   const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab;
-  if(activeTab === 'besok') renderBesok();
-  if(activeTab === 'riwayat') renderRiwayat();
+  savePrepCache(allOrders);
+  riwayatDefaultSnapshot = riwayatDefaultSnapshot.map(o => allOrders.find(x=>x.order_id===o.order_id) || o);
+  Object.keys(riwayatSearchCache).forEach(k => delete riwayatSearchCache[k]);
+  if(activeTab === 'besok'){ renderDayStrip(); renderBesokList(); }
+  if(activeTab === 'riwayat'){
+    const hasFilter = !!document.getElementById('riwayatSearch').value.trim()
+      || !!document.getElementById('riwayatDateFrom').value || !!document.getElementById('riwayatDateTo').value;
+    if(hasFilter) renderRiwayat(); else renderRiwayatCards(riwayatDefaultSnapshot);
+  }
 }
 
 // Dipanggil abis orders di-load (Prep/Riwayat) — cek semua order BELUM LUNAS yang customernya
@@ -1691,27 +1706,35 @@ async function syncSaldoForUnpaidOrders(orders){
 // diambil dari saldo_used/saldo_sisa_after yang UDAH DIBEKUKAN di order itu sendiri —
 // jadi gak butuh customerSaldoMap sama sekali buat kasus ini (gak kena masalah "map
 // belum sempet ke-load"), soalnya datanya nempel permanen di order-nya.
-function saldoLineHtml(o){
-  if(o.paid){
-    if(!o.saldo_used || o.saldo_used <= 0) return '';
-    const sisaText = (o.saldo_sisa_after === null || o.saldo_sisa_after === undefined) ? '-' : rupiah(o.saldo_sisa_after);
-    return `<div class="saldo-hint ok">Dibayar via saldo: ${rupiah(o.saldo_used)} · sisa saat itu ${sisaText}</div>`;
+// FIX 19 Sep 2026: satu sumber status saldo per order, dipake card Prep/Riwayat DAN struk.
+// Aturan baru: Saldo Sisa customer <= 0 = saldo dianggap gak kepake lagi -> gak ada hint sama
+// sekali (sebelumnya "Kurang Rp X dari saldo" tetap muncul walau saldonya udah 0).
+// kind: 'paid' (lunas via saldo, nilai dibekuin di order), 'reserved' (belum lunas tapi udah
+// pernah kepake saldo), 'cukup' / 'kurang' (belum lunas, hitung dari saldo LIVE).
+function saldoStatusFor(o){
+  const total = Number(o.total) || 0;
+  const used = Number(o.saldo_used) || 0;
+  if(used > 0){
+    const sisa = (o.saldo_sisa_after === null || o.saldo_sisa_after === undefined) ? null : Number(o.saldo_sisa_after);
+    return { kind: o.paid ? 'paid' : 'reserved', used, sisa, cash: Math.max(0, total - used) };
   }
-  // Belum Lunas tapi udah punya saldo_used kebekukan (misal data dari sebelum fix reconcile,
-  // atau order sempet di-"Belum Bayar"-in manual sebelum aturan lock ini ada) — tampilin nilai
-  // yang UDAH DIBEKUKAN, jangan hitung ulang "Kurang" dari saldo LIVE (itu yang bikin salah,
-  // soalnya saldo yang udah dipesan order ini gak lagi kehitung tersedia buat order lain).
-  if(o.saldo_used > 0){
-    const sisaText = (o.saldo_sisa_after === null || o.saldo_sisa_after === undefined) ? '-' : rupiah(o.saldo_sisa_after);
-    return `<div class="saldo-hint ok">Udah pernah kepake saldo: ${rupiah(o.saldo_used)} · sisa saat itu ${sisaText}</div>`;
-  }
+  if(o.paid) return null;
   const c = customerSaldoMap[String(o.customer_name||'').trim().toLowerCase()];
-  if(!c || !c.customer_id) return '';
-  const sisa = c.saldo_sisa;
-  if(sisa >= o.total){
-    return `<div class="saldo-hint ok">Saldo tersedia: ${rupiah(sisa)}</div>`;
+  if(!c || !c.customer_id || !(c.saldo_sisa > 0)) return null;
+  if(c.saldo_sisa >= total) return { kind:'cukup', sisa:c.saldo_sisa };
+  return { kind:'kurang', sisa:c.saldo_sisa, kurang: total - c.saldo_sisa };
+}
+function saldoLineHtml(o){
+  const s = saldoStatusFor(o);
+  if(!s) return '';
+  const sisaText = (s.sisa === null || s.sisa === undefined) ? '-' : rupiah(s.sisa);
+  if(s.kind === 'paid'){
+    const cashPart = s.cash > 0 ? ` · sisanya ${rupiah(s.cash)} cash` : '';
+    return `<div class="saldo-hint ok">Dibayar via saldo: ${rupiah(s.used)}${cashPart} · sisa saat itu ${sisaText}</div>`;
   }
-  return `<div class="saldo-hint short">Kurang ${rupiah(o.total - sisa)} dari saldo</div>`;
+  if(s.kind === 'reserved') return `<div class="saldo-hint ok">Udah pernah kepake saldo: ${rupiah(s.used)} · sisa saat itu ${sisaText}</div>`;
+  if(s.kind === 'cukup') return `<div class="saldo-hint ok">Saldo tersedia: ${rupiah(s.sisa)}</div>`;
+  return `<div class="saldo-hint short">Kurang ${rupiah(s.kurang)} dari saldo</div>`;
 }
 
 function getCategories(){
@@ -2774,6 +2797,19 @@ function markRecentToggle(orderId, field, value){
   recentLocalToggles[orderId] = existing;
 }
 
+async function payOrderWithSaldoManual(order){
+  try{
+    const r = await apiPost('pay_order_with_saldo', { order_id: order.order_id, device_label: deviceLabel });
+    order.paid = true; order.saldo_used = r.saldo_used; order.saldo_sisa_after = r.saldo_sisa_after; order.saldo_deducted = false;
+    markRecentToggle(order.order_id, 'paid', true);
+    saldoFetchCooldownUntil = 0;
+    await loadCustomerSaldoMap();
+    refreshActiveTabAfterSaldoChange();
+    showToast(`Lunas — saldo ${rupiah(r.saldo_used)} terpakai${r.cash_part > 0 ? ', sisanya ' + rupiah(r.cash_part) + ' cash' : ''}`);
+  } catch(e){
+    showToast(e.status === 'not_registered' ? '⚠️ Sesi login habis — order BELUM dilunasin. Sign in ulang dulu.' : 'Gagal: ' + e.message);
+  }
+}
 async function togglePaid(orderId){
   const order = allOrders.find(o=>o.order_id===orderId);
   if(!order) return;
@@ -2792,14 +2828,16 @@ async function togglePaid(orderId){
     const ok = confirm(`Yakin mau ubah "${order.customer_name}" jadi BELUM LUNAS? Pastiin ini bukan salah pencet.`);
     if(!ok) return;
   } else {
-    // Mau ditandain Lunas manual — kalau customernya punya saldo tapi KURANG (belum kecukupan
-    // buat auto-lunas), ingetin dulu: kalau emang mau pake saldo, mestinya Top Up dulu (biar
-    // auto-lunas sendiri lewat FIFO), bukan langsung di-manual-Lunas-in (yang berarti dianggap
-    // cash, saldo_used tetep 0, saldo customer gak kepotong sama sekali).
+    // FIX 19 Sep 2026 (keputusan Shakies): Lunas manual pas saldo customer KURANG (tapi >0) =
+    // saldo dipakai HABIS buat order ini, sisanya dianggap dibayar cash, dan order berikutnya
+    // gak pake saldo lagi (saldo udah 0). Dulu: dianggap cash penuh & saldo gak disentuh.
+    // Dialog konfirmasi SENGAJA dipertahankan — efeknya permanen (order dikunci dari "Belum Lunas").
     const c = customerSaldoMap[String(order.customer_name||'').trim().toLowerCase()];
-    if(c && c.customer_id && c.saldo_sisa < order.total && c.saldo_sisa > 0){
-      const ok = confirm(`Saldo ${order.customer_name} cuma cukup ${rupiah(c.saldo_sisa)} dari ${rupiah(order.total)} (kurang ${rupiah(order.total - c.saldo_sisa)}).\n\nKalau ditandain Lunas manual sekarang, ini dianggap DIBAYAR CASH — saldo customer TIDAK kepotong sama sekali.\n\nKalau maunya pake saldo, batalin dulu, lalu Top Up sisa kurangnya lewat panel Saldo (icon di sebelah nama) — order ini bakal auto-Lunas sendiri.\n\nLanjut tandain Lunas manual (cash)?`);
+    if(c && c.customer_id && c.saldo_sisa > 0 && c.saldo_sisa < order.total && !order._demo){
+      const ok = confirm(`Saldo ${order.customer_name} cuma ${rupiah(c.saldo_sisa)} dari ${rupiah(order.total)}.\n\nKalau lanjut:\n• Saldo dipakai HABIS (${rupiah(c.saldo_sisa)}) buat order ini\n• Sisanya ${rupiah(order.total - c.saldo_sisa)} dianggap dibayar cash\n• Order berikutnya gak pakai saldo lagi (sampai Top Up)\n\nIni GAK bisa dibatalin dari card. Lanjut?`);
       if(!ok) return;
+      await payOrderWithSaldoManual(order);
+      return;
     }
   }
   const prevState = order.paid;
@@ -3229,6 +3267,30 @@ const REKENING_LIST = [
 
 function receiptRefCode(orderId){ return String(orderId).replace(/[^a-zA-Z0-9]/g,'').slice(-8).toUpperCase(); }
 
+// FIX 19 Sep 2026: info saldo di struk — kalau lunas via saldo: berapa kepake + sisa saldo;
+// kalau belum lunas & ada saldo: saldo tersedia, dan kalau kurang, kurangnya berapa.
+// Saldo 0 / customer tanpa saldo -> gak ada baris apa-apa (saldoStatusFor balikin null).
+function receiptSaldoEntries(o){
+  const s = saldoStatusFor(o);
+  if(!s) return [];
+  if(s.kind === 'paid' || s.kind === 'reserved'){
+    const out = [{ l:'Dibayar pakai saldo', v:rupiah(s.used) }];
+    if(s.cash > 0) out.push({ l:'Sisanya dibayar cash', v:rupiah(s.cash) });
+    if(s.sisa !== null && s.sisa !== undefined) out.push({ l:'Sisa saldo', v:rupiah(s.sisa), bold:true });
+    return out;
+  }
+  const out = [{ l:'Saldo tersedia', v:rupiah(s.sisa), bold:true }];
+  if(s.kind === 'kurang') out.push({ l:'Kurang', v:rupiah(s.kurang), warn:true });
+  return out;
+}
+function receiptSaldoRowsHtml(o){
+  const entries = receiptSaldoEntries(o);
+  if(!entries.length) return '';
+  return '<div class="receipt-divider"></div>' + entries.map(e=>{
+    const style = e.warn ? 'font-weight:700;color:var(--chili);' : (e.bold ? 'font-weight:600;color:var(--jade-dark);' : '');
+    return `<div class="receipt-row"${style ? ` style="${style}"` : ''}><span>${e.l}</span><span>${e.v}</span></div>`;
+  }).join('');
+}
 function buildReceiptImageHTML(o){
   const logoSrc = document.querySelector('#shareKertasScreen .km-logo img')?.src || '';
   const itemsRows = (o.items||[]).map(i=>`
@@ -3253,6 +3315,7 @@ function buildReceiptImageHTML(o){
       ${shippingRow}
       <div class="receipt-divider" style="border-top-color:var(--jade-dark);border-top-width:1.5px;"></div>
       <div class="receipt-row" style="font-weight:700;color:var(--jade-dark);font-size:14px;"><span>Total</span><span>${rupiah(o.total)}</span></div>
+      ${receiptSaldoRowsHtml(o)}
       <div style="text-align:center;margin-top:8px;">
         <span style="font-size:11px;background:${o.paid?'var(--jade-tint)':'var(--chili-tint)'};color:${o.paid?'var(--jade-dark)':'var(--chili)'};padding:3px 10px;border-radius:20px;font-weight:600;">${o.paid?'✓ Lunas':'Belum Lunas'}</span>
       </div>
@@ -3342,14 +3405,9 @@ async function shareReceiptImage(){
 const KERTAS_SHARE_CAPTION = 'https://tinyurl.com/SHAKIESmenu';
 async function shareKertasImage(){
   const sourceEl = document.getElementById('shareKertasScreen');
-  // FIX 18 Sep 2026: sebelumnya bikin <div> kosong terus copy innerHTML doang — ID-nya
-  // (#shareKertasScreen, #shareKertasContent) gak kebawa, padahal HAMPIR SEMUA styling kertas
-  // (.k-head, .k-body, .kat-title, .item-line, dll) itu di-scope ke ID itu, bukan class biasa.
-  // Hasilnya capture-nya nyaris tanpa styling. Fix: cloneNode(true) elemen ASLINYA biar ID + semua
-  // class turunannya kebawa utuh, CSS yang di-scope ke ID otomatis kepake lagi.
-  const captureWrap = sourceEl.cloneNode(true);
-  captureWrap.style.cssText = 'position:fixed;left:-9999px;top:0;background:var(--bg,#fff);width:390px;max-width:none;height:auto;box-sizing:border-box;display:flex;flex-direction:column;border-radius:0;box-shadow:none;'; // 390px = lebar CSS iPhone 13 Pro, biar hasil share sepadan sama preview di app
-  captureWrap.classList.add('active'); // jaga-jaga kalau ke-capture pas state .active belum sempat kepasang
+  const captureWrap = document.createElement('div');
+  captureWrap.style.cssText = 'position:fixed;left:-9999px;top:0;background:var(--bg,#fff);width:380px;box-sizing:border-box;display:flex;flex-direction:column;';
+  captureWrap.innerHTML = sourceEl.innerHTML;
   captureWrap.querySelectorAll('.k-topbar, .k-lastpublish, .k-live-link').forEach(el=>el.remove());
   document.body.appendChild(captureWrap);
   let canvas;
@@ -3406,6 +3464,7 @@ function generateReceiptText(o){
   if(o.shipping_fee) lines.push('Ongkir: ' + rupiah(o.shipping_fee));
   lines.push('------------------------');
   lines.push('Total: ' + rupiah(o.total));
+  receiptSaldoEntries(o).forEach(e=>lines.push(e.l + ': ' + e.v));
   lines.push('Status: ' + (o.paid ? 'LUNAS' : 'BELUM LUNAS'));
   lines.push('');
   lines.push(generateRekeningText());
