@@ -430,7 +430,7 @@
         <label class="field-label">Tanggal Kirim</label>
         <div style="display:flex;gap:8px;align-items:center;">
           <div class="date-field" style="flex:1;min-width:0;">
-            <input type="date" id="deliveryDate">
+            <input type="date" id="deliveryDate" onclick="this.showPicker && this.showPicker()">
             <span class="date-display" id="deliveryDateDisplay"></span>
           </div>
           <button type="button" class="today-quick-btn" id="todayQuickBtn" onclick="setDeliveryDateToday()" aria-label="Set tanggal ke hari ini"></button>
@@ -531,11 +531,11 @@
       <div class="field"><input type="text" id="riwayatSearch" list="customerList" autocomplete="off" placeholder="Cari nama customer..." oninput="debouncedRenderRiwayat()"></div>
       <div class="filter-row">
         <div class="date-field" style="flex:1;min-width:0;">
-          <input type="date" id="riwayatDateFrom" onchange="renderRiwayat()" style="width:100%;">
+          <input type="date" id="riwayatDateFrom" onchange="renderRiwayat()" onclick="this.showPicker && this.showPicker()" style="width:100%;">
           <span class="date-display placeholder" id="riwayatDateFromDisplay">Dari tanggal</span>
         </div>
         <div class="date-field" style="flex:1;min-width:0;">
-          <input type="date" id="riwayatDateTo" onchange="renderRiwayat()" style="width:100%;">
+          <input type="date" id="riwayatDateTo" onchange="renderRiwayat()" onclick="this.showPicker && this.showPicker()" style="width:100%;">
           <span class="date-display placeholder" id="riwayatDateToDisplay">Sampai tanggal</span>
         </div>
       </div>
@@ -2626,7 +2626,8 @@ async function submitOrder(){
       // ikut nongol di situ sampe snapshot-nya di-reset manual (refresh). Order baru pasti belum
       // lunas (paid:false di atas), jadi inject langsung ke snapshot juga kalau udah pernah di-load.
       if(riwayatDefaultSnapshotLoaded && !tempOrder.paid){
-        riwayatDefaultSnapshot.unshift(tempOrder);
+        riwayatDefaultSnapshot.push(tempOrder);
+        riwayatDefaultSnapshot.sort((a,b)=> (a.delivery_date||'').localeCompare(b.delivery_date||'')); // FIX 19 Sep 2026: sisip sesuai tanggal, bukan unshift paksa ke atas
         saveRiwayatUnpaidCache(riwayatDefaultSnapshot);
         if(document.querySelector('.tab-btn.active')?.dataset.tab === 'riwayat'){
           const hasFilter = !!document.getElementById('riwayatSearch').value.trim()
