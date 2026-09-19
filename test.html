@@ -181,6 +181,8 @@
   .pay-toggle.paid{border-color:var(--jade);color:var(--jade-dark);background:var(--jade-tint);}
   .order-card.prepared{opacity:.55;}
   .order-card .top-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+  /* FIX 18 Sep 2026: badge dd-mmm | hh:mm di kartu Prep — kecil & samar (bukan elemen utama, cuma info tambahan) */
+  .order-card-time{font-size:10.5px;color:var(--ink-soft);opacity:.62;white-space:nowrap;align-self:center;margin-right:2px;}
   .order-card .cust{font-family:'Fraunces',serif;font-weight:600;font-size:15.5px;}
   .order-card .items-list{font-size:13px;color:var(--ink-soft);margin:6px 0;}
   .order-card .bottom-row{display:flex;justify-content:space-between;align-items:center;margin-top:8px;}
@@ -795,6 +797,18 @@ function formatDateShort(iso){
   if(!iso) return '';
   const [y,m,d] = iso.split('-').map(Number);
   return `${String(d).padStart(2,'0')}-${MONTH_ABBR_ID[m-1]}-${y}`;
+}
+// FIX 18 Sep 2026: badge "dd-mmm | hh:mm" buat kartu Prep — dari created_at (ISO UTC dari server,
+// mis. "2026-09-18T10:02:49.970Z"). new Date() otomatis convert ke waktu lokal device pas ditampilin.
+function formatOrderCreatedBadge(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return '';
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mmm = MONTH_ABBR_ID[d.getMonth()];
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mm = String(d.getMinutes()).padStart(2,'0');
+  return `${dd}-${mmm} | ${hh}:${mm}`;
 }
 function formatDateRelative(iso){
   if(!iso) return '';
@@ -2928,7 +2942,9 @@ async function renderBesok(){
 function renderBesokList(){
   const area = document.getElementById('besokContent');
   const target = selectedBesokDate;
-  const todays = allOrders.filter(o=>o.delivery_date===target);
+  const todays = allOrders.filter(o=>o.delivery_date===target)
+    .slice()
+    .sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0)); // FIX 18 Sep 2026: terbaru di atas
   if(todays.length===0){
     activeItemFilter = null;
     area.innerHTML = `<p class="section-sub" style="margin-top:0;">${formatDateLong(target)}</p><div class="empty-state"><div class="glyph">📭</div>Belum ada orderan buat tanggal ini.</div>`;
@@ -3013,6 +3029,7 @@ function renderBesokList(){
           <div class="cust">${escapeHtml(o.customer_name)}</div>
           <span class="badge">${escapeHtml(o.device_label)}</span>
         </div>
+        <span class="order-card-time">${formatOrderCreatedBadge(o.created_at)}</span>
         <div class="check-toggle ${o.prepared?'checked':''}" onclick="togglePrepared('${o.order_id}')">
           <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M5 13l4 4L19 7"/></svg>
         </div>
