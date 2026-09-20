@@ -383,6 +383,9 @@
   .k-publish{ height:34px; padding:0 14px; flex-shrink:0; border-radius:17px; background:rgba(0,0,0,.35); color:#fff; border:none; display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:700; white-space:nowrap; cursor:pointer; opacity:0; transition:opacity .3s ease; pointer-events:none; }
   .k-publish.show{ opacity:1; pointer-events:auto; }
   .k-publish[hidden]{ display:none; }
+  .k-histchip{ height:34px; padding:0 14px; flex-shrink:0; border-radius:17px; background:rgba(0,0,0,.35); color:#fff; display:flex; align-items:center; font-size:12px; font-weight:700; white-space:nowrap; opacity:0; transition:opacity .3s ease; pointer-events:none; }
+  .k-histchip.show{ opacity:1; }
+  .k-histchip[hidden]{ display:none; }
   .k-lastpublish{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,.35); color:#fff; border-radius:14px; padding:10px 20px; text-align:center; z-index:49; opacity:0; transition:opacity .3s ease; pointer-events:none; }
   .k-lastpublish.show{ opacity:1; }
   .k-lastpublish .lp-lbl{ display:block; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; opacity:.8; }
@@ -578,7 +581,7 @@
   </nav>
 
   <!-- Staff sign-in modal -->
-  <div class="modal-overlay hidden" id="deviceModal">
+  <div class="modal-overlay hidden" id="deviceModal" onclick="if(event.target===this) kembaliLayar()">
     <div class="modal-sheet">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <h3 style="margin:0;" id="deviceModalTitle">Sign in Staff</h3>
@@ -747,6 +750,7 @@
     </div>
     <div class="share-screen" id="shareKertasScreen">
       <div class="k-topbar">
+        <span class="k-histchip" id="kHistChip" hidden>Versi Terakhir Publish</span>
         <button class="k-publish" id="kPublish" onclick="publishMenuToLink()">🔗 Publish</button>
         <button class="k-close" id="kClose" onclick="kembaliLayar()">×</button>
       </div>
@@ -935,7 +939,19 @@ function setDeliveryDateToday(){
 // Terbangin klon angka dari elemen `fromEl` ke posisi tengah elemen `toEl`, lalu ilang.
 function flyDateNumber(fromEl, toEl, text){
   const fromRect = fromEl.getBoundingClientRect();
-  const toRect = toEl.getBoundingClientRect();
+  let toRect = toEl.getBoundingClientRect();
+  // FIX 20 Sep 2026: .date-display sekarang overlay selebar kotak & teks rata kiri, jadi tengah elemen != angka hari.
+  // Ukur posisi angka hari (angka pertama di teks) pakai Range; kalau gak ketemu, fallback ke tengah elemen.
+  const tn = toEl.firstChild;
+  if(tn && tn.nodeType === 3){
+    const m = /\d+/.exec(tn.nodeValue);
+    if(m){
+      const rg = document.createRange();
+      rg.setStart(tn, m.index); rg.setEnd(tn, m.index + m[0].length);
+      const rr = rg.getBoundingClientRect();
+      if(rr.width > 0) toRect = rr;
+    }
+  }
   const clone = document.createElement('span');
   clone.className = 'date-fly-num';
   clone.textContent = text;
@@ -3922,13 +3938,14 @@ async function viewLastPublishedKertas(){
 function enterKertasDraftMode(){
   viewingLastPublished = false;
   document.getElementById('kertasSubLabel').textContent = 'Menu Hari Ini';
+  document.getElementById('kHistChip').hidden = true;
   document.getElementById('kPublish').hidden = false;
 }
 // History mode: isi kertas = snapshot terakhir publish (bukan draft), tombol Publish disembunyikan
 // biar gak ketuker — mencet Publish di mode ini bakal publish checklist, bukan yang lagi keliatan.
 function enterKertasHistoryMode(){
   viewingLastPublished = true;
-  document.getElementById('kertasSubLabel').textContent = 'Versi Terakhir Publish';
+  document.getElementById('kHistChip').hidden = false; // label pindah ke top bar (ikut ilang bareng ×), sub judul kertas tetap "Menu Hari Ini"
   document.getElementById('kPublish').hidden = true;
 }
 
@@ -4025,6 +4042,7 @@ function showShareCloseButtonTemporarily(){
   const liveLinkEl = document.getElementById('kLiveLink');
   closeBtn.classList.add('show');
   publishBtn.classList.add('show');
+  document.getElementById('kHistChip').classList.add('show');
   lastPublishEl.classList.add('show');
   liveLinkEl.classList.add('show');
   clearTimeout(shareCloseTimer);
@@ -4034,6 +4052,7 @@ function hideShareControlsNow(){
   clearTimeout(shareCloseTimer);
   document.getElementById('kClose').classList.remove('show');
   document.getElementById('kPublish').classList.remove('show');
+  document.getElementById('kHistChip').classList.remove('show');
   document.getElementById('kLastPublish').classList.remove('show');
   document.getElementById('kLiveLink').classList.remove('show');
 }
