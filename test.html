@@ -591,6 +591,8 @@
           <div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:6px;"><span style="color:var(--ink-soft);">Sejak</span><span id="dliSince" style="font-weight:600;text-align:right;">-</span></div>
           <div style="display:flex;justify-content:space-between;gap:10px;"><span style="color:var(--ink-soft);">Durasi login</span><span id="dliDuration" style="font-weight:600;text-align:right;">-</span></div>
         </div>
+        <button class="secondary" id="pushToggleBtn" style="width:100%;margin-bottom:6px;" onclick="aktifkanPushOrderBaru()">🔔 Aktifin Notifikasi Order Masuk</button>
+        <p id="pushStatus" style="font-size:12px;color:var(--ink-soft);margin:0 0 14px;"></p>
         <button class="secondary" style="width:100%;color:var(--chili);border-color:var(--chili);" onclick="logoutStaff()">Logout</button>
       </div>
       <div id="deviceSigninView">
@@ -741,7 +743,8 @@
 // ==== KONFIGURASI ====
 const CONFIG = {
     API_URL: 'https://pos.shakies.workers.dev', // TEST: nunjuk ke Worker D1, bukan GAS produksi
-    GOOGLE_CLIENT_ID: '403073099452-nsj2p0kfupqr86opvr0fjovhv0tcfru7.apps.googleusercontent.com'
+    GOOGLE_CLIENT_ID: '403073099452-nsj2p0kfupqr86opvr0fjovhv0tcfru7.apps.googleusercontent.com',
+    VAPID_PUBLIC_KEY: 'BPJeRo-2YtoiY76zSYTU4zMeyiVs-lki8iTiyibwPpVVOICPiBqNMgr2fHJgcvKuAG2KhrYadzXW0KroPdm2ARg' // public, aman keliatan; private key cuma di secret Worker
 };
 
 // ==== STATE ====
@@ -1015,7 +1018,7 @@ const API_ACTION_LABELS = {
   delete_order:'hapus orderan', add_menu_item:'tambah menu', update_menu_item:'update menu',
   update_stok:'update stok', delete_menu_row:'hapus menu', delete_category:'hapus kategori',
   publish_menu:'publish menu', topup_saldo:'top up saldo', reconcile_saldo:'alokasi saldo',
-  update_menu_aktif:'update ketersediaan menu', pay_order_with_saldo:'bayar pakai saldo'
+  update_menu_aktif:'update ketersediaan menu', pay_order_with_saldo:'bayar pakai saldo', subscribe_push:'aktifin notifikasi'
 };
 let activeApiCalls = {}; // callId -> label proses, dipake render badge
 let apiCallSeq = 0;
@@ -1247,6 +1250,7 @@ function renderDeviceModalView(){
       document.getElementById('dliSince').textContent = 'Tidak diketahui';
       document.getElementById('dliDuration').textContent = '-';
     }
+    renderPushStatus();
   } else {
     loggedInView.style.display = 'none';
     signinView.style.display = 'block';
@@ -1615,6 +1619,66 @@ function notifyBackgroundFailure(title, body){
       new Notification(title, { body, icon: 'icon-192.png' });
     }
   } catch(e){ /* non-fatal — toast tetep jadi fallback */ }
+}
+
+// ==== PUSH NOTIFICATION ORDER BARU (lihat PRD) ====
+// Subscription-nya disimpen di Worker (action subscribe_push, wajib login). localStorage cuma nyatet
+// endpoint terakhir yang udah ke-sync ke Worker — ada = HP ini udah pernah diaktifin.
+const PUSH_ENDPOINT_KEY = 'test-push-endpoint-v1';
+function getPushEndpoint(){ try{ return localStorage.getItem(PUSH_ENDPOINT_KEY) || ''; } catch(e){ return ''; } }
+function pushSupported(){ return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
+function renderPushStatus(){
+  const btn = document.getElementById('pushToggleBtn');
+  const st = document.getElementById('pushStatus');
+  if(!btn || !st) return;
+  let synced = null;
+  try{ synced = localStorage.getItem(PUSH_ENDPOINT_KEY); } catch(e){ /* nggak fatal */ }
+  if(!pushSupported()){ btn.disabled = true; st.textContent = 'Browser/HP ini gak support push notification.'; }
+  else if(Notification.permission === 'denied'){ btn.disabled = true; st.textContent = 'Izin notifikasi diblokir — aktifin lagi di setelan HP/browser.'; }
+  else if(synced && Notification.permission === 'granted'){ btn.disabled = false; btn.textContent = '🔔 Sinkron Ulang Notifikasi'; st.textContent = 'Aktif di HP ini ✓ — order buat hari ini bakal nge-push walau app ditutup.'; }
+  else { btn.disabled = false; btn.textContent = '🔔 Aktifin Notifikasi Order Masuk'; st.textContent = 'Belum aktif di HP ini.'; }
+}
+// Subscribe (atau pakai ulang yang udah ada) lalu kirim ke Worker. Dipanggil dari tombol (boleh nampilin
+// prompt izin) dan dari syncPushSubscription() pas app kebuka (izin udah granted, jadi gak ada prompt).
+async function subscribeAndSyncPush(){
+  const reg = await navigator.serviceWorker.ready;
+  const sub = (await reg.pushManager.getSubscription()) ||
+    await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: CONFIG.VAPID_PUBLIC_KEY });
+  await apiPost('subscribe_push', sub.toJSON()); // {endpoint, expirationTime, keys:{p256dh, auth}}
+  try{ localStorage.setItem(PUSH_ENDPOINT_KEY, sub.endpoint); } catch(e){ /* nggak fatal */ }
+}
+async function aktifkanPushOrderBaru(){
+  if(!staffSession){ showToast('Sign in dulu ya'); return; }
+  if(!pushSupported()){ showToast('HP/browser ini gak support push notification'); return; }
+  try{
+    if(!(await ensureNotifyPermission())){ showToast('Izin notifikasi ditolak — aktifin di setelan HP'); renderPushStatus(); return; }
+    await subscribeAndSyncPush();
+    showToast('Notifikasi order masuk aktif ✓');
+  } catch(e){
+    showToast('Gagal aktifin notifikasi: ' + (e.message || e));
+  }
+  renderPushStatus();
+}
+// Pas app kebuka & udah login: kalau HP ini pernah diaktifin, pastiin subscription-nya masih ada dan
+// Worker megang yang terbaru (browser bisa ngerotasi/ngebatalin subscription tanpa ngabarin app).
+// Diam-diam, dan cuma kirim ke Worker kalau endpoint-nya beda dari yang terakhir ke-sync.
+async function syncPushSubscription(){
+  try{
+    if(!staffSession || !pushSupported() || Notification.permission !== 'granted') return;
+    const last = localStorage.getItem(PUSH_ENDPOINT_KEY);
+    if(!last) return; // belum pernah diaktifin lewat tombol — jangan subscribe diam-diam
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if(sub && sub.endpoint === last) return; // udah sinkron
+    await subscribeAndSyncPush();
+  } catch(e){ /* non-fatal — tombol di Akun Staff tetep bisa dipake manual */ }
+}
+// Notif order di-klik pas app lagi kebuka: sw.js ngirim pesan ini, pindah ke tab yang dituju (Prep = 'besok').
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.addEventListener('message', (e)=>{
+    const d = e.data || {};
+    if(d.type === 'open-tab' && document.getElementById('tab-'+d.tab)) switchTab(d.tab);
+  });
 }
 function clearTopupFailedBanner(){
   lastFailedTopup = null;
@@ -2672,7 +2736,9 @@ async function saveOrderInBackground(payload, tempOrRealId, isEdit){
       const idx = allOrders.findIndex(o => o.order_id === tempOrRealId);
       if(idx !== -1) delete allOrders[idx]._pending;
     } else {
-      const addResult = await apiPost('add_order', payload);
+      // origin_push_endpoint = penanda "order ini dibuat dari HP yang subscribe push" — Worker skip push kalau sama
+      // dengan endpoint subscription-nya (gak perlu notif buat order yang baru aja diketik sendiri). Kosong = HP ini belum aktifin push.
+      const addResult = await apiPost('add_order', { ...payload, origin_push_endpoint: getPushEndpoint() });
       const idx = allOrders.findIndex(o => o.order_id === tempOrRealId);
       if(idx !== -1){
         allOrders[idx].order_id = addResult.order_id;
@@ -4006,12 +4072,16 @@ bindDateDisplay('riwayatDateTo', 'riwayatDateToDisplay', { placeholder: 'Sampai 
   // Lihat blok "BACK BUTTON ANDROID" di atas buat mekanisme lengkapnya.
   pushSentinel();
   loadStaffSession();
+  syncPushSubscription(); // gak di-await, diam-diam (lihat blok PUSH NOTIFICATION ORDER BARU)
   loadSaldoMapFromCache();
 
   // Balikin ke tab terakhir yang lagi dibuka sebelum refresh — PALING AWAL, sebelum nunggu
   // network apa pun, biar instan (gak ada jeda keliatan tab Order dulu baru pindah).
   let lastTab = 'order';
   try{ lastTab = localStorage.getItem(ACTIVE_TAB_KEY) || 'order'; } catch(e){ /* nggak fatal */ }
+  // Dibuka dari klik notif push (sw.js openWindow ke ?tab=besok) — menang atas tab terakhir yang tersimpan.
+  const qTab = new URLSearchParams(location.search).get('tab');
+  if(qTab && document.getElementById('tab-'+qTab)) lastTab = qTab;
   if(lastTab !== 'order') switchTab(lastTab);
 
   await loadMenu();
