@@ -597,6 +597,7 @@
         <button class="secondary" id="btnAuthEmail" style="width:100%;margin-bottom:10px;" onclick="openAuthEmailModal()">🔑 Authorize Email</button>
         <button class="secondary" id="pushToggleBtn" style="width:100%;margin-bottom:6px;" onclick="aktifkanPushOrderBaru()">🔔 Aktifin Notifikasi Order Masuk</button>
         <p id="pushStatus" style="font-size:12px;color:var(--ink-soft);margin:0 0 14px;"></p>
+        <button class="secondary" id="pushOffBtn" style="width:100%;margin-bottom:14px;display:none;" onclick="matikanPushOrderBaru()">🔕 Matikan Notifikasi</button>
         <button class="secondary" style="width:100%;color:var(--chili);border-color:var(--chili);" onclick="logoutStaff()">Logout</button>
       </div>
       <div id="deviceSigninView">
@@ -1060,7 +1061,7 @@ const API_ACTION_LABELS = {
   delete_order:'hapus orderan', add_menu_item:'tambah menu', update_menu_item:'update menu',
   update_stok:'update stok', delete_menu_row:'hapus menu', delete_category:'hapus kategori',
   publish_menu:'publish menu', topup_saldo:'top up saldo', reconcile_saldo:'alokasi saldo',
-  update_menu_aktif:'update ketersediaan menu', pay_order_with_saldo:'bayar pakai saldo', get_allowed_emails:'ambil daftar email', add_allowed_email:'tambah email', delete_allowed_email:'hapus email', subscribe_push:'aktifin notifikasi'
+  update_menu_aktif:'update ketersediaan menu', pay_order_with_saldo:'bayar pakai saldo', get_allowed_emails:'ambil daftar email', add_allowed_email:'tambah email', delete_allowed_email:'hapus email', unsubscribe_push:'matikan notifikasi', subscribe_push:'aktifin notifikasi'
 };
 let activeApiCalls = {}; // callId -> label proses, dipake render badge
 let apiCallSeq = 0;
@@ -1832,6 +1833,41 @@ async function syncPushSubscription(){
     await subscribeAndSyncPush();
   } catch(e){ /* non-fatal — tombol di Akun Staff tetep bisa dipake manual */ }
 }
+// ==== MATIKAN NOTIFIKASI ORDER MASUK (BARU 21 Sep 2026) ====
+// Kebalikan aktifkanPushOrderBaru(): hapus baris di Worker (unsubscribe_push, cuma kalau endpoint-nya
+// cocok), batalin subscription di browser, dan hapus catatan endpoint di localStorage. Yang terakhir
+// itu penting — syncPushSubscription() cuma subscribe ulang diam-diam kalau catatan itu ada, jadi
+// tanpa dihapus, notifikasi bakal nyala sendiri lagi pas app dibuka. Izin notifikasi di HP TIDAK
+// dicabut (itu cuma bisa dari setelan HP), jadi tombol "Aktifin" tetap bisa dipakai lagi tanpa prompt.
+function updatePushOffBtn(){
+  const b = document.getElementById('pushOffBtn');
+  if(!b) return;
+  let on = false;
+  try{ on = pushSupported() && Notification.permission === 'granted' && !!localStorage.getItem(PUSH_ENDPOINT_KEY); } catch(e){ on = false; }
+  b.style.display = on ? 'block' : 'none';
+}
+const _renderPushStatusOrig = renderPushStatus;
+renderPushStatus = function(){ _renderPushStatusOrig(); updatePushOffBtn(); };
+
+async function matikanPushOrderBaru(){
+  if(!confirm('Matikan notifikasi order masuk di HP ini?\n\nKamu nggak akan dapat notif order baru lagi sampai diaktifin ulang dari sini.')) return;
+  const btn = document.getElementById('pushOffBtn');
+  if(btn) btn.disabled = true;
+  const endpoint = getPushEndpoint();
+  let serverFailed = false;
+  try{ if(endpoint) await apiPost('unsubscribe_push', { endpoint }); }
+  catch(e){ serverFailed = true; } // gak fatal: subscription yang sudah dibatalin di HP bakal dibuang Worker sendiri (404/410) pas push berikutnya
+  try{
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if(sub) await sub.unsubscribe();
+  } catch(e){ /* nggak fatal */ }
+  try{ localStorage.removeItem(PUSH_ENDPOINT_KEY); } catch(e){ /* nggak fatal */ }
+  if(btn) btn.disabled = false;
+  showToast(serverFailed ? 'Notifikasi dimatikan di HP ini (server bakal bersih sendiri)' : 'Notifikasi order masuk dimatikan ✓');
+  renderPushStatus();
+}
+
 // Notif order di-klik pas app lagi kebuka: sw.js ngirim pesan ini, pindah ke tab yang dituju (Prep = 'besok').
 if('serviceWorker' in navigator){
   navigator.serviceWorker.addEventListener('message', (e)=>{
