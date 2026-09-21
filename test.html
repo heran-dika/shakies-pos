@@ -266,6 +266,14 @@
   .riwayat-refresh-btn:disabled{opacity:.5;cursor:default;}
   .riwayat-refresh-btn svg{width:16px;height:16px;}
   .riwayat-refresh-btn.spinning svg{animation:spin 1s linear infinite;}
+  /* FIX 21 Sep 2026: baris Push notification di kartu login — label + tombol sinkron (pakai ulang .riwayat-refresh-btn) + switch on/off */
+  .push-row{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+  .push-row-label{flex:1;font-size:14px;font-weight:700;color:var(--jade-dark);}
+  .push-switch{position:relative;width:46px;height:28px;flex-shrink:0;border:1.5px solid var(--border);border-radius:999px;background:#D9D3C7;cursor:pointer;padding:0;transition:background .15s ease,border-color .15s ease;}
+  .push-switch .push-switch-knob{position:absolute;top:2px;left:2px;width:21px;height:21px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s ease;}
+  .push-switch[aria-checked="true"]{background:var(--jade);border-color:var(--jade);}
+  .push-switch[aria-checked="true"] .push-switch-knob{transform:translateX(18px);}
+  .push-switch:disabled{opacity:.5;cursor:default;}
   .saldo-list-row{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-bottom:1px solid var(--border);cursor:pointer;border-radius:8px;}
   .saldo-list-row:nth-child(even){background:#FDF0F0;}
   .saldo-list-row:active{background:#FDF0F0;}
@@ -595,9 +603,14 @@
           <div style="display:flex;justify-content:space-between;gap:10px;"><span style="color:var(--ink-soft);">Durasi login</span><span id="dliDuration" style="font-weight:600;text-align:right;">-</span></div>
         </div>
         <button class="secondary" id="btnAuthEmail" style="width:100%;margin-bottom:10px;" onclick="openAuthEmailModal()">🔑 Authorize Email</button>
-        <button class="secondary" id="pushToggleBtn" style="width:100%;margin-bottom:6px;" onclick="aktifkanPushOrderBaru()">🔔 Aktifin Notifikasi Order Masuk</button>
-        <p id="pushStatus" style="font-size:12px;color:var(--ink-soft);margin:0 0 14px;"></p>
-        <button class="secondary" id="pushOffBtn" style="width:100%;margin-bottom:14px;display:none;" onclick="matikanPushOrderBaru()">🔕 Matikan Notifikasi</button>
+        <div class="push-row">
+          <span class="push-row-label">Push notification</span>
+          <button type="button" class="riwayat-refresh-btn" id="pushSyncBtn" onclick="aktifkanPushOrderBaru()" aria-label="Sinkron ulang notifikasi" title="Sinkron ulang notifikasi" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+          </button>
+          <button type="button" class="push-switch" id="pushSwitch" role="switch" aria-checked="false" aria-label="Push notification on/off" onclick="togglePushSwitch()" disabled><span class="push-switch-knob"></span></button>
+        </div>
+        <p id="pushStatus" style="font-size:12px;color:var(--ink-soft);margin:0 0 14px;white-space:pre-line;"></p>
         <button class="secondary" style="width:100%;color:var(--chili);border-color:var(--chili);" onclick="logoutStaff()">Logout</button>
       </div>
       <div id="deviceSigninView">
@@ -920,6 +933,9 @@ function toLocalTimestamp(d){
   return `${y}-${m}-${day} ${hh}:${mm}:${ss}`;
 }
 function tomorrowISO(){ const d=new Date(); d.setDate(d.getDate()+1); return toLocalISODate(d); }
+// FIX 21 Sep 2026: default Tanggal Kirim di form Order — Sabtu/Minggu = hari ini, Senin–Jumat = besok.
+// Sengaja fungsi terpisah: tomorrowISO() masih dipakai label "besok, ..." & tombol toggle hari ini<->besok, yang harus tetap = H+1 apa adanya.
+function defaultDeliveryISO(){ const d=new Date(), dow=d.getDay(); return (dow===0 || dow===6) ? toLocalISODate(d) : tomorrowISO(); }
 // Tombol "hari ini" di sebelah Tanggal Kirim — angka di tombol ikut tanggal hari ini,
 // klik = toggle deliveryDate antara hari ini <-> besok (FIX 16 Sep 2026: sebelumnya cuma
 // bisa "lompat ke hari ini" doang, sekarang gantian tiap dipencet: 16 -> 17 -> 16 -> ...).
@@ -1787,16 +1803,31 @@ function notifyBackgroundFailure(title, body){
 const PUSH_ENDPOINT_KEY = 'test-push-endpoint-v1';
 function getPushEndpoint(){ try{ return localStorage.getItem(PUSH_ENDPOINT_KEY) || ''; } catch(e){ return ''; } }
 function pushSupported(){ return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
+const PUSH_INFO_TEXT = 'Notif jalan buat order dengan tanggal kirim hari ini, pas app lagi ditutup, jam 05:00–17:00 WIB.';
 function renderPushStatus(){
-  const btn = document.getElementById('pushToggleBtn');
+  const sw = document.getElementById('pushSwitch');
+  const sync = document.getElementById('pushSyncBtn');
   const st = document.getElementById('pushStatus');
-  if(!btn || !st) return;
+  if(!sw || !sync || !st) return;
   let synced = null;
   try{ synced = localStorage.getItem(PUSH_ENDPOINT_KEY); } catch(e){ /* nggak fatal */ }
-  if(!pushSupported()){ btn.disabled = true; st.textContent = 'Browser/HP ini gak support push notification.'; }
-  else if(Notification.permission === 'denied'){ btn.disabled = true; st.textContent = 'Izin notifikasi diblokir — aktifin lagi di setelan HP/browser.'; }
-  else if(synced && Notification.permission === 'granted'){ btn.disabled = false; btn.textContent = '🔔 Sinkron Ulang Notifikasi'; st.textContent = 'Aktif di HP ini ✓ — order buat hari ini bakal nge-push walau app ditutup.'; }
-  else { btn.disabled = false; btn.textContent = '🔔 Aktifin Notifikasi Order Masuk'; st.textContent = 'Belum aktif di HP ini.'; }
+  const supported = pushSupported();
+  const denied = supported && Notification.permission === 'denied';
+  const on = supported && Notification.permission === 'granted' && !!synced;
+  sw.setAttribute('aria-checked', on ? 'true' : 'false');
+  sw.disabled = !supported || denied;
+  sync.disabled = !on; // sinkron ulang cuma masuk akal kalau notif lagi nyala
+  let warn = '';
+  if(!supported) warn = 'Browser/HP ini gak support push notification.';
+  else if(denied) warn = 'Izin notifikasi diblokir — aktifin lagi di setelan HP/browser.';
+  st.textContent = PUSH_INFO_TEXT + (warn ? '\n⚠️ ' + warn : '');
+}
+// Switch on/off: status ON/OFF selalu dibaca dari aria-checked (hasil renderPushStatus), jadi kalau
+// konfirmasi "Matikan" dibatalin, switch otomatis tetap ON tanpa perlu di-revert manual.
+function togglePushSwitch(){
+  const sw = document.getElementById('pushSwitch');
+  if(sw && sw.getAttribute('aria-checked') === 'true') matikanPushOrderBaru();
+  else aktifkanPushOrderBaru();
 }
 // Subscribe (atau pakai ulang yang udah ada) lalu kirim ke Worker. Dipanggil dari tombol (boleh nampilin
 // prompt izin) dan dari syncPushSubscription() pas app kebuka (izin udah granted, jadi gak ada prompt).
@@ -1810,12 +1841,16 @@ async function subscribeAndSyncPush(){
 async function aktifkanPushOrderBaru(){
   if(!staffSession){ showToast('Sign in dulu ya'); return; }
   if(!pushSupported()){ showToast('HP/browser ini gak support push notification'); return; }
+  const syncBtn = document.getElementById('pushSyncBtn');
+  if(syncBtn) syncBtn.classList.add('spinning');
   try{
     if(!(await ensureNotifyPermission())){ showToast('Izin notifikasi ditolak — aktifin di setelan HP'); renderPushStatus(); return; }
     await subscribeAndSyncPush();
     showToast('Notifikasi order masuk aktif ✓');
   } catch(e){
     showToast('Gagal aktifin notifikasi: ' + (e.message || e));
+  } finally {
+    if(syncBtn) syncBtn.classList.remove('spinning');
   }
   renderPushStatus();
 }
@@ -1839,19 +1874,9 @@ async function syncPushSubscription(){
 // itu penting — syncPushSubscription() cuma subscribe ulang diam-diam kalau catatan itu ada, jadi
 // tanpa dihapus, notifikasi bakal nyala sendiri lagi pas app dibuka. Izin notifikasi di HP TIDAK
 // dicabut (itu cuma bisa dari setelan HP), jadi tombol "Aktifin" tetap bisa dipakai lagi tanpa prompt.
-function updatePushOffBtn(){
-  const b = document.getElementById('pushOffBtn');
-  if(!b) return;
-  let on = false;
-  try{ on = pushSupported() && Notification.permission === 'granted' && !!localStorage.getItem(PUSH_ENDPOINT_KEY); } catch(e){ on = false; }
-  b.style.display = on ? 'block' : 'none';
-}
-const _renderPushStatusOrig = renderPushStatus;
-renderPushStatus = function(){ _renderPushStatusOrig(); updatePushOffBtn(); };
-
 async function matikanPushOrderBaru(){
   if(!confirm('Matikan notifikasi order masuk di HP ini?\n\nKamu nggak akan dapat notif order baru lagi sampai diaktifin ulang dari sini.')) return;
-  const btn = document.getElementById('pushOffBtn');
+  const btn = document.getElementById('pushSwitch');
   if(btn) btn.disabled = true;
   const endpoint = getPushEndpoint();
   let serverFailed = false;
@@ -1863,7 +1888,7 @@ async function matikanPushOrderBaru(){
     if(sub) await sub.unsubscribe();
   } catch(e){ /* nggak fatal */ }
   try{ localStorage.removeItem(PUSH_ENDPOINT_KEY); } catch(e){ /* nggak fatal */ }
-  if(btn) btn.disabled = false;
+  if(btn) btn.disabled = false; // renderPushStatus() di bawah yang nentuin final (mis. tetap disabled kalau izin diblokir)
   showToast(serverFailed ? 'Notifikasi dimatikan di HP ini (server bakal bersih sendiri)' : 'Notifikasi order masuk dimatikan ✓');
   renderPushStatus();
 }
@@ -3038,8 +3063,9 @@ function resetOrderForm(){
   document.getElementById('btnToggleShip').textContent = 'open';
   clearDiscount();
   orderSelections = {};
-  document.getElementById('deliveryDate').value = tomorrowISO();
+  document.getElementById('deliveryDate').value = defaultDeliveryISO();
   refreshDateDisplay('deliveryDate');
+  updateTodayQuickBtnLabel(); // default bisa hari ini (weekend) atau besok — label tombol harus ikut
   renderMenuPicker();
 }
 function cancelEdit(){
@@ -4255,7 +4281,7 @@ function syncHeaderHeightVar(){
 }
 syncHeaderHeightVar();
 window.addEventListener('resize', syncHeaderHeightVar);
-document.getElementById('deliveryDate').value = tomorrowISO();
+document.getElementById('deliveryDate').value = defaultDeliveryISO();
 bindDateDisplay('deliveryDate', 'deliveryDateDisplay', { relative: true });
 updateTodayQuickBtnLabel();
 bindDateDisplay('riwayatDateFrom', 'riwayatDateFromDisplay', { placeholder: 'Dari tanggal' });
