@@ -266,9 +266,14 @@
   .riwayat-refresh-btn:disabled{opacity:.5;cursor:default;}
   .riwayat-refresh-btn svg{width:16px;height:16px;}
   .riwayat-refresh-btn.spinning svg{animation:spin 1s linear infinite;}
-  /* FIX 21 Sep 2026: baris Push notification di kartu login — label + tombol sinkron (pakai ulang .riwayat-refresh-btn) + switch on/off */
-  .push-row{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
-  .push-row-label{flex:1;font-size:14px;font-weight:700;color:var(--jade-dark);}
+  /* FIX 21 Sep 2026: kotak Push Notification di kartu login — judul + keterangan di kiri, tombol sinkron (pakai ulang .riwayat-refresh-btn) + switch di kanan */
+  .push-box{display:flex;align-items:center;gap:12px;background:var(--surface);border:1.5px solid var(--jade);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:14px;}
+  .push-box-text{flex:1;min-width:0;}
+  .push-row-label{display:block;font-size:15px;font-weight:700;color:var(--jade-dark);}
+  .push-box-ctrl{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+  /* OFF: tombol sinkron tetap bisa dipencet tapi cuma redup — nggak ada efek pencet & nggak ngapa-ngapain (dicek di syncPushManual) */
+  .riwayat-refresh-btn[aria-disabled="true"]{opacity:.5;cursor:default;}
+  .riwayat-refresh-btn[aria-disabled="true"]:active{opacity:.5;}
   .push-switch{position:relative;width:46px;height:28px;flex-shrink:0;border:1.5px solid var(--border);border-radius:999px;background:#D9D3C7;cursor:pointer;padding:0;transition:background .15s ease,border-color .15s ease;}
   .push-switch .push-switch-knob{position:absolute;top:2px;left:2px;width:21px;height:21px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s ease;}
   .push-switch[aria-checked="true"]{background:var(--jade);border-color:var(--jade);}
@@ -603,14 +608,18 @@
           <div style="display:flex;justify-content:space-between;gap:10px;"><span style="color:var(--ink-soft);">Durasi login</span><span id="dliDuration" style="font-weight:600;text-align:right;">-</span></div>
         </div>
         <button class="secondary" id="btnAuthEmail" style="width:100%;margin-bottom:10px;" onclick="openAuthEmailModal()">🔑 Authorize Email</button>
-        <div class="push-row">
-          <span class="push-row-label">Push notification</span>
-          <button type="button" class="riwayat-refresh-btn" id="pushSyncBtn" onclick="aktifkanPushOrderBaru()" aria-label="Sinkron ulang notifikasi" title="Sinkron ulang notifikasi" disabled>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
-          </button>
-          <button type="button" class="push-switch" id="pushSwitch" role="switch" aria-checked="false" aria-label="Push notification on/off" onclick="togglePushSwitch()" disabled><span class="push-switch-knob"></span></button>
+        <div class="push-box">
+          <div class="push-box-text">
+            <span class="push-row-label">Push Notification</span>
+            <p id="pushStatus" style="font-size:12px;line-height:1.4;color:var(--ink-soft);margin:4px 0 0;white-space:pre-line;"></p>
+          </div>
+          <div class="push-box-ctrl">
+            <button type="button" class="riwayat-refresh-btn" id="pushSyncBtn" onclick="syncPushManual()" aria-label="Sinkron ulang notifikasi" title="Sinkron ulang notifikasi" aria-disabled="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+            </button>
+            <button type="button" class="push-switch" id="pushSwitch" role="switch" aria-checked="false" aria-label="Push Notification on/off" onclick="togglePushSwitch()" disabled><span class="push-switch-knob"></span></button>
+          </div>
         </div>
-        <p id="pushStatus" style="font-size:12px;color:var(--ink-soft);margin:0 0 14px;white-space:pre-line;"></p>
         <button class="secondary" style="width:100%;color:var(--chili);border-color:var(--chili);" onclick="logoutStaff()">Logout</button>
       </div>
       <div id="deviceSigninView">
@@ -1816,7 +1825,7 @@ function renderPushStatus(){
   const on = supported && Notification.permission === 'granted' && !!synced;
   sw.setAttribute('aria-checked', on ? 'true' : 'false');
   sw.disabled = !supported || denied;
-  sync.disabled = !on; // sinkron ulang cuma masuk akal kalau notif lagi nyala
+  sync.setAttribute('aria-disabled', on ? 'false' : 'true'); // sinkron ulang cuma jalan kalau notif lagi nyala (OFF = cuma redup, klik di-skip)
   let warn = '';
   if(!supported) warn = 'Browser/HP ini gak support push notification.';
   else if(denied) warn = 'Izin notifikasi diblokir — aktifin lagi di setelan HP/browser.';
@@ -1824,6 +1833,11 @@ function renderPushStatus(){
 }
 // Switch on/off: status ON/OFF selalu dibaca dari aria-checked (hasil renderPushStatus), jadi kalau
 // konfirmasi "Matikan" dibatalin, switch otomatis tetap ON tanpa perlu di-revert manual.
+function syncPushManual(){
+  const sync = document.getElementById('pushSyncBtn');
+  if(!sync || sync.getAttribute('aria-disabled') === 'true' || sync.classList.contains('spinning')) return; // OFF / lagi jalan: skip
+  aktifkanPushOrderBaru();
+}
 function togglePushSwitch(){
   const sw = document.getElementById('pushSwitch');
   if(sw && sw.getAttribute('aria-checked') === 'true') matikanPushOrderBaru();
