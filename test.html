@@ -274,6 +274,13 @@
   /* OFF: tombol sinkron tetap bisa dipencet tapi cuma redup — nggak ada efek pencet & nggak ngapa-ngapain (dicek di syncPushManual) */
   .riwayat-refresh-btn[aria-disabled="true"]{opacity:.5;cursor:default;}
   .riwayat-refresh-btn[aria-disabled="true"]:active{opacity:.5;}
+  /* FIX 22 Sep 2026: sheet "Isi dari WhatsApp" (parsing order dari teks WA ke form Input Orderan) */
+  #waParseModal .modal-sheet{padding-bottom:calc(14px + env(safe-area-inset-bottom));}
+  .wa-parse-count{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--chili);font-weight:600;margin:0 0 10px;}
+  .wa-parse-body{max-height:52vh;overflow-y:auto;overscroll-behavior:contain;margin-bottom:14px;}
+  .wa-parse-status{flex-shrink:0;font-size:15px;line-height:1;}
+  .wa-parse-footer{display:flex;gap:10px;}
+  .wa-parse-footer button{flex:1;width:auto;}
   .push-switch{position:relative;width:46px;height:28px;flex-shrink:0;border:1.5px solid var(--border);border-radius:999px;background:#D9D3C7;cursor:pointer;padding:0;transition:background .15s ease,border-color .15s ease;}
   .push-switch .push-switch-knob{position:absolute;top:2px;left:2px;width:21px;height:21px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s ease;}
   .push-switch[aria-checked="true"]{background:var(--jade);border-color:var(--jade);}
@@ -460,9 +467,16 @@
           <button type="button" class="today-quick-btn" id="todayQuickBtn" onclick="setDeliveryDateToday()" aria-label="Set tanggal ke hari ini"></button>
         </div>
       </div>
-      <div class="field search-clear-field sticky-menu-search">
-        <input type="text" id="orderMenuSearch" placeholder="Cari menu..." oninput="renderMenuPicker(); toggleSearchClear('orderMenuSearch')">
-        <button type="button" class="search-clear-btn" id="orderMenuSearchClear" onclick="clearSearchField('orderMenuSearch', renderMenuPicker)" aria-label="Hapus pencarian">×</button>
+      <div class="field sticky-menu-search">
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="search-clear-field" style="flex:1;min-width:0;">
+            <input type="text" id="orderMenuSearch" placeholder="Cari menu..." oninput="renderMenuPicker(); toggleSearchClear('orderMenuSearch')">
+            <button type="button" class="search-clear-btn" id="orderMenuSearchClear" onclick="clearSearchField('orderMenuSearch', renderMenuPicker)" aria-label="Hapus pencarian">×</button>
+          </div>
+          <button type="button" class="saldo-icon-btn" id="waParseBtn" onclick="openWaParseSheet()" aria-label="Isi dari WhatsApp" title="Isi dari WhatsApp">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/><path d="M9 12h6M9 16h6"/></svg>
+          </button>
+        </div>
       </div>
       <div id="menuPickerArea"><div class="spinner">Memuat menu...</div></div>
       <div class="field">
@@ -786,6 +800,23 @@
       <div class="k-body"><div id="shareKertasContent"></div></div>
       <div class="k-foot">Order via chat / DM — kuota terbatas per hari</div>
       <a class="k-live-link" id="kLiveLink" href="https://heran-dika.github.io/shakies/menu.html" target="_blank" rel="noopener">🔗 Lihat Menu Live</a>
+    </div>
+  </div>
+
+  <!-- FIX 22 Sep 2026: Isi dari WhatsApp — baca clipboard, parsing "angka x nama menu", preview sebelum masuk form -->
+  <div class="modal-overlay hidden" id="waParseModal" onclick="if(event.target===this) tutupSemuaLayar(closeWaParseSheet)">
+    <div class="modal-sheet">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h3 style="margin:0;">Isi dari WhatsApp</h3>
+        <button onclick="tutupSemuaLayar(closeWaParseSheet)" style="background:none;border:none;font-size:22px;color:var(--ink-soft);cursor:pointer;line-height:1;padding:4px;">×</button>
+      </div>
+      <p>Hasil baca clipboard, dicocokin ke menu — belum masuk ke form sebelum dipencet "Isi ke Form".</p>
+      <div class="wa-parse-count" id="waParseCount"></div>
+      <div class="wa-parse-body" id="waParseBody"><div class="spinner">Membaca clipboard...</div></div>
+      <div class="wa-parse-footer">
+        <button type="button" class="secondary" onclick="tutupSemuaLayar(closeWaParseSheet)">Batal</button>
+        <button type="button" class="primary" id="waParseApplyBtn" disabled onclick="applyWaParseToForm()">Isi ke Form</button>
+      </div>
     </div>
   </div>
 
@@ -3058,6 +3089,115 @@ function goToPrepAndHighlight(orderId, deliveryDate, opts){
   skipNextHighlightScroll = !!(opts && opts.skipScroll);
   switchTab('besok');
 }
+// ==== FIX 22 Sep 2026: ISI DARI WHATSAPP — baca clipboard, parsing "angka x nama", preview, replace item form ====
+// PRD: 2026-09-22 - PRD-Parsing Order WhatsApp ke POS.md
+let waParseResult = null; // { matched:[{name,qty,price}], unmatched:[{qty,rawName}] } | null
+
+function normalizeMenuName(s){ return String(s||'').trim().toLowerCase().replace(/\s+/g,' '); }
+
+// Baris "angka x nama" doang yang ditangkep; baris lain (salam pembuka, "Ready kan ka?",
+// "Mau diambil jam ...") sengaja diabaikan di sini, BUKAN dicocokin ke kalimat literal —
+// biar gak rusak kalau kalimat pembuka/penutup di menu.html berubah kapan aja.
+function parseWaOrderText(text){
+  const lines = String(text||'').split(/\r?\n/);
+  const result = [];
+  lines.forEach(raw=>{
+    let line = raw.trim().replace(/^[•\-*]\s*/, '');
+    if(!line) return;
+    const m = line.match(/^(\d+)\s*[x×]\s*(.+)$/i);
+    if(m){
+      const qty = parseInt(m[1], 10);
+      const rawName = m[2].trim();
+      if(qty > 0 && rawName) result.push({ qty, rawName });
+    }
+  });
+  return result;
+}
+
+// Dicocokin ke item AKTIF aja (sama kayak yang muncul di picker Order) — item nonaktif
+// sengaja diperlakukan kayak nggak ketemu, biar gak ada item nyangkut di keranjang yang
+// gak keliatan baris stepper-nya di form.
+function matchParsedItems(parsedLines){
+  const menuMap = {};
+  menuItems.filter(i=>i.aktif !== false).forEach(it=>{
+    menuMap[normalizeMenuName(it.nama)] = { name: it.nama, harga: it.harga };
+  });
+  const matchedByName = {};
+  const unmatched = [];
+  parsedLines.forEach(line=>{
+    const hit = menuMap[normalizeMenuName(line.rawName)];
+    if(hit){
+      if(matchedByName[hit.name]) matchedByName[hit.name].qty += line.qty;
+      else matchedByName[hit.name] = { qty: line.qty, price: hit.harga };
+    } else {
+      unmatched.push(line);
+    }
+  });
+  const matched = Object.keys(matchedByName).map(name=>({ name, qty: matchedByName[name].qty, price: matchedByName[name].price }));
+  return { matched, unmatched };
+}
+
+async function openWaParseSheet(){
+  document.getElementById('waParseModal').classList.remove('hidden');
+  pushLayar(closeWaParseSheet);
+  waParseResult = null;
+  document.getElementById('waParseCount').textContent = '';
+  document.getElementById('waParseApplyBtn').disabled = true;
+  document.getElementById('waParseBody').innerHTML = '<div class="spinner">Membaca clipboard...</div>';
+  // readText() dipanggil paling awal (langsung dari tap tombol) biar masih kehitung
+  // sebagai user gesture oleh browser — nggak ada langkah/await lain sebelumnya.
+  let text = '', clipErr = null;
+  try{ text = await navigator.clipboard.readText(); } catch(e){ clipErr = e; }
+  if(clipErr){
+    document.getElementById('waParseBody').innerHTML = '<div class="scl-empty">Gagal baca clipboard — coba lagi, atau kasih izin akses clipboard di setelan HP/browser.</div>';
+    return;
+  }
+  if(!text || !text.trim()){
+    document.getElementById('waParseBody').innerHTML = '<div class="scl-empty">Clipboard kosong — copy dulu teks order dari WhatsApp, baru pencet tombol ini lagi.</div>';
+    return;
+  }
+  waParseResult = matchParsedItems(parseWaOrderText(text));
+  renderWaParsePreview();
+}
+function closeWaParseSheet(){
+  document.getElementById('waParseModal').classList.add('hidden');
+}
+function renderWaParsePreview(){
+  const body = document.getElementById('waParseBody');
+  const countEl = document.getElementById('waParseCount');
+  const applyBtn = document.getElementById('waParseApplyBtn');
+  const r = waParseResult;
+  if(!r || (r.matched.length===0 && r.unmatched.length===0)){
+    body.innerHTML = '<div class="scl-empty">Nggak nemu baris item (format "angka x nama menu") di teks yang di-copy.</div>';
+    countEl.textContent = '';
+    applyBtn.disabled = true;
+    return;
+  }
+  const rows = r.matched.map(it=>`
+      <div class="scl-item">
+        <span class="wa-parse-status">✅</span>
+        <span class="nm">${it.qty} x ${escapeHtml(it.name)}</span>
+        <span class="hg">${rupiah(it.price)}</span>
+      </div>`).join('') + r.unmatched.map(it=>`
+      <div class="scl-item habis">
+        <span class="wa-parse-status">⚠️</span>
+        <span class="nm">${it.qty} x ${escapeHtml(it.rawName)} <span class="scl-habis-tag">nggak ketemu di menu</span></span>
+      </div>`).join('');
+  body.innerHTML = rows;
+  countEl.textContent = `${r.matched.length} item cocok` + (r.unmatched.length ? `, ${r.unmatched.length} nggak ketemu di menu` : '');
+  applyBtn.disabled = r.matched.length === 0;
+}
+// Replace TOTAL isi keranjang order (bukan merge) — sesuai keputusan PRD. Nama Customer,
+// Tanggal Kirim, Catatan dll TIDAK ikut disentuh, cuma orderSelections yang diganti.
+function applyWaParseToForm(){
+  if(!waParseResult || waParseResult.matched.length===0) return;
+  orderSelections = {};
+  waParseResult.matched.forEach(it=>{ orderSelections[it.name] = { qty: it.qty, price: it.price }; });
+  renderMenuPicker();
+  tutupSemuaLayar(closeWaParseSheet);
+  showToast(`${waParseResult.matched.length} item dari WhatsApp diisi ke form`);
+}
+
 function resetOrderForm(){
   editingOrderId = null; editingOrderPrepared = false; editingOrderPaid = false;
   editOriginTab = null; // FIX 16 Sep 2026 (v6): dibersihin di sini juga biar gak nyangkut stale buat sesi order berikutnya
@@ -3987,6 +4127,10 @@ function refreshLastPublishInfo(){
 // nampilin versi TERAKHIR DI-PUBLISH, gak perlu nyocokin checklist draft dulu — biar screenshot
 // dari device lain bisa dicocokin ke sumber yang sama persis.
 let viewingLastPublished = false;
+// FIX 22 Sep 2026: tombol 🕘 sekarang NYENTANGIN checklist di atas ngikutin menu terakhir
+// dipublish (replace total: yang ada di situ dicentang, sisanya di-uncheck) — TETAP di layar
+// checklist biasa (bisa diedit), bukan lompat ke preview read-only kayak sebelumnya. Staff
+// tinggal uncheck 1 item, terus pencet "Lanjut -> Preview Kertas" sendiri.
 async function viewLastPublishedKertas(){
   if(lastPublishInfoCache === undefined){
     // belum pernah fetch di sesi ini (msl. checklist dibuka duluan tanpa lewat Preview Kertas dulu)
@@ -4002,13 +4146,24 @@ async function viewLastPublishedKertas(){
     showToast('Backend belum ngirim isi menu yang di-publish (cuma tanggalnya) — minta tambahin field kategori di get_published_menu');
     return;
   }
-  document.getElementById('shareChecklistScreen').classList.remove('active');
-  document.getElementById('shareKertasScreen').classList.add('active');
-  enterKertasHistoryMode();
-  renderShareKertasFrom(lastPublishInfoCache.categories);
-  showShareCloseButtonTemporarily();
-  renderLastPublishChip(lastPublishInfoCache);
-  pushLayar(backToShareChecklist);
+  const wantedKeys = new Set();
+  lastPublishInfoCache.categories.forEach(cat=>{
+    (cat.items||[]).forEach(it=>{ wantedKeys.add(shareItemKey(cat.kategori, it.nama)); });
+  });
+  const availableKeys = new Set();
+  shareableData.forEach(cat=>{
+    cat.items.forEach(it=>{ availableKeys.add(shareItemKey(cat.kategori, it.nama)); });
+  });
+  let missing = 0;
+  wantedKeys.forEach(key=>{
+    if(availableKeys.has(key)) shareCheckedState[key] = true;
+    else missing++; // item menu terakhir yang udah gak ketemu di data menu sekarang (dihapus/nama beda)
+  });
+  availableKeys.forEach(key=>{ if(!wantedKeys.has(key)) shareCheckedState[key] = false; });
+  renderShareChecklist();
+  showToast(missing > 0
+    ? `${missing} item dari menu terakhir udah nggak ada di menu sekarang`
+    : 'Checklist disesuaikan sama menu terakhir dipublish');
 }
 // Draft mode: isi kertas ngikut checklist yang lagi dicentang, tombol Publish aktif.
 function enterKertasDraftMode(){
