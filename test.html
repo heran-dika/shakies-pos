@@ -281,6 +281,12 @@
   .wa-parse-status{flex-shrink:0;font-size:15px;line-height:1;}
   .wa-parse-footer{display:flex;gap:10px;}
   .wa-parse-footer button{flex:1;width:auto;}
+  /* Pesan konfirmasi setelah "Isi ke Form" — normal-flow (dorong layout, BUKAN overlay fixed
+     kayak toast global), sejajar posisinya sama tombol Auto Fill Form, rata kanan biar
+     nempel ke tombolnya, gak pernah nimpa baris angka/harga menu di bawahnya. */
+  .wa-apply-msg{font-size:12px;font-weight:700;color:var(--jade-dark);text-align:right;
+    max-height:0;opacity:0;overflow:hidden;transition:max-height .2s ease,opacity .2s ease,margin-top .2s ease;}
+  .wa-apply-msg.show{max-height:32px;opacity:1;margin-top:6px;}
   .push-switch{position:relative;width:46px;height:28px;flex-shrink:0;border:1.5px solid var(--border);border-radius:999px;background:#D9D3C7;cursor:pointer;padding:0;transition:background .15s ease,border-color .15s ease;}
   .push-switch .push-switch-knob{position:absolute;top:2px;left:2px;width:21px;height:21px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s ease;}
   .push-switch[aria-checked="true"]{background:var(--jade);border-color:var(--jade);}
@@ -473,10 +479,11 @@
             <input type="text" id="orderMenuSearch" placeholder="Cari menu..." oninput="renderMenuPicker(); toggleSearchClear('orderMenuSearch')">
             <button type="button" class="search-clear-btn" id="orderMenuSearchClear" onclick="clearSearchField('orderMenuSearch', renderMenuPicker)" aria-label="Hapus pencarian">×</button>
           </div>
-          <button type="button" class="saldo-icon-btn" id="waParseBtn" onclick="openWaParseSheet()" aria-label="Isi dari WhatsApp" title="Isi dari WhatsApp">
+          <button type="button" class="saldo-icon-btn" id="waParseBtn" onclick="openWaParseSheet()" aria-label="Auto Fill Form" title="Auto Fill Form">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/><path d="M9 12h6M9 16h6"/></svg>
           </button>
         </div>
+        <div class="wa-apply-msg" id="waApplyMsg"></div>
       </div>
       <div id="menuPickerArea"><div class="spinner">Memuat menu...</div></div>
       <div class="field">
@@ -807,10 +814,10 @@
   <div class="modal-overlay hidden" id="waParseModal" onclick="if(event.target===this) tutupSemuaLayar(closeWaParseSheet)">
     <div class="modal-sheet">
       <div style="display:flex;justify-content:space-between;align-items:center;">
-        <h3 style="margin:0;">Isi dari WhatsApp</h3>
+        <h3 style="margin:0;">Auto Fill Form</h3>
         <button onclick="tutupSemuaLayar(closeWaParseSheet)" style="background:none;border:none;font-size:22px;color:var(--ink-soft);cursor:pointer;line-height:1;padding:4px;">×</button>
       </div>
-      <p>Hasil baca clipboard, dicocokin ke menu — belum masuk ke form sebelum dipencet "Isi ke Form".</p>
+      <p>Hasil baca clipboard dari https://tinyurl.com/SHAKIESmenu dengan format "... x Nama Menu".</p>
       <div class="wa-parse-count" id="waParseCount"></div>
       <div class="wa-parse-body" id="waParseBody"><div class="spinner">Membaca clipboard...</div></div>
       <div class="wa-parse-footer">
@@ -3162,6 +3169,14 @@ async function openWaParseSheet(){
 function closeWaParseSheet(){
   document.getElementById('waParseModal').classList.add('hidden');
 }
+function showWaApplyMsg(msg){
+  const el = document.getElementById('waApplyMsg');
+  if(!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(showWaApplyMsg._t);
+  showWaApplyMsg._t = setTimeout(()=>el.classList.remove('show'), 4500);
+}
 function renderWaParsePreview(){
   const body = document.getElementById('waParseBody');
   const countEl = document.getElementById('waParseCount');
@@ -3195,7 +3210,7 @@ function applyWaParseToForm(){
   waParseResult.matched.forEach(it=>{ orderSelections[it.name] = { qty: it.qty, price: it.price }; });
   renderMenuPicker();
   tutupSemuaLayar(closeWaParseSheet);
-  showToast(`${waParseResult.matched.length} item dari WhatsApp diisi ke form`);
+  showWaApplyMsg(`${waParseResult.matched.length} item dari WhatsApp diisi ke form`);
 }
 
 function resetOrderForm(){
