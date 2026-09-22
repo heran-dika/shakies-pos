@@ -281,12 +281,14 @@
   .wa-parse-status{flex-shrink:0;font-size:15px;line-height:1;}
   .wa-parse-footer{display:flex;gap:10px;}
   .wa-parse-footer button{flex:1;width:auto;}
-  /* Pesan konfirmasi setelah "Isi ke Form" — normal-flow (dorong layout, BUKAN overlay fixed
-     kayak toast global), sejajar posisinya sama tombol Auto Fill Form, rata kanan biar
-     nempel ke tombolnya, gak pernah nimpa baris angka/harga menu di bawahnya. */
-  .wa-apply-msg{font-size:12px;font-weight:700;color:var(--jade-dark);text-align:right;
-    max-height:0;opacity:0;overflow:hidden;transition:max-height .2s ease,opacity .2s ease,margin-top .2s ease;}
-  .wa-apply-msg.show{max-height:32px;opacity:1;margin-top:6px;}
+  /* FIX 22 Sep 2026 (v2): balik ke bentuk pill kayak .toast (bukan normal-flow lagi),
+     tapi nongolnya di ATAS (top), bukan di bawah (bottom) kayak .toast biasa — supaya gak
+     numpuk sama angka Total yang letaknya di bagian bawah form Input Orderan. */
+  .wa-apply-msg{position:fixed;top:90px;left:50%;transform:translateX(-50%) translateY(-20px);
+    background:var(--jade-dark);color:#fff;padding:12px 18px;border-radius:18px;font-size:15.5px;
+    font-weight:600;z-index:60;opacity:0;transition:all .25s ease;pointer-events:none;
+    white-space:normal;text-align:center;max-width:85vw;line-height:1.4;}
+  .wa-apply-msg.show{opacity:1;transform:translateX(-50%) translateY(0);}
   .push-switch{position:relative;width:46px;height:28px;flex-shrink:0;border:1.5px solid var(--border);border-radius:999px;background:#D9D3C7;cursor:pointer;padding:0;transition:background .15s ease,border-color .15s ease;}
   .push-switch .push-switch-knob{position:absolute;top:2px;left:2px;width:21px;height:21px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s ease;}
   .push-switch[aria-checked="true"]{background:var(--jade);border-color:var(--jade);}
@@ -483,7 +485,6 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/><path d="M9 12h6M9 16h6"/></svg>
           </button>
         </div>
-        <div class="wa-apply-msg" id="waApplyMsg"></div>
       </div>
       <div id="menuPickerArea"><div class="spinner">Memuat menu...</div></div>
       <div class="field">
@@ -828,6 +829,7 @@
   </div>
 
   <div class="toast" id="toast"></div>
+  <div class="wa-apply-msg" id="waApplyMsg"></div>
 </div>
 
 <script>
@@ -3210,7 +3212,7 @@ function applyWaParseToForm(){
   waParseResult.matched.forEach(it=>{ orderSelections[it.name] = { qty: it.qty, price: it.price }; });
   renderMenuPicker();
   tutupSemuaLayar(closeWaParseSheet);
-  showWaApplyMsg(`${waParseResult.matched.length} item dari WhatsApp diisi ke form`);
+  showWaApplyMsg(`${waParseResult.matched.length} item dari clipboard telah diisi`);
 }
 
 function resetOrderForm(){
