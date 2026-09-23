@@ -76,7 +76,13 @@
   .date-field:focus-within{outline:2px solid var(--jade);outline-offset:1px;border-color:var(--jade);}
   .date-field input[type=date]{opacity:0;pointer-events:none;border:none;background:transparent;padding:12px 13px;}
   .date-field .date-display{position:absolute;inset:0;display:flex;align-items:center;padding:0 40px 0 13px;cursor:pointer;pointer-events:auto;font-family:'DM Sans',sans-serif;font-size:15px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2;}
-  .date-field .date-display::after{content:'📅';position:absolute;right:13px;top:50%;transform:translateY(-50%);font-size:14px;opacity:.55;pointer-events:none;}
+  .date-field .date-display::after{content:'📅';position:absolute;right:13px;top:50%;transform:translateY(-50%);font-size:14px;opacity:.55;pointer-events:none;transition:right .18s ease;}
+  /* FIX 22 Sep 2026: tombol x buat kosongin filter tanggal Riwayat — cuma nongol kalau
+     .date-field punya class has-value (di-toggle dari bindDateDisplay, opts.clearable).
+     Icon kalender geser ke kiri (transition di atas) begitu has-value nyala, ngasih ruang buat x. */
+  .date-field.has-value .date-display::after{right:38px;}
+  .date-field .date-clear-btn{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:none;background:none;color:var(--ink-soft);font-size:19px;line-height:1;cursor:pointer;z-index:3;opacity:0;pointer-events:none;transition:opacity .18s ease;}
+  .date-field.has-value .date-clear-btn{opacity:1;pointer-events:auto;}
   .date-field .date-display.placeholder{color:#9B958A;}
   input:focus,textarea:focus,select:focus{outline:2px solid var(--jade);outline-offset:1px;border-color:var(--jade);}
   textarea{resize:vertical;min-height:56px;}
@@ -574,15 +580,20 @@
         </div>
       </div>
       <p class="section-sub" id="riwayatModeHint">Nampilin yang belum lunas aja.</p>
-      <div class="field"><input type="text" id="riwayatSearch" list="customerList" autocomplete="off" placeholder="Cari nama customer..." oninput="debouncedRenderRiwayat()"></div>
+      <div class="field search-clear-field">
+        <input type="text" id="riwayatSearch" list="customerList" autocomplete="off" placeholder="Cari nama customer..." oninput="debouncedRenderRiwayat(); toggleSearchClear('riwayatSearch')">
+        <button type="button" class="search-clear-btn" id="riwayatSearchClear" onclick="clearSearchField('riwayatSearch', debouncedRenderRiwayat)" aria-label="Hapus pencarian">×</button>
+      </div>
       <div class="filter-row">
         <div class="date-field" style="flex:1;min-width:0;">
-          <input type="date" id="riwayatDateFrom" onchange="renderRiwayat()" style="width:100%;">
+          <input type="date" id="riwayatDateFrom" onchange="onRiwayatDateChange('riwayatDateFrom','riwayatDateTo')" style="width:100%;">
           <span class="date-display placeholder" id="riwayatDateFromDisplay" onclick="openDatePicker('riwayatDateFrom')">Dari tanggal</span>
+          <button type="button" class="date-clear-btn" id="riwayatDateFromClear" onclick="clearDateField('riwayatDateFrom', renderRiwayat)" aria-label="Hapus dari tanggal" tabindex="-1">×</button>
         </div>
         <div class="date-field" style="flex:1;min-width:0;">
-          <input type="date" id="riwayatDateTo" onchange="renderRiwayat()" style="width:100%;">
+          <input type="date" id="riwayatDateTo" onchange="onRiwayatDateChange('riwayatDateTo','riwayatDateFrom')" style="width:100%;">
           <span class="date-display placeholder" id="riwayatDateToDisplay" onclick="openDatePicker('riwayatDateTo')">Sampai tanggal</span>
+          <button type="button" class="date-clear-btn" id="riwayatDateToClear" onclick="clearDateField('riwayatDateTo', renderRiwayat)" aria-label="Hapus sampai tanggal" tabindex="-1">×</button>
         </div>
       </div>
       <div id="riwayatContent"><div class="spinner">Memuat riwayat...</div></div>
@@ -937,8 +948,10 @@ function bindDateDisplay(inputId, labelId, opts){
   if(!input || !label) return;
   const placeholder = opts.placeholder || 'Pilih tanggal';
   const relative = !!opts.relative;
+  const field = input.closest('.date-field'); // FIX 22 Sep 2026: buat toggle class has-value (clearable)
   function refresh(){
     const v = input.value;
+    if(opts.clearable && field) field.classList.toggle('has-value', !!v);
     if(!v){ label.textContent = placeholder; label.classList.add('placeholder'); return; }
     label.classList.remove('placeholder');
     label.textContent = relative ? formatDateRelative(v) : formatDateShort(v);
@@ -956,6 +969,33 @@ function refreshDateDisplay(inputId){
 // FIX 19 Sep 2026: dipanggil dari klik overlay .date-display (input asli sekarang pointer-events:none
 // & opacity:0, biar UI native-nya — termasuk highlight "segmen fokus" yang bikin visual blocking —
 // gak pernah kepake sama sekali). showPicker() butuh interaksi user; guard biar aman di browser lama.
+// FIX 22 Sep 2026: kosongin filter tanggal Riwayat (tombol x) — refresh display + re-render.
+function clearDateField(inputId, cb){
+  const input = document.getElementById(inputId);
+  if(!input) return;
+  input.value = '';
+  refreshDateDisplay(inputId);
+  if(typeof cb === 'function') cb();
+}
+// FIX 22 Sep 2026: dipanggil pas riwayatDateFrom/riwayatDateTo diganti. Kalau kolom SATUNYA
+// masih kosong, auto-isi ke awal/akhir bulan dari tanggal yang baru dipilih — biar bisa cepet
+// milih "satu bulan penuh". Kalau kolom satunya UDAH keisi, dibiarin apa adanya, biar rentang
+// custom lintas bulan (>31 hari) tetep bisa dibikin manual.
+function onRiwayatDateChange(changedId, otherId){
+  const changed = document.getElementById(changedId);
+  const other = document.getElementById(otherId);
+  if(changed && other && changed.value && !other.value){
+    const [y, m] = changed.value.split('-').map(Number);
+    if(otherId === 'riwayatDateTo'){
+      const lastDay = new Date(y, m, 0).getDate(); // hari terakhir bulan m (1-indexed)
+      other.value = `${y}-${String(m).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+    } else {
+      other.value = `${y}-${String(m).padStart(2,'0')}-01`;
+    }
+    refreshDateDisplay(otherId);
+  }
+  renderRiwayat();
+}
 function openDatePicker(inputId){
   const el = document.getElementById(inputId);
   if(el && el.showPicker){ try{ el.showPicker(); } catch(e){ el.focus(); } }
@@ -3099,7 +3139,7 @@ function goToPrepAndHighlight(orderId, deliveryDate, opts){
   switchTab('besok');
 }
 // ==== FIX 22 Sep 2026: ISI DARI WHATSAPP — baca clipboard, parsing "angka x nama", preview, replace item form ====
-// PRD: 2026-09-22 - PRD-Parsing Order WhatsApp ke POS.md
+// Spesifikasi: 2026-09-22 - log-Auto Fill Form & Fix Tombol History Bagikan Menu.md
 let waParseResult = null; // { matched:[{name,qty,price}], unmatched:[{qty,rawName}] } | null
 
 function normalizeMenuName(s){ return String(s||'').trim().toLowerCase().replace(/\s+/g,' '); }
@@ -3774,7 +3814,7 @@ function renderRiwayatCards(list){
           <button class="edit-icon-btn" onclick="event.stopPropagation(); openEditOrder('${o.order_id}')" aria-label="Edit orderan">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
           </button>
-          ${o.prepared?'✓ Sudah disiapkan':'Belum disiapkan'}
+          ${o.prepared?'✅ Done':'Belum disiapkan'}
         </span>
       </div>
     </div>`).join('');
@@ -4470,8 +4510,8 @@ window.addEventListener('resize', syncHeaderHeightVar);
 document.getElementById('deliveryDate').value = defaultDeliveryISO();
 bindDateDisplay('deliveryDate', 'deliveryDateDisplay', { relative: true });
 updateTodayQuickBtnLabel();
-bindDateDisplay('riwayatDateFrom', 'riwayatDateFromDisplay', { placeholder: 'Dari tanggal' });
-bindDateDisplay('riwayatDateTo', 'riwayatDateToDisplay', { placeholder: 'Sampai tanggal' });
+bindDateDisplay('riwayatDateFrom', 'riwayatDateFromDisplay', { placeholder: 'Dari tanggal', clearable: true });
+bindDateDisplay('riwayatDateTo', 'riwayatDateToDisplay', { placeholder: 'Sampai tanggal', clearable: true });
 (async function init(){
   if(CONFIG.API_URL.includes('PASTE_URL')){
     document.getElementById('menuPickerArea').innerHTML = `<div class="empty-state"><div class="glyph">⚠️</div>URL Apps Script belum diisi di CONFIG.API_URL.</div>`;
