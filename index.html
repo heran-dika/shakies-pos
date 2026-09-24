@@ -16,6 +16,7 @@
 <meta name="theme-color" content="#2F5D50">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#FDF0F0; --surface:#FFFFFF; --ink:#1F4172; --ink-soft:#6B756F; --subtitle:#F1B4BB;
@@ -719,8 +720,85 @@
         <h3 style="margin:0;" id="saldoModalTitle">Saldo Customer</h3>
         <button onclick="tutupSemuaLayar(closeSaldoPanel)" style="background:none;border:none;font-size:22px;color:var(--ink-soft);cursor:pointer;line-height:1;padding:4px;">×</button>
       </div>
-      <div id="saldoListView">
-        <input type="text" id="saldoSearchInput" placeholder="Cari nama customer..." oninput="filterSaldoList(this.value)" style="margin-bottom:10px;">
+      <style>
+        /* ==== Scoped 1:1 dari mockup PRD Bagian 4 (Contacts List + Profile Customer).
+           Semua selector diprefix .ltv-scope biar gak numbrung CSS global app (yang pake
+           Fraunces/DM Sans) -- font & warna di sini SENGAJA beda (Plus Jakarta Sans), itu
+           font mockup aslinya, bukan salah copy. ==== */
+        .ltv-scope{
+          --bg:#FDF0F0; --zebra:#FFFFFF; --ink:#1F4172; --ink-soft:#6B756F;
+          --jade:#2F5D50; --jade-deep:#1E3D35; --jade-tint:#E4EDE9;
+          --line:#F1D8D8; --gold:#9C6B12; --gold-tint:#F5EBD6; --dash:#C9B3B3;
+          font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;
+          color:var(--ink); background:var(--bg); -webkit-font-smoothing:antialiased;
+        }
+        .ltv-scope *{box-sizing:border-box;}
+        .ltv-scope .lt-search{display:flex; align-items:center; gap:8px; background:#FFFFFF; border:1px solid var(--line); border-radius:12px; padding:9px 12px; margin-bottom:10px;}
+        .ltv-scope .lt-search svg{flex-shrink:0; color:var(--ink-soft);}
+        .ltv-scope .lt-search input{border:0; outline:0; background:transparent; width:100%; font-family:inherit; font-size:14.5px; color:var(--ink);}
+        .ltv-scope .lt-search input::placeholder{color:var(--dash);}
+        .ltv-scope .lt-sortbar{display:flex; gap:6px; margin-bottom:10px;}
+        .ltv-scope .lt-sortbar button{flex:1; border:1px solid var(--line); background:#FFFFFF; color:var(--ink-soft); font-family:inherit; font-size:12.5px; font-weight:600; padding:8px 6px; border-radius:999px; cursor:pointer; text-align:center;}
+        .ltv-scope .lt-sortbar button.active{background:var(--jade); border-color:var(--jade); color:#fff;}
+        .ltv-scope .lt-row{display:flex; align-items:center; gap:12px; padding:12px 4px;}
+        .ltv-scope .lt-row:nth-child(even){background:var(--zebra);}
+        .ltv-scope .lt-pick{flex-shrink:0; width:34px; height:34px; border-radius:10px; background:var(--jade-tint); border:1px solid transparent; display:flex; align-items:center; justify-content:center; color:var(--jade-deep); cursor:pointer;}
+        .ltv-scope .lt-pick:active{background:var(--jade); color:#fff;}
+        .ltv-scope .lt-pick svg{width:16px; height:16px;}
+        .ltv-scope .lt-mid{flex:1; min-width:0; cursor:pointer;}
+        .ltv-scope .lt-mid .lt-name{display:block; font-size:15.5px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+        .ltv-scope .lt-sub{margin-top:3px; display:flex; align-items:center; gap:5px; font-size:12px; color:var(--ink-soft);}
+        .ltv-scope .lt-sub svg{flex-shrink:0; width:12px; height:12px;}
+        .ltv-scope .lt-dot{color:var(--dash);}
+        .ltv-scope .lt-spend{font-weight:600; color:var(--ink-soft); cursor:pointer;}
+        .ltv-scope .lt-spend.zero{font-weight:500;}
+        .ltv-scope .lt-topup{flex-shrink:0; padding:7px 4px; border-radius:999px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap; background:transparent; color:var(--ink); border:none;}
+        .ltv-scope .lt-topup.none{color:var(--dash); font-weight:600;}
+        .ltv-scope .lt-topup:active{opacity:.6;}
+        .ltv-scope .lt-empty{padding:40px 24px; text-align:center; color:var(--ink-soft); font-size:14px;}
+        .ltv-scope .lt-profile-top{display:flex; align-items:center; gap:10px; margin-bottom:6px;}
+        .ltv-scope .lt-profile-top h2{margin:0; font-size:15px; font-weight:700; color:var(--ink-soft);}
+        .ltv-scope .lt-back{width:34px; height:34px; border-radius:10px; background:#FFFFFF; display:flex; align-items:center; justify-content:center; color:var(--ink); cursor:pointer; flex-shrink:0;}
+        .ltv-scope .lt-namecard{padding:6px 0 18px;}
+        .ltv-scope .lt-namerow{display:flex; align-items:center; gap:8px;}
+        .ltv-scope .lt-namerow h1{margin:0; font-size:24px; font-weight:800; letter-spacing:-.01em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex-shrink:1; min-width:0;}
+        .ltv-scope .lt-edit-pen{flex-shrink:0; width:28px; height:28px; border-radius:8px; background:var(--jade-tint); display:flex; align-items:center; justify-content:center; color:var(--jade-deep); cursor:pointer; font-size:13px;}
+        .ltv-scope .lt-edit-pen svg{width:14px; height:14px;}
+        .ltv-scope .lt-btn-merge{flex-shrink:0; font-family:inherit; font-size:12.5px; font-weight:700; cursor:pointer; border-radius:8px; padding:0 10px; height:28px; background:#FFFFFF; border:1px solid var(--line); color:var(--ink);}
+        .ltv-scope .lt-btn-merge:active, .ltv-scope .lt-edit-pen:active{opacity:.6;}
+        .ltv-scope .lt-joined{margin:6px 0 0; font-size:13px; color:var(--ink-soft);}
+        .ltv-scope .lt-section{margin-top:22px;}
+        .ltv-scope .lt-section h3{margin:0 0 10px; font-size:12.5px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.03em;}
+        .ltv-scope .lt-stat-table{background:#FFFFFF; border-radius:14px; overflow:hidden;}
+        .ltv-scope .lt-stat-head, .ltv-scope .lt-stat-row{display:grid; grid-template-columns:1.3fr 1fr 1fr; align-items:center; padding:11px 14px;}
+        .ltv-scope .lt-stat-head{font-size:11px; font-weight:700; color:var(--ink-soft);}
+        .ltv-scope .lt-stat-head span:not(:first-child){text-align:right;}
+        .ltv-scope .lt-stat-row{border-top:1px solid var(--line); font-size:13.5px;}
+        .ltv-scope .lt-stat-row .label{font-weight:600; color:var(--ink);}
+        .ltv-scope .lt-stat-row .val{text-align:right; font-weight:700; color:var(--ink);}
+        .ltv-scope .lt-stat-row .val.soft{font-weight:600; color:var(--ink-soft);}
+        .ltv-scope .lt-kv-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px;}
+        .ltv-scope .lt-kv-card{background:#FFFFFF; border-radius:14px; padding:14px;}
+        .ltv-scope .lt-kv-card .k{font-size:11.5px; color:var(--ink-soft); font-weight:600; margin-bottom:4px;}
+        .ltv-scope .lt-kv-card .v{font-size:16px; font-weight:800;}
+        .ltv-scope .lt-kv-card .v.small{font-size:14px;}
+        .ltv-scope .lt-menu-list{background:#FFFFFF; border-radius:14px; overflow:hidden;}
+        .ltv-scope .lt-menu-wrap{padding:12px 14px; border-top:1px solid var(--line); display:flex; justify-content:space-between; align-items:baseline; gap:10px;}
+        .ltv-scope .lt-menu-wrap:first-child{border-top:none;}
+        .ltv-scope .lt-menu-wrap .name{font-size:13.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+        .ltv-scope .lt-menu-wrap .side{flex-shrink:0; font-size:13px; color:var(--ink-soft); white-space:nowrap;}
+        .ltv-scope .lt-menu-wrap .side b{color:var(--ink); font-weight:700;}
+      </style>
+      <div id="saldoListView" class="ltv-scope">
+        <div class="lt-search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input type="text" id="saldoSearchInput" placeholder="Cari nama customer..." oninput="filterSaldoList(this.value)" autocomplete="off">
+        </div>
+        <div class="lt-sortbar" id="ltSortbar">
+          <button type="button" data-sort="name" class="active" onclick="setLtSort('name')">Nama</button>
+          <button type="button" data-sort="spend" onclick="setLtSort('spend')">Total Spend</button>
+          <button type="button" data-sort="topup" onclick="setLtSort('topup')">Saldo</button>
+        </div>
         <div id="saldoListArea"><div class="spinner">Memuat...</div></div>
       </div>
       <div id="saldoDetailView" style="display:none;">
@@ -739,6 +817,32 @@
         </div>
         <label class="field-label">Histori order pake saldo</label>
         <div id="saldoHistoryArea"><p class="section-sub">Belum ada.</p></div>
+      </div>
+
+      <div id="saldoProfileView" class="ltv-scope" style="display:none;">
+        <div class="lt-profile-top">
+          <div class="lt-back" title="Kembali" onclick="kembaliLayar()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></div>
+          <h2>Profile Customer</h2>
+        </div>
+        <div class="lt-namecard">
+          <div class="lt-namerow" id="ltNameRow"></div>
+          <p class="lt-joined" id="ltJoined"></p>
+          <div class="lt-kv-grid">
+            <div class="lt-kv-card"><div class="k">Lifespan</div><div class="v small" id="ltLifespan">-</div></div>
+            <div class="lt-kv-card"><div class="k">Total Belanja</div><div class="v" id="ltTotalBelanja">-</div></div>
+          </div>
+        </div>
+        <div class="lt-section">
+          <h3>Menu yang Pernah Dibeli</h3>
+          <div class="lt-menu-list" id="ltMenuList"></div>
+        </div>
+        <div class="lt-section" style="margin-bottom:8px;">
+          <h3>Ringkasan Belanja</h3>
+          <div class="lt-stat-table">
+            <div class="lt-stat-head"><span>&nbsp;</span><span>Per bulan</span><span>Per tahun</span></div>
+            <div id="ltStatRows"></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1673,14 +1777,35 @@ function closeSaldoPanel(){
 function showSaldoListView(){
   document.getElementById('saldoListView').style.display = 'block';
   document.getElementById('saldoDetailView').style.display = 'none';
+  document.getElementById('saldoProfileView').style.display = 'none';
   saldoDetailCustomerId = null;
 }
+// ==== CONTACTS LIST + PROFILE (PRD Customer LTV & Profile, Bagian 4/5) ====
+// customerLtvMap SENGAJA kepisah dari customerSaldoMap (Awal/Jajan/Sisa) di atas — gak
+// digabung, biar alur Top Up & saldo detail yang udah jalan sekarang gak kesenggol sama sekali.
+let customerLtvMap = {};
+let ltSortKey = 'name';
+async function loadCustomerLtvMap(){
+  try{
+    const rows = await apiGet('get_customers_ltv', {});
+    customerLtvMap = {};
+    rows.forEach(r => { customerLtvMap[r.display_name.toLowerCase()] = r; });
+  } catch(e){
+    showToast('Gagal ambil data LTV: ' + e.message);
+  }
+}
+function setLtSort(key){
+  ltSortKey = key;
+  document.querySelectorAll('#ltSortbar button').forEach(b => b.classList.toggle('active', b.dataset.sort===key));
+  drawSaldoListRows();
+}
+const LT_ICON_PICK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg>';
+const LT_ICON_ORDERS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l3 3v15H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>';
 async function renderSaldoList(){
-  const area = document.getElementById('saldoListArea');
-  loadSaldoMapFromCache(); // tampilin cache dulu (instan), sambil fetch fresh di belakang
+  loadSaldoMapFromCache(); // dipertahankan buat detail view (Awal/Jajan/Sisa) — gak dipake List lagi
+  await loadCustomerLtvMap();
   drawSaldoListRows();
-  await loadCustomerSaldoMap();
-  drawSaldoListRows();
+  loadCustomerSaldoMap(); // fire-and-forget: cuma kepake kalau detail/topup dibuka
 }
 function filterSaldoList(query){
   saldoSearchQuery = query;
@@ -1689,18 +1814,126 @@ function filterSaldoList(query){
 function drawSaldoListRows(){
   const area = document.getElementById('saldoListArea');
   const q = saldoSearchQuery.trim().toLowerCase();
-  const list = Object.values(customerSaldoMap)
-    .filter(c => !q || c.nama.toLowerCase().includes(q))
-    .sort((a,b)=> a.nama.localeCompare(b.nama, 'id'));
+  const list = Object.values(customerLtvMap).filter(c => !q || c.display_name.toLowerCase().includes(q));
   if(list.length === 0){
-    area.innerHTML = `<p class="section-sub">${q ? 'Gak ketemu nama itu.' : 'Belum ada customer tercatat.'}</p>`;
+    area.innerHTML = `<p class="lt-empty">${q ? 'Gak ketemu nama itu.' : 'Belum ada customer tercatat.'}</p>`;
     return;
   }
-  area.innerHTML = list.map(c=>`
-    <div class="saldo-list-row">
-      <span class="nama" onclick="pickCustomerNameForOrder('${escapeHtml(c.nama).replace(/'/g,"\\'")}')">${escapeHtml(c.nama)}</span>
-      <span class="saldo ${c.saldo_real!==0?'has-saldo':''} ${c.saldo_real<0?'negative':''}" onclick="event.stopPropagation(); openSaldoDetailByName('${escapeHtml(c.nama).replace(/'/g,"\\'")}')">${rupiah(c.saldo_real)}</span>
-    </div>`).join('');
+  const sorters = {
+    name: (a,b) => a.display_name.localeCompare(b.display_name, 'id'),
+    spend: (a,b) => b.total_spend - a.total_spend,
+    topup: (a,b) => (b.saldo||0) - (a.saldo||0),
+  };
+  area.innerHTML = list.slice().sort(sorters[ltSortKey]).map(c => {
+    const namaAttr = escapeHtml(c.display_name).replace(/'/g,"\\'");
+    const saldoNull = c.saldo === null;
+    return `<div class="lt-row">
+      <div class="lt-pick" title="Isi ke form order" onclick="pickCustomerNameForOrder('${namaAttr}')">${LT_ICON_PICK}</div>
+      <div class="lt-mid" onclick="openProfileByName('${namaAttr}')" title="Tap untuk profile">
+        <span class="lt-name">${escapeHtml(c.display_name)}</span>
+        <div class="lt-sub">
+          ${LT_ICON_ORDERS}
+          <span>${c.total_orders}</span>
+          <span class="lt-dot">·</span>
+          <span class="lt-spend ${c.total_spend===0?'zero':''}" onclick="event.stopPropagation(); openRiwayatByName('${namaAttr}')">${rupiah(c.total_spend)}</span>
+        </div>
+      </div>
+      <div class="lt-topup ${saldoNull?'none':''}" title="Top up saldo" onclick="event.stopPropagation(); openSaldoDetailByName('${namaAttr}')">${saldoNull?'-':rupiah(c.saldo)}</div>
+    </div>`;
+  }).join('');
+}
+function openRiwayatByName(nama){
+  tutupSemuaLayar(closeSaldoPanel);
+  document.getElementById('riwayatSearch').value = nama;
+  switchTab('riwayat');
+}
+
+// ---- Profile Screen ----
+let ltCurrentNama = null, ltEditingName = false, ltProfileData = null;
+function ltLifespanMonths(dateStr){
+  if(!dateStr) return 0;
+  const d = new Date(dateStr);
+  const today = new Date();
+  return Math.max(0, (today.getFullYear()-d.getFullYear())*12 + (today.getMonth()-d.getMonth()));
+}
+function ltLifespanLabel(m){
+  if(m>=12){ const y=Math.floor(m/12), rm=m%12; return rm===0?`${y} thn`:`${y} thn ${rm} bln`; }
+  return `${m} bln`;
+}
+function ltFormatDateID(iso){
+  if(!iso) return '-';
+  const [y,mo,d] = iso.split('-').map(Number);
+  return new Date(y,mo-1,d).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'});
+}
+async function openProfileByName(nama){
+  ltCurrentNama = nama; ltEditingName = false; ltProfileData = null;
+  document.getElementById('saldoListView').style.display = 'none';
+  document.getElementById('saldoProfileView').style.display = 'block';
+  pushLayar(showSaldoListView);
+  document.getElementById('ltNameRow').innerHTML = `<h1>${escapeHtml(nama)}</h1>`;
+  document.getElementById('ltJoined').textContent = 'Memuat...';
+  document.getElementById('ltLifespan').textContent = '-';
+  document.getElementById('ltTotalBelanja').textContent = '-';
+  document.getElementById('ltMenuList').innerHTML = `<div class="spinner">Memuat...</div>`;
+  document.getElementById('ltStatRows').innerHTML = '';
+  try{
+    const p = await apiGet('get_customer_profile', { nama });
+    renderLtProfile(p);
+  } catch(e){
+    document.getElementById('ltJoined').textContent = '';
+    document.getElementById('ltMenuList').innerHTML = `<p class="section-sub">Gagal ambil profile: ${escapeHtml(e.message)}</p>`;
+    showToast('Gagal ambil profile: ' + e.message);
+  }
+}
+function renderLtProfile(p){
+  ltProfileData = p;
+  renderLtNameRow();
+  document.getElementById('ltJoined').textContent = 'Pelanggan sejak ' + ltFormatDateID(p.first_order_date);
+  document.getElementById('ltLifespan').textContent = ltLifespanLabel(ltLifespanMonths(p.first_order_date));
+  document.getElementById('ltTotalBelanja').textContent = rupiah(p.total_spend);
+  document.getElementById('ltMenuList').innerHTML = p.items.length ? p.items.map(it=>{
+    const pct = p.total_spend ? Math.round(it.total/p.total_spend*100) : 0;
+    return `<div class="lt-menu-wrap"><span class="name">${it.qty} x ${escapeHtml(it.name)}</span><span class="side"><b>${rupiah(it.total)}</b> (${pct}%)</span></div>`;
+  }).join('') : `<div class="lt-menu-wrap"><span class="name">Belum ada order.</span></div>`;
+  const avgM = p.orders_30d ? p.spend_30d/p.orders_30d : 0;
+  const avgY = p.orders_365d ? p.spend_365d/p.orders_365d : 0;
+  const m = ltLifespanMonths(p.first_order_date);
+  const ltvM = avgM * p.orders_30d * m;
+  const ltvY = avgY * p.orders_365d * (m/12);
+  document.getElementById('ltStatRows').innerHTML = `
+    <div class="lt-stat-row"><span class="label">Transaction Value</span><span class="val">${rupiah(p.spend_30d)}</span><span class="val">${rupiah(p.spend_365d)}</span></div>
+    <div class="lt-stat-row"><span class="label">Purchase Frequency</span><span class="val soft">${p.orders_30d}x</span><span class="val soft">${p.orders_365d}x</span></div>
+    <div class="lt-stat-row"><span class="label">Avg Transaction Value</span><span class="val soft">${rupiah(avgM)}</span><span class="val soft">${rupiah(avgY)}</span></div>
+    <div class="lt-stat-row"><span class="label">LTV (Proyeksi)</span><span class="val">${rupiah(ltvM)}</span><span class="val">${rupiah(ltvY)}</span></div>`;
+}
+function renderLtNameRow(){
+  const p = ltProfileData;
+  if(!ltEditingName){
+    document.getElementById('ltNameRow').innerHTML = `
+      <h1>${escapeHtml(p.display_name)}</h1>
+      <div class="lt-edit-pen" title="Edit nama" onclick="ltToggleEditName()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></div>
+      <button type="button" class="lt-btn-merge" onclick="ltMergeStub()">Merge</button>`;
+  } else {
+    document.getElementById('ltNameRow').innerHTML = `
+      <input type="text" id="ltNameInput" value="${escapeHtml(p.display_name)}" style="flex:1;min-width:0;font-family:inherit;font-size:16px;font-weight:700;border:1.5px solid var(--jade);border-radius:8px;padding:6px 8px;">
+      <div class="lt-edit-pen" title="Simpan" onclick="ltToggleEditName()">✓</div>
+      <button type="button" class="lt-btn-merge" onclick="ltMergeStub()">Merge</button>`;
+    document.getElementById('ltNameInput').focus();
+  }
+}
+function ltToggleEditName(){
+  if(!ltEditingName){
+    ltEditingName = true;
+    renderLtNameRow();
+  } else {
+    // Backend belum punya endpoint update nama customer -- jujur ke user, jangan pura-pura sukses.
+    showToast('Belum ada endpoint update nama di backend — belum kesimpen.');
+    ltEditingName = false;
+    renderLtNameRow();
+  }
+}
+function ltMergeStub(){
+  showToast('Fitur Merge belum diimplementasi di backend (PRD Bagian 6.2 — Open Item #1 belum diputusin).');
 }
 // Tap NAMA di panel -> isi form order (bukan buka detail saldo) + tutup panel.
 function pickCustomerNameForOrder(nama){
