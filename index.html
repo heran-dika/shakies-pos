@@ -606,6 +606,23 @@
   <!-- FIX 16 Sep 2026 (v13): FAB shortcut, nongol pas buletan read-only (mode biasa) dipencet -->
   <button type="button" class="quick-edit-stok-fab" id="quickEditStokFab" onclick="quickEnterStokMode()">✏️ Edit</button>
 
+  <!-- Floating back-to-Customers button — cuma nongol kalau masuk Riwayat lewat tap nominal
+       di Contacts List (lihat openRiwayatByName / ltShowBackFab), BUKAN kalau masuk Riwayat
+       lewat tab bar biasa. Icon doang, animasi bobbing reuse fabBounce. SENGAJA di top-level
+       body, BUKAN di dalam #saldoModal — sebelumnya nempel di situ dan jadi gak keliatan sama
+       sekali, karena openRiwayatByName nutup #saldoModal (nambahin class .hidden) duluan, dan
+       display:none di ancestor bikin descendant position:fixed ikut ilang, walau display-nya
+       sendiri di-set 'flex' lewat JS. -->
+  <button type="button" id="ltBackToCustomersFab" class="ltv-scope" onclick="ltBackToCustomers()"
+    aria-label="Balik ke Customers" title="Balik ke Customers"
+    style="display:none;position:fixed;left:50%;bottom:calc(70px + env(safe-area-inset-bottom,0px));
+    transform:translate(-50%,0);align-items:center;justify-content:center;width:46px;height:46px;
+    background:var(--jade-deep,#1E3D35);color:#fff;border:none;border-radius:50%;
+    box-shadow:0 4px 14px rgba(0,0,0,.28);z-index:30;cursor:pointer;
+    animation:fabBounce 1.6s ease-in-out infinite;">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+  </button>
+
   <nav class="tabbar">
     <div class="wrap-inner">
       <button class="tab-btn active" data-tab="order" onclick="switchTab('order')">
@@ -793,18 +810,6 @@
         .ltv-scope .lt-merge-row button{background:var(--jade-tint); border:1px solid var(--jade); color:var(--jade-deep); font-family:inherit; font-size:12px; font-weight:700; padding:5px 12px; border-radius:999px; cursor:pointer;}
         .ltv-scope .lt-merge-warn{background:var(--gold-tint); border:1px solid var(--gold); color:#7A5209; border-radius:10px; padding:10px 12px; font-size:12.5px; margin-bottom:12px;}
       </style>
-      <!-- Floating back-to-Customers button — cuma nongol kalau masuk Riwayat lewat tap
-           nominal di Contacts List (lihat openRiwayatByName / ltShowBackFab), BUKAN kalau
-           masuk Riwayat lewat tab bar biasa. Icon doang, animasi bobbing reuse fabBounce. -->
-      <button type="button" id="ltBackToCustomersFab" class="ltv-scope" onclick="ltBackToCustomers()"
-        aria-label="Balik ke Customers" title="Balik ke Customers"
-        style="display:none;position:fixed;left:50%;bottom:calc(70px + env(safe-area-inset-bottom,0px));
-        transform:translate(-50%,0);align-items:center;justify-content:center;width:46px;height:46px;
-        background:var(--jade-deep,#1E3D35);color:#fff;border:none;border-radius:50%;
-        box-shadow:0 4px 14px rgba(0,0,0,.28);z-index:30;cursor:pointer;
-        animation:fabBounce 1.6s ease-in-out infinite;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
-      </button>
       <div id="saldoListView" class="ltv-scope">
         <div class="lt-search">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
