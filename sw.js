@@ -12,12 +12,11 @@
 // PENTING: kalau ngedit index.html/menu.html dan push ke GitHub, BUMP CACHE_NAME di bawah
 // (v1 -> v2 -> dst) biar service worker lama yang masih nyangkut di beberapa HP tau ada
 // versi baru dan bersihin cache lama pas activate.
-const CACHE_NAME = 'shakies-pos-v2';
+const CACHE_NAME = 'shakies-pos-v3';
 
 // Halaman yang dibuka pas notif order di-klik dan gak ada tab app yang lagi kebuka.
-// Bisa di-override Worker lewat field `url` di payload push. GANTI ke './index.html?tab=besok'
-// begitu test.html udah dipromosiin jadi index.html.
-const PUSH_OPEN_URL = './test.html?tab=besok';
+// Bisa di-override Worker lewat field `url` di payload push.
+const PUSH_OPEN_URL = './index.html?tab=besok';
 const APP_SHELL = [
   './',
   './index.html',
@@ -101,7 +100,7 @@ self.addEventListener('notificationclick', (event) => {
   );
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
-      // Ada tab app yang udah kebuka → fokusin + suruh pindah ke tab Prep (lihat listener 'message' di test.html).
+      // Ada tab app yang udah kebuka → fokusin + suruh pindah ke tab Prep (lihat listener 'message' di index.html).
       const open = list.find((c) => new URL(c.url).pathname === target.pathname) || list[0];
       if (open) {
         open.postMessage({ type: 'open-tab', tab: target.searchParams.get('tab') || 'besok' });
