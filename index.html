@@ -1888,6 +1888,7 @@ function ltHandleSaldoOverlayClick(){
 function openRiwayatByName(nama){
   tutupSemuaLayar(closeSaldoPanel);
   document.getElementById('riwayatSearch').value = nama;
+  toggleSearchClear('riwayatSearch'); // set .value via JS gak mancing event 'input', jadi tombol × gak update sendiri
   switchTab('riwayat');
   ltShowBackFab();
 }
