@@ -4782,7 +4782,19 @@ function kembaliLayar(){
 // undo-fn yang nyusul lewat popstate aman dijalanin ulang (semuanya idempoten).
 function tutupSemuaLayar(closeFn){
   closeFn();
-  if(layarStack.length > 0) history.go(-layarStack.length);
+  const n = layarStack.length;
+  if(n === 0) return;
+  // BUG FIX 26 Sep 2026: history.go(-n) di dalam 1 document (SPA) cuma nembak SATU
+  // event popstate buat n>1, bukan n event — spec browser, bukan quirk device. Kalo
+  // layarStack cuma di-pop 1x pas popstate nyusul, sisa n-1 entry jadi "hantu" dan
+  // numpuk tiap kali tutupSemuaLayar() dipanggil pas ada >1 layar numpuk (Saldo detail,
+  // Share Menu). Numpuknya entry hantu ini yang bikin back button kerasa infinite-loop /
+  // gak pernah nyampe ke logic keluar app. Fix: kosongin layarStack LANGSUNG di sini
+  // (closeFn() di atas udah nutup semuanya scr visual), terus tandain popstate yang
+  // nyusul (berapapun kali dia fire, termasuk 0x) biar gak ngapa-ngapain lagi.
+  layarStack.length = 0;
+  pendingSkipPops = true;
+  history.go(-n);
 }
 // FIX 26 Sep 2026: modal "Quit POS app?" DIBUANG — back kedua saat modal masih kebuka
 // gak konsisten kena CANCEL di HP asli (kerja normal di Playwright/headless, gagal di device
@@ -4794,7 +4806,9 @@ function tutupSemuaLayar(closeFn){
 // mekanismenya), hasilnya tetep bener (app keluar), bukan salah kayak sebelumnya.
 let lastBackWarnAt = 0;
 const EXIT_WARN_WINDOW_MS = 2000;
+let pendingSkipPops = false; // di-set true oleh tutupSemuaLayar() — lihat komentar di sana
 window.addEventListener('popstate', function(){
+  if(pendingSkipPops){ pendingSkipPops = false; return; } // udah dihandle sinkron di tutupSemuaLayar()
   const undoFn = layarStack.pop();
   if(undoFn){ undoFn(); return; }
   const now = Date.now();
