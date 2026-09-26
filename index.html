@@ -4842,7 +4842,16 @@ window.addEventListener('popstate', function(){
   const undoFn = layarStack.pop();
   if(undoFn){ undoFn(); return; }
   showExitWarning(); // muncul lagi meskipun udah kebuka — itu yg bikin efek "loop"
-  pushSentinel(); // re-arm, biar back berikutnya masih ketangkep JS ini (bukan langsung keluar polos)
+  // FIX 26 Sep 2026 (v3): pushSentinel() DITUNDA (bukan langsung sinkron di sini). Laporan on-device:
+  // back kedua abis modal ini muncul kadang malah exit app, bukan loop lagi — diduga predictive-back
+  // gesture Android nyimpen "preview" utk gesture berikutnya SEBELUM microtask popstate ini kelar, jadi
+  // history.pushState() yg dipanggil sinkron di sini kadang gak kebaca sama preview itu. setTimeout(0)
+  // ngeluarin pemanggilannya ke task terpisah, kasih waktu ke browser nyelesein sesi gesture yg lagi
+  // jalan dulu sebelum kita nambah entry baru. Ini MITIGASI, bukan fix pasti — kalo masih exit langsung
+  // di device tertentu, itu tandanya popstate-nya sendiri yg di-skip total (lihat catatan di showExitWarning),
+  // bukan soal timing pushSentinel lagi, dan solusinya kudu migrasi ke Navigation API (window.navigation),
+  // bukan history API — PRD Section 13.B dan minta saran lagi kalo sampe situ.
+  setTimeout(pushSentinel, 0);
 });
 
 // ==== INIT ====
