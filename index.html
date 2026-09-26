@@ -4809,16 +4809,27 @@ function tutupSemuaLayar(closeFn){
   pendingSkipPops = true;
   history.go(-n);
 }
-// REVISI 26 Sep 2026 (v2): balik ke pola modal "Yakin mau keluar?" (kayak tombol back di game —
-// misal Mobile Legends — back ditekan berkali-kali ya cuma muncul modal itu-itu lagi terus,
-// keluar CUMA lewat tombol di dalem modal). Beda dari versi modal yg DIBUANG tanggal yg sama
-// (lihat histori/log project): dulu back KEDUA harus ke-intercept jadi "Cancel" via popstate —
-// itu yg gak reliable di HP asli (Chrome kadang skip popstate). Versi ini didesain biar skip
-// itu TETEP AMAN: popstate TIDAK PERNAH jadi jalan buat keluar app — keluar cuma lewat klik
-// tombol #exitConfirmBtn (dipencet langsung, gak lewat history API sama sekali). Jadi kalopun
-// Chrome skip popstate pas back ditekan, akibatnya paling banter modal gak nongol ulang sekali
-// (annoying) — BUKAN app keluar sendiri tanpa confirm. Itu constraint yg wajib dipertahanin
-// kalo bagian ini diubah lagi ke depannya.
+// REVISI 26 Sep 2026 (v4): SETELAH v2/v3 masih gagal 2-2 nya di HP asli (back pertama abis buka
+// app langsung keluar, DAN loop abis pindah tab juga gak jalan), akar masalahnya ketemu — ini
+// BUKAN bug timing lagi, ini fitur anti-abuse Chrome yang emang sengaja dirancang buat NGELAWAN
+// pola persis yang kita coba bikin: "History Manipulation Intervention" (dikonfirmasi dari source
+// Chromium sendiri, chromium.googlesource.com/.../history_manipulation_intervention.md):
+//   "The intervention marks a history entry as skippable if the document creates another history
+//    entry WITHOUT A USER ACTIVATION."
+// Artinya: pushState() yang dipanggil TANPA gesture asli dari user (kayak pushSentinel() awal di
+// init() pas page load — gak ada tap sama sekali) ditandai Chrome sebagai "skippable", dan tombol
+// back FISIK akan LEWATIN entry itu kayak dia gak pernah ada. Itu persis kenapa back pertama abis
+// app dibuka langsung keluar — sentinel awal dari init() gak pernah dianggap valid dari awal.
+// v3 (setTimeout buat nunda re-arm) MALAH MEMPERBURUK kasus loop abis pindah tab: nunda ke task
+// terpisah bikin pushState makin jauh dari momen gesture asli, makin gede kemungkinan ditandai
+// skippable juga — makanya dibalikin sinkron di v4 ini.
+// KESIMPULAN JUJUR: gak ada trik JS/pushState yang bisa bikin "back gak akan pernah keluar
+// sampe tombol confirm dipencet" 100% reliable di Chrome Android — ini browser yang emang sengaja
+// ngelawan pola begini, bukan celah yang bisa ditambal dari sisi web app. Modal ini masih dipasang
+// karena TETEP ngasih peringatan buat mayoritas kasus, tapi kalo device tertentu masih nembus
+// (skip langsung ke exit), itu Chrome yang mutusin gitu, bukan bug di kode ini. Satu-satunya cara
+// beneran reliable buat kontrol tombol back Android adalah lewat shell native (TWA/Capacitor/
+// Cordova) yang pegang API back-press asli dari OS, bukan lewat window.history di web biasa.
 let pendingSkipPops = false; // di-set true oleh tutupSemuaLayar() — lihat komentar di sana
 let exitWarningShown = false;
 function showExitWarning(){
@@ -4842,16 +4853,9 @@ window.addEventListener('popstate', function(){
   const undoFn = layarStack.pop();
   if(undoFn){ undoFn(); return; }
   showExitWarning(); // muncul lagi meskipun udah kebuka — itu yg bikin efek "loop"
-  // FIX 26 Sep 2026 (v3): pushSentinel() DITUNDA (bukan langsung sinkron di sini). Laporan on-device:
-  // back kedua abis modal ini muncul kadang malah exit app, bukan loop lagi — diduga predictive-back
-  // gesture Android nyimpen "preview" utk gesture berikutnya SEBELUM microtask popstate ini kelar, jadi
-  // history.pushState() yg dipanggil sinkron di sini kadang gak kebaca sama preview itu. setTimeout(0)
-  // ngeluarin pemanggilannya ke task terpisah, kasih waktu ke browser nyelesein sesi gesture yg lagi
-  // jalan dulu sebelum kita nambah entry baru. Ini MITIGASI, bukan fix pasti — kalo masih exit langsung
-  // di device tertentu, itu tandanya popstate-nya sendiri yg di-skip total (lihat catatan di showExitWarning),
-  // bukan soal timing pushSentinel lagi, dan solusinya kudu migrasi ke Navigation API (window.navigation),
-  // bukan history API — PRD Section 13.B dan minta saran lagi kalo sampe situ.
-  setTimeout(pushSentinel, 0);
+  pushSentinel(); // v3 sempet nunda ini pake setTimeout — DIBALIKIN ke sinkron, lihat komentar
+  // panjang di atas fungsi ini soal kenapa nunda malah lebih parah (History Manipulation
+  // Intervention butuh entry baru dibikin SINKRON dalem gesture user, bukan di task terpisah).
 });
 
 // ==== INIT ====
