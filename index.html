@@ -720,17 +720,6 @@
     </div>
   </div>
 
-  <!-- Konfirmasi keluar app (back-button Android, gak ada tab/modal lagi buat ditutup) -->
-  <div class="modal-overlay hidden" id="confirmQuitModal">
-    <div class="modal-sheet" style="text-align:center;">
-      <p style="margin:6px 0 18px;font-weight:600;">Quit POS app?</p>
-      <div style="display:flex;gap:10px;">
-        <button class="secondary" style="flex:1;" onclick="batalKeluarApp()">Batal</button>
-        <button style="flex:1;background:var(--chili);color:#fff;border:none;border-radius:var(--radius-sm);" onclick="konfirmasiKeluarApp()">Ya</button>
-      </div>
-    </div>
-  </div>
-
   <div class="modal-overlay hidden" id="saldoModal" onclick="if(event.target===this) ltHandleSaldoOverlayClick()">
     <div class="modal-sheet">
       <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -4795,40 +4784,25 @@ function tutupSemuaLayar(closeFn){
   closeFn();
   if(layarStack.length > 0) history.go(-layarStack.length);
 }
-let bolehKeluarSekarang = false; // true sesaat abis user pencet "Ya" di modal quit, biar popstate abis itu gak ke-trap ulang
-let modalQuitLagiKebuka = false; // FIX 16 Sep 2026 (v8): biar back KEDUA (pas modal quit masih kebuka) dianggep cancel, bukan nge-re-show modal yang sama berkali2
+// FIX 26 Sep 2026: modal "Quit POS app?" DIBUANG — back kedua saat modal masih kebuka
+// gak konsisten kena CANCEL di HP asli (kerja normal di Playwright/headless, gagal di device
+// nyata; diduga Chrome History Manipulation Intervention dan/atau predictive-back gesture
+// Android 13+ ngelewatin popstate begitu aja pas back fisik ditekan, lihat PRD Section 13.B).
+// Diganti pola "tekan back sekali lagi buat keluar" (dipake hampir semua app Android native):
+// BEDA KUNCI dari sebelumnya — tekan KEDUA emang DIMAKSUDKAN buat keluar, jadi gak butuh
+// nyegat popstate itu supaya jadi cancel. Kalaupun Chrome skip popstate di tekanan itu (apapun
+// mekanismenya), hasilnya tetep bener (app keluar), bukan salah kayak sebelumnya.
+let lastBackWarnAt = 0;
+const EXIT_WARN_WINDOW_MS = 2000;
 window.addEventListener('popstate', function(){
   const undoFn = layarStack.pop();
   if(undoFn){ undoFn(); return; }
-  if(bolehKeluarSekarang) return; // udah confirm sebelumnya -- biarin browser/OS lanjutin exit/minimize
-  if(modalQuitLagiKebuka){
-    // Back lagi pas modal konfirmasi keluar masih kebuka = CANCEL (sama kayak pencet "Batal"),
-    // bukan exit dan bukan nge-loop nunjukin modal yang sama. Re-trap lagi biar back
-    // BERIKUTNYA (yang ketiga) balik minta konfirmasi dari nol, bukan langsung keluar polos.
-    modalQuitLagiKebuka = false;
-    document.getElementById('confirmQuitModal').classList.add('hidden');
-    pushSentinel();
-    return;
-  }
-  cekKeluarApp();
+  const now = Date.now();
+  if(now - lastBackWarnAt < EXIT_WARN_WINDOW_MS) return; // tekan kedua dlm 2 detik -> biarin app keluar/minimize
+  lastBackWarnAt = now;
+  showToast('Tekan back sekali lagi buat keluar');
+  pushSentinel(); // re-arm, biar back berikutnya masih ketangkep JS ini (bukan langsung keluar polos)
 });
-function cekKeluarApp(){
-  // Re-trap SEGERA biar kalau user pencet Batal, back berikutnya balik ke sini lagi
-  // (bukan beneran keluar).
-  pushSentinel();
-  modalQuitLagiKebuka = true;
-  document.getElementById('confirmQuitModal').classList.remove('hidden');
-}
-function batalKeluarApp(){
-  modalQuitLagiKebuka = false;
-  document.getElementById('confirmQuitModal').classList.add('hidden');
-}
-function konfirmasiKeluarApp(){
-  modalQuitLagiKebuka = false;
-  document.getElementById('confirmQuitModal').classList.add('hidden');
-  bolehKeluarSekarang = true;
-  history.back(); // konsumsi sentinel dari cekKeluarApp() -> abis ini balik ke sentinel awal (dari init) yang gak punya "belakang" lagi -> browser/OS jalanin default exit/minimize, sama kayak Cost Tracker di root
-}
 
 // ==== INIT ====
 // FIX 16 Sep 2026 (v5): cegat klik-kanan/long-press-context-menu di SEMUA tombol app-wide
