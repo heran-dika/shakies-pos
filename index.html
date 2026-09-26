@@ -942,6 +942,19 @@
     </div>
   </div>
 
+  <!-- REVISI 26 Sep 2026 (v2): modal "yakin mau keluar" — lihat komentar di showExitWarning()/
+       confirmExitApp() soal kenapa tombol Confirm di sini gak boleh dipanggil lewat popstate. -->
+  <div class="modal-overlay hidden" id="exitWarnModal" onclick="if(event.target===this) hideExitWarning()">
+    <div class="modal-sheet">
+      <h3 style="margin:0 0 8px;">Keluar dari Shakies POS?</h3>
+      <p style="margin:0 0 16px;color:var(--ink-soft);">Tekan "Ya, Keluar" buat nutup app. Tekan back lagi kalau belum yakin.</p>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button type="button" class="secondary" onclick="hideExitWarning()">Batal</button>
+        <button type="button" class="primary" id="exitConfirmBtn" onclick="confirmExitApp()">Ya, Keluar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- FIX 22 Sep 2026: Isi dari WhatsApp — baca clipboard, parsing "angka x nama menu", preview sebelum masuk form -->
   <div class="modal-overlay hidden" id="waParseModal" onclick="if(event.target===this) tutupSemuaLayar(closeWaParseSheet)">
     <div class="modal-sheet">
@@ -4796,25 +4809,39 @@ function tutupSemuaLayar(closeFn){
   pendingSkipPops = true;
   history.go(-n);
 }
-// FIX 26 Sep 2026: modal "Quit POS app?" DIBUANG — back kedua saat modal masih kebuka
-// gak konsisten kena CANCEL di HP asli (kerja normal di Playwright/headless, gagal di device
-// nyata; diduga Chrome History Manipulation Intervention dan/atau predictive-back gesture
-// Android 13+ ngelewatin popstate begitu aja pas back fisik ditekan, lihat PRD Section 13.B).
-// Diganti pola "tekan back sekali lagi buat keluar" (dipake hampir semua app Android native):
-// BEDA KUNCI dari sebelumnya — tekan KEDUA emang DIMAKSUDKAN buat keluar, jadi gak butuh
-// nyegat popstate itu supaya jadi cancel. Kalaupun Chrome skip popstate di tekanan itu (apapun
-// mekanismenya), hasilnya tetep bener (app keluar), bukan salah kayak sebelumnya.
-let lastBackWarnAt = 0;
-const EXIT_WARN_WINDOW_MS = 2000;
+// REVISI 26 Sep 2026 (v2): balik ke pola modal "Yakin mau keluar?" (kayak tombol back di game —
+// misal Mobile Legends — back ditekan berkali-kali ya cuma muncul modal itu-itu lagi terus,
+// keluar CUMA lewat tombol di dalem modal). Beda dari versi modal yg DIBUANG tanggal yg sama
+// (lihat histori/log project): dulu back KEDUA harus ke-intercept jadi "Cancel" via popstate —
+// itu yg gak reliable di HP asli (Chrome kadang skip popstate). Versi ini didesain biar skip
+// itu TETEP AMAN: popstate TIDAK PERNAH jadi jalan buat keluar app — keluar cuma lewat klik
+// tombol #exitConfirmBtn (dipencet langsung, gak lewat history API sama sekali). Jadi kalopun
+// Chrome skip popstate pas back ditekan, akibatnya paling banter modal gak nongol ulang sekali
+// (annoying) — BUKAN app keluar sendiri tanpa confirm. Itu constraint yg wajib dipertahanin
+// kalo bagian ini diubah lagi ke depannya.
 let pendingSkipPops = false; // di-set true oleh tutupSemuaLayar() — lihat komentar di sana
+let exitWarningShown = false;
+function showExitWarning(){
+  exitWarningShown = true;
+  document.getElementById('exitWarnModal').classList.remove('hidden');
+}
+function hideExitWarning(){ // tap "Batal" di modal — tap langsung, gak lewat popstate
+  exitWarningShown = false;
+  document.getElementById('exitWarnModal').classList.add('hidden');
+}
+function confirmExitApp(){
+  // Tombol ini yg SATU-SATUNYA boleh bawa ke exit. PWA standalone gak punya API "close app" yg
+  // reliable, jadi best-effort: abisin sisa history yg kita tau (base sentinel + layarStack),
+  // biar OS/Chrome yg ambil alih (minimize/close) begitu stack abis. Kalo browser tab biasa
+  // (bukan standalone), ini bakal balik ke halaman sebelum app — itu emang expected.
+  pendingSkipPops = true;
+  history.go(-(layarStack.length + 5));
+}
 window.addEventListener('popstate', function(){
-  if(pendingSkipPops){ pendingSkipPops = false; return; } // udah dihandle sinkron di tutupSemuaLayar()
+  if(pendingSkipPops){ pendingSkipPops = false; return; } // udah dihandle sinkron di tempat lain
   const undoFn = layarStack.pop();
   if(undoFn){ undoFn(); return; }
-  const now = Date.now();
-  if(now - lastBackWarnAt < EXIT_WARN_WINDOW_MS) return; // tekan kedua dlm 2 detik -> biarin app keluar/minimize
-  lastBackWarnAt = now;
-  showToast('Tekan back sekali lagi buat keluar');
+  showExitWarning(); // muncul lagi meskipun udah kebuka — itu yg bikin efek "loop"
   pushSentinel(); // re-arm, biar back berikutnya masih ketangkep JS ini (bukan langsung keluar polos)
 });
 
