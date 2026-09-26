@@ -1,6 +1,9 @@
 // Shakies POS — Service Worker (network-first untuk file app sendiri)
 // v1 — 11 Agustus 2026
 // v2 — 19 September 2026: tambah handler push + notificationclick (Push Notification Order Baru, lihat PRD).
+// v3 — 27 September 2026: fix badge notifikasi — sebelumnya pake icon-192.png (PNG warna solid),
+// Android nge-mask badge jadi alpha-only jadi keliatan kotak polos. Ganti ke badge-72.png (PNG
+// transparan, siluet putih doang).
 // TUJUAN: nyelesain masalah "harus uninstall total buat clear cache" — sebelum ini
 // gak ada service worker sama sekali, jadi PWA ngandelin cache default browser yang
 // nyangkut keras di Android/iOS.
@@ -12,7 +15,7 @@
 // PENTING: kalau ngedit index.html/menu.html dan push ke GitHub, BUMP CACHE_NAME di bawah
 // (v1 -> v2 -> dst) biar service worker lama yang masih nyangkut di beberapa HP tau ada
 // versi baru dan bersihin cache lama pas activate.
-const CACHE_NAME = 'shakies-pos-v3';
+const CACHE_NAME = 'shakies-pos-v4';
 
 // Halaman yang dibuka pas notif order di-klik dan gak ada tab app yang lagi kebuka.
 // Bisa di-override Worker lewat field `url` di payload push.
@@ -23,7 +26,8 @@ const APP_SHELL = [
   './menu.html',
   './manifest.json',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+  './badge-72.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -84,7 +88,7 @@ self.addEventListener('push', (event) => {
   const options = {
     body: data.body || 'Ada order baru buat hari ini — buka tab Prep.',
     icon: './icon-192.png',
-    badge: './icon-192.png',
+    badge: './badge-72.png',
     data: { url: data.url || PUSH_OPEN_URL }
   };
   if (data.tag) options.tag = data.tag; // sengaja opsional: tanpa tag, tiap order = notif sendiri (gak saling nimpa)
