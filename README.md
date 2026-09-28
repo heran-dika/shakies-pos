@@ -1,57 +1,92 @@
 # Shakies POS
 
-Aplikasi POS sederhana buat **Shakies** (toko roti) & **Dimsum Mentai Galaxy** — input orderan, kelola menu & stok, cek persiapan PO, bagikan menu ke story WA, sampai cetak struk — semuanya gratis dan bisa dipake bareng dari beberapa HP.
+PWA point-of-sale internal untuk Shakies (bakery/food business, sistem PO/pre-order). Dipakai harian oleh owner dan 1 staf lewat HP masing-masing (device-based auth, bukan multi-tenant SaaS).
 
-![status](https://img.shields.io/badge/status-aktif-2F5D50) ![cost](https://img.shields.io/badge/biaya-gratis-1E3D35)
+**Live app:** https://heran-dika.github.io/shakies-pos/
+**Backend API:** https://pos.shakies.workers.dev/
 
-## Tampilan
-<img height="300" alt="image" src="https://github.com/user-attachments/assets/f8f9e75d-d2e0-4fce-b8c1-8d374ff80669" />
-<img height="300" alt="image" src="https://github.com/user-attachments/assets/232f814e-dee5-4b74-9e31-3e7848a307b2" />
-<img height="300" alt="image" src="https://github.com/user-attachments/assets/0840d61d-1338-4bae-8a8f-ca5437d3436a" />
-<img height="300" alt="image" src="https://github.com/user-attachments/assets/78b51d31-66de-4b06-bd0e-5900c9a10d2d" />
+---
 
+## Arsitektur
 
-<!-- Taruh screenshot di sini — drag & drop gambar langsung ke bagian ini pas edit README di GitHub -->
+```
+index.html (PWA, vanilla JS)          Cloudflare Worker (worker.js)        D1 (SQLite)
+  hosted di GitHub Pages      <--->     pos.shakies.workers.dev    <--->   shakies-pos-db
+  repo: heran-dika/shakies-pos           REST-ish JSON API                  9 tabel
+```
+
+- **Frontend**: single-file `index.html` (HTML/CSS/JS, tanpa framework/bundler), + `sw.js` (service worker untuk push notification & PWA install).
+- **Backend**: Cloudflare Worker (`worker.js`), menggantikan Google Apps Script lama.
+- **Database**: Cloudflare D1 (SQLite), single-writer, jadi tidak butuh lock manual — idempotency ditangani lewat `UNIQUE` constraint di kolom `client_order_id` / `client_item_id` / `client_topup_id`.
+- **Auth**: Google Sign-In (`id_token` diverifikasi via `tokeninfo`), session token disimpan di D1 dengan TTL 30 hari. Device/email yang tidak terdaftar tetap bisa buka app dalam "mode coba-coba" (read-only, semua perubahan cuma lokal).
+- **Menu publik**: snapshot menu yang di-publish disimpan sebagai `published-menu.json` di GitHub repo (lewat GitHub API dari Worker), ditampilkan di `heran-dika.github.io/shakies/menu.html` (repo terpisah: `heran-dika/shakies`).
+
+> **Status migrasi:** backend sudah pindah penuh dari Google Apps Script + Google Sheets ke Cloudflare Workers + D1 (cutover 26 Sep 2026). GAS lama masih live tapi sudah tidak menerima write — cuma kena ping monitoring (UptimeRobot) yang belum dipindah.
+
+---
 
 ## Fitur
 
-- 📝 Input orderan (nama, tanggal kirim, item, biaya ekspedisi opsional) — total kehitung otomatis
-- 🍞 Kelola menu (kategori & item) langsung dari app, tiap item punya ID permanen jadi aman diubah nama/harga kapan aja
-- 📦 Stok per item — **Real** (fisik di dapur, isi manual), **Prep** (kebooking dari orderan 7 hari ke depan), **Tersedia** (Real − Prep) dihitung otomatis; varian produk bisa numpang stok ke item induk (mother/child), item tak terbatas bisa ditandai unlimited
-- 📅 Kalender 7 hari ke depan buat cek & checklist persiapan PO, dengan warning warna kalau stok mepet
-- 🖨️ Bagikan Menu — generate tampilan menu (kategori, nama, harga) siap discreenshot buat story WhatsApp, auto-centang item yang stoknya masih ada
-- 🔗 Publish menu ke link publik yang bisa dibuka siapa aja tanpa perlu dikirimin manual — nggak ada akses ke data order/customer sama sekali
-- 🧾 Struk per orderan — bisa di-print atau disalin sebagai teks buat dikirim ke customer
-- 🗂️ Riwayat lengkap, bisa dicari & diedit — default nampilin bulan berjalan aja (biar ringan), filter rentang tanggal (Dari–Sampai) buat cari di luar itu, plus total pendapatan yang ngikutin hasil filter; orderan lama otomatis diarsipkan biar app tetap cepat
-- 💰 Status Lunas/Belum Lunas per orderan
-- 📱 Bisa di-"Add to Home Screen", jalan kayak app beneran
-- 🔒 Cuma HP terdaftar yang bisa nyimpen data beneran (HP lain bisa liat-liat & coba-coba doang)
-- 💸 Zero-cost — nggak ada biaya hosting/server sama sekali
+### Tab Order
+- Input orderan baru: nama customer (dengan autocomplete + saldo lookup), tanggal kirim, item + qty (stepper), catatan, biaya ekspedisi, diskon (persen/nominal).
+- **Auto Fill Form**: baca clipboard hasil copy dari halaman menu publik, parsing baris `angka x nama menu`, isi form otomatis.
+- Total dihitung live, termasuk potongan diskon dan biaya ekspedisi.
+- Search & sticky search bar untuk cari menu cepat.
 
-## Cara Pakai
+### Tab Menu
+- CRUD kategori & item menu.
+- **3-stock model**:
+  - **Real** — stok fisik, input manual (auto-decrement tiap malam via cron `processExpiredPrepDeductions`, bukan dipotong manual per transaksi).
+  - **Prep** — total demand dari semua order dalam window 7 hari ke depan.
+  - **Tersedia** — Real − Prep (boleh negatif sebagai sinyal oversell).
+- Mother/child stock linking (item varian bisa "numpang" stok ke item induk) + flag stok unlimited.
+- Toggle "tampil di Order tab" per item (independen dari stok).
+- Mode Stock/Available (edit stok massal) dan mode Hapus.
+- **Bagikan Menu**: checklist item yang tersedia → generate "kertas menu" (visual untuk story WhatsApp), lalu publish ke `published-menu.json` di GitHub + share sebagai gambar.
 
-Buka `index.html` lewat link GitHub Pages repo ini, atau install ke homescreen HP (Safari/Chrome → Add to Home Screen).
+### Tab Prep (PO 7 Hari)
+- Kalender 7 hari ke depan, per-hari daftar order yang perlu disiapkan.
+- Pill filter per item (klik untuk lihat order mana saja yang pesan item itu).
+- Checklist "sudah disiapkan" dan toggle "Lunas".
+- Retry otomatis untuk order yang gagal tersimpan (optimistic UI + background save).
 
-Menu publik (tanpa perlu login/whitelist) ada di `menu.html` — dipakai buat share link menu ke customer.
+### Tab Riwayat
+- Default menampilkan order belum lunas; search by nama/tanggal untuk buka riwayat penuh (termasuk yang sudah diarsip).
+- Struk per-order: share sebagai gambar (html2canvas) atau copy teks, lengkap dengan info rekening & status saldo.
 
-## Setup / Deploy Ulang
+### Saldo Customer
+- Top-up saldo, auto-reconcile (FIFO by tanggal kirim) ke order yang belum lunas.
+- Histori saldo per customer (top-up + pemakaian).
 
-Panduan lengkap (arsitektur, struktur data, cara update, troubleshooting) ada di [`DOKUMENTASI-pos-app-shakies.md`](./DOKUMENTASI-pos-app-shakies.md).
+### Push Notification
+- Order baru & kegagalan background-save (order/top-up) memicu push notification ke device staf yang subscribe (Web Push, di-sign pakai Web Crypto langsung di Worker, tanpa library eksternal).
+- Terverifikasi jalan di produksi (Android). iOS (Suci) belum diaktifkan.
 
-Ringkas:
-1. `Code_production.gs` di-paste ke [script.google.com](https://script.google.com/), deploy sebagai Web App
-2. URL Web App-nya di-paste ke `CONFIG.API_URL` dalam `index.html`
-3. Repo ini di-host lewat **Settings → Pages** (branch `main`, folder root)
+### Lain-lain
+- Android back-button handling (`layarStack` pattern) untuk navigasi modal/sub-layar yang benar, termasuk konfirmasi "Quit POS app?" di root.
+- Cache-first loading (localStorage) untuk menu, customer, dan order — app tetap kepake walau koneksi jelek, sync di background.
+- Cron harian (`runDailyJobs`): potong stok Real sesuai Prep yang expired, lalu arsipkan order lama yang sudah lunas.
 
-## Teknologi
+---
 
-- Frontend: HTML/CSS/JS biasa, 1 file, nggak ada build step
-- Backend: Google Apps Script
-- Database: Google Sheets
-- Hosting: GitHub Pages
+## Struktur data (D1)
 
-## Lisensi
+Tabel utama: `menu`, `kategori_kode`, `order_pos`, `archive`, `customer`, `saldo_log`, `sessions`, `published_menu`, `allowed_emails`.
 
-Proyek pribadi buat Shakies — bukan buat dipublikasiin/dijual ulang.
+Detail skema ada di `schema_clean.sql` / vault Obsidian (`POS Shakies/`).
 
+---
 
+## Batasan yang perlu diketahui
+
+- **Bukan multi-tenant SaaS** — `SPREADSHEET_ID`-equivalent (D1 binding), `ALLOWED_EMAILS`, dan Google Client ID di-hardcode per deployment. Untuk dijual ke bisnis lain, tiap klien butuh deployment Worker + D1 terpisah.
+- QRIS statis saja, tidak ada payment gateway.
+- Real stock tidak pernah auto-decrement dari transaksi order — hanya dari cron harian berdasarkan Prep yang sudah lewat tanggal kirimnya. Ini keputusan final, bukan bug.
+
+---
+
+## Development
+
+Tidak ada build step — `index.html` dan `worker.js` diedit langsung. Deploy Worker pakai `wrangler deploy`. Testing lokal sebelumnya dilakukan lewat `test.html` (salinan `index.html` dengan `API_URL` diarahkan ke Worker) — sudah tidak dipakai lagi setelah cutover, karena `index.html` produksi sekarang langsung memanggil Worker.
+
+Dokumentasi teknis lengkap (PRD migrasi, log sesi, keputusan desain) ada di vault Obsidian `POS Shakies/`, bukan di repo ini.
