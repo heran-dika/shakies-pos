@@ -1204,6 +1204,7 @@ function flyDateNumber(fromEl, toEl, text){
   clone.style.transform = 'translate(0,0) scale(1)';
   clone.style.opacity = '1';
   document.body.appendChild(clone);
+  void clone.offsetWidth; // force reflow — pastiin browser render state AWAL dulu sebagai frame terpisah sebelum transform/opacity diubah. Tanpa ini, WebKit/iOS kadang nge-skip transisinya (2 style writes ke-anggep 1 frame), efeknya klon langsung nongol di posisi AKHIR (di dalem kolom) tanpa keliatan "terbang" dari tombol.
   const dx = (toRect.left + toRect.width/2) - (fromRect.left + fromRect.width/2);
   const dy = (toRect.top + toRect.height/2) - (fromRect.top + fromRect.height/2);
   requestAnimationFrame(()=>{
