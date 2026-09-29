@@ -269,7 +269,7 @@
   .today-quick-btn{background:var(--jade-tint);border:1.5px solid var(--jade);border-radius:var(--radius-sm);width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--jade-dark);flex-shrink:0;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:15px;line-height:1;}
   .today-quick-btn:active{opacity:.8;}
   /* FIX 16 Sep 2026 (v2): ganti dari "pop" jadi angka yang beneran terbang dari tombol ke kolom tanggal tengah — .date-fly-num dibuat & dihapus lewat JS (flyDateNumber), posisi awal/akhir di-set inline per klik */
-  .date-fly-num{position:fixed;z-index:60;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--jade-dark);pointer-events:none;transition:transform .3s cubic-bezier(.22,1,.36,1),opacity .3s ease .05s;will-change:transform,opacity;}
+  .date-fly-num{position:absolute;z-index:60;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--jade-dark);pointer-events:none;transition:transform .3s cubic-bezier(.22,1,.36,1),opacity .3s ease .05s;will-change:transform,opacity;} /* FIX 29 Sep 2026: sebelumnya position:fixed — di iOS Safari, fixed dihitung relatif LAYOUT viewport sedangkan getBoundingClientRect() balikin koordinat relatif VISUAL viewport (beda tiap toolbar Safari collapse/expand), bikin klon "terbang" nongol geser dari posisi tombol aslinya. absolute + kompensasi scrollX/scrollY (lihat flyDateNumber) sepenuhnya lepas dari kuirk viewport itu karena jadi relatif ke dokumen, bukan viewport. */
   .riwayat-refresh-btn{background:var(--jade-tint);border:1.5px solid var(--jade);border-radius:var(--radius-sm);width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--jade-dark);flex-shrink:0;}
   .riwayat-refresh-btn:active{opacity:.8;}
   .riwayat-refresh-btn:disabled{opacity:.5;cursor:default;}
@@ -1196,8 +1196,8 @@ function flyDateNumber(fromEl, toEl, text){
   const clone = document.createElement('span');
   clone.className = 'date-fly-num';
   clone.textContent = text;
-  clone.style.left = fromRect.left + 'px';
-  clone.style.top = fromRect.top + 'px';
+  clone.style.left = (fromRect.left + window.scrollX) + 'px';
+  clone.style.top = (fromRect.top + window.scrollY) + 'px';
   clone.style.width = fromRect.width + 'px';
   clone.style.height = fromRect.height + 'px';
   clone.style.fontSize = getComputedStyle(fromEl).fontSize;
