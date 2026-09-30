@@ -3712,12 +3712,7 @@ async function togglePrepared(orderId){
   renderDayStrip(); renderBesokList();
   if(order._demo) return; // orderan coba-coba, nggak pernah ada di server
   try{
-    await apiPost('update_order', {
-      order_id: order.order_id, delivery_date: order.delivery_date, customer_name: order.customer_name,
-      items_summary: order.items_summary, items: order.items, total: order.total, note: order.note,
-      prepared: order.prepared, device_label: order.device_label, shipping_fee: order.shipping_fee, paid: order.paid,
-      discount_type: order.discount_type || '', discount_value: order.discount_value || 0
-    });
+    await apiPost('set_order_flag', { order_id: order.order_id, field: 'prepared', value: order.prepared }); // FIX 29 Sep 2026: dulu update_order (full-row overwrite, ikut ngirim paid juga) — race kalau dipencet berdekatan sama togglePaid, salah satu bisa nimpa balik field satunya jadi stale. set_order_flag cuma nulis 1 kolom, gak pernah nyentuh kolom lain.
     savePrepCache(allOrders); // update cache diam-diam biar konsisten pas reload berikutnya
   } catch(e){
     order.prepared = prevState; markRecentToggle(orderId, 'prepared', order.prepared); renderDayStrip(); renderBesokList(); showToast('Gagal update: ' + e.message);
@@ -3781,12 +3776,7 @@ async function togglePaid(orderId){
   renderBesokList(); patchRiwayatCardPaidState(orderId, order.paid);
   if(order._demo) return; // orderan coba-coba, nggak pernah ada di server
   try{
-    await apiPost('update_order', {
-      order_id: order.order_id, delivery_date: order.delivery_date, customer_name: order.customer_name,
-      items_summary: order.items_summary, items: order.items, total: order.total, note: order.note,
-      prepared: order.prepared, device_label: order.device_label, shipping_fee: order.shipping_fee, paid: order.paid,
-      discount_type: order.discount_type || '', discount_value: order.discount_value || 0
-    });
+    await apiPost('set_order_flag', { order_id: order.order_id, field: 'paid', value: order.paid }); // FIX 29 Sep 2026: dulu update_order (full-row overwrite, ikut ngirim prepared juga) — race kalau dipencet berdekatan sama togglePrepared, salah satu bisa nimpa balik field satunya jadi stale ("Lunas balik jadi Belum Lunas"). set_order_flag cuma nulis 1 kolom, gak pernah nyentuh kolom lain.
   } catch(e){
     order.paid = prevState; markRecentToggle(orderId, 'paid', order.paid); renderBesokList(); patchRiwayatCardPaidState(orderId, order.paid); showToast('Gagal update: ' + e.message);
   }
