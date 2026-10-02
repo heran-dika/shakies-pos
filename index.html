@@ -75,10 +75,8 @@
      nutup icon-nya) digantiin ::after biar visualnya tetep ada. */
   .date-field{position:relative;overflow:hidden;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);}
   .date-field:focus-within{outline:2px solid var(--jade);outline-offset:1px;border-color:var(--jade);}
-  .date-field input[type=date]{color:transparent;border:none;background:transparent;padding:12px 13px;} /* FIX 29 Sep 2026 (v2): percobaan opacity (baik 0 maupun .01) GAGAL di iOS — root cause-nya pointer-events:none, bukan opacity. iOS Safari cuma reliable buka native picker kalau TAP-nya beneran mendarat di <input>-nya sendiri, bukan dipicu JS (showPicker/focus) dari elemen lain kayak sebelumnya. Sekarang <input> jadi tap target asli lagi (pointer-events default/auto); teks & highlight birunya disembunyiin lewat ::-webkit-datetime-edit di bawah, BUKAN opacity di whole-input, biar gak numbuhin balik bug kotak biru Android (FIX 19 Sep) yang justru API opacity:0 whole-input dulu dipake buat nutupin itu. */
-  .date-field input[type=date]::-webkit-datetime-edit{opacity:0;} /* nyembunyiin teks + highlight-segmen internal doang (bagian yg bikin kotak biru muncul di Android) — <input>-nya sendiri tetep "rendered" penuh, jadi iOS tetep mau buka picker pas ditap */
-  .date-field input[type=date]::-webkit-calendar-picker-indicator{opacity:0;} /* icon kalender bawaan disembunyiin, dipake icon custom 📅 di .date-display::after aja */
-  .date-field .date-display{position:absolute;inset:0;display:flex;align-items:center;padding:0 40px 0 13px;pointer-events:none;font-family:'DM Sans',sans-serif;font-size:15px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2;} /* pointer-events:none — murni overlay visual, klik tembus ke <input> asli di bawahnya */
+  .date-field input[type=date]{opacity:0;pointer-events:none;border:none;background:transparent;padding:12px 13px;}
+  .date-field .date-display{position:absolute;inset:0;display:flex;align-items:center;padding:0 40px 0 13px;cursor:pointer;pointer-events:auto;font-family:'DM Sans',sans-serif;font-size:15px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2;}
   .date-field .date-display::after{content:'📅';position:absolute;right:13px;top:50%;transform:translateY(-50%);font-size:14px;opacity:.55;pointer-events:none;transition:right .18s ease;}
   /* FIX 22 Sep 2026: tombol x buat kosongin filter tanggal Riwayat — cuma nongol kalau
      .date-field punya class has-value (di-toggle dari bindDateDisplay, opts.clearable).
@@ -269,7 +267,7 @@
   .today-quick-btn{background:var(--jade-tint);border:1.5px solid var(--jade);border-radius:var(--radius-sm);width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--jade-dark);flex-shrink:0;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:15px;line-height:1;}
   .today-quick-btn:active{opacity:.8;}
   /* FIX 16 Sep 2026 (v2): ganti dari "pop" jadi angka yang beneran terbang dari tombol ke kolom tanggal tengah — .date-fly-num dibuat & dihapus lewat JS (flyDateNumber), posisi awal/akhir di-set inline per klik */
-  .date-fly-num{position:absolute;z-index:60;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--jade-dark);pointer-events:none;transition:transform .3s cubic-bezier(.22,1,.36,1),opacity .3s ease .05s;will-change:transform,opacity;} /* FIX 29 Sep 2026: sebelumnya position:fixed — di iOS Safari, fixed dihitung relatif LAYOUT viewport sedangkan getBoundingClientRect() balikin koordinat relatif VISUAL viewport (beda tiap toolbar Safari collapse/expand), bikin klon "terbang" nongol geser dari posisi tombol aslinya. absolute + kompensasi scrollX/scrollY (lihat flyDateNumber) sepenuhnya lepas dari kuirk viewport itu karena jadi relatif ke dokumen, bukan viewport. */
+  .date-fly-num{position:fixed;z-index:60;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--jade-dark);pointer-events:none;transition:transform .3s cubic-bezier(.22,1,.36,1),opacity .3s ease .05s;will-change:transform,opacity;}
   .riwayat-refresh-btn{background:var(--jade-tint);border:1.5px solid var(--jade);border-radius:var(--radius-sm);width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--jade-dark);flex-shrink:0;}
   .riwayat-refresh-btn:active{opacity:.8;}
   .riwayat-refresh-btn:disabled{opacity:.5;cursor:default;}
@@ -758,7 +756,7 @@
         .ltv-scope .lt-sub{margin-top:3px; display:flex; align-items:center; gap:5px; font-size:12px; color:var(--ink-soft);}
         .ltv-scope .lt-sub svg{flex-shrink:0; width:12px; height:12px;}
         .ltv-scope .lt-dot{color:var(--dash);}
-        .ltv-scope .lt-spend{font-weight:600; color:var(--ink-soft); cursor:pointer;}
+        .ltv-scope .lt-spend{font-weight:600; color:var(--ink-soft);}
         .ltv-scope .lt-spend.zero{font-weight:500;}
         .ltv-scope .lt-topup{flex-shrink:0; padding:7px 4px; border-radius:999px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap; background:transparent; color:var(--ink); border:none;}
         .ltv-scope .lt-topup.none{color:var(--dash); font-weight:600;}
@@ -841,7 +839,7 @@
           <p class="lt-joined" id="ltJoined"></p>
           <div class="lt-kv-grid">
             <div class="lt-kv-card"><div class="k">Lifespan</div><div class="v small" id="ltLifespan">-</div></div>
-            <div class="lt-kv-card"><div class="k">Total Belanja</div><div class="v" id="ltTotalBelanja">-</div></div>
+            <div class="lt-kv-card" style="cursor:pointer;" onclick="openRiwayatByName(ltCurrentNama, true)"><div class="k">Total Belanja ›</div><div class="v" id="ltTotalBelanja">-</div></div>
           </div>
         </div>
         <div class="lt-section">
@@ -1196,15 +1194,14 @@ function flyDateNumber(fromEl, toEl, text){
   const clone = document.createElement('span');
   clone.className = 'date-fly-num';
   clone.textContent = text;
-  clone.style.left = (fromRect.left + window.scrollX) + 'px';
-  clone.style.top = (fromRect.top + window.scrollY) + 'px';
+  clone.style.left = fromRect.left + 'px';
+  clone.style.top = fromRect.top + 'px';
   clone.style.width = fromRect.width + 'px';
   clone.style.height = fromRect.height + 'px';
   clone.style.fontSize = getComputedStyle(fromEl).fontSize;
   clone.style.transform = 'translate(0,0) scale(1)';
   clone.style.opacity = '1';
   document.body.appendChild(clone);
-  void clone.offsetWidth; // force reflow — pastiin browser render state AWAL dulu sebagai frame terpisah sebelum transform/opacity diubah. Tanpa ini, WebKit/iOS kadang nge-skip transisinya (2 style writes ke-anggep 1 frame), efeknya klon langsung nongol di posisi AKHIR (di dalem kolom) tanpa keliatan "terbang" dari tombol.
   const dx = (toRect.left + toRect.width/2) - (fromRect.left + fromRect.width/2);
   const dy = (toRect.top + toRect.height/2) - (fromRect.top + fromRect.height/2);
   requestAnimationFrame(()=>{
@@ -1873,7 +1870,7 @@ function drawSaldoListRows(){
           ${LT_ICON_ORDERS}
           <span>${c.total_orders}</span>
           <span class="lt-dot">·</span>
-          <span class="lt-spend ${c.total_spend===0?'zero':''}" onclick="event.stopPropagation(); openRiwayatByName('${namaAttr}')">${rupiah(c.total_spend)}</span>
+          <span class="lt-spend ${c.total_spend===0?'zero':''}">${rupiah(c.total_spend)}</span>
         </div>
       </div>
       <div class="lt-topup ${saldoNull?'none':''}" title="Top up saldo" onclick="event.stopPropagation(); openSaldoDetailByName('${namaAttr}')">${saldoNull?'-':rupiah(c.saldo)}</div>
@@ -1890,7 +1887,9 @@ function ltHandleSaldoOverlayClick(){
     kembaliLayar();
   }
 }
-function openRiwayatByName(nama){
+let ltBackNama = null; // diisi kalau Riwayat dibuka dari Profile -> FAB balik ke Profile itu
+function openRiwayatByName(nama, fromProfile){
+  ltBackNama = fromProfile ? nama : null;
   tutupSemuaLayar(closeSaldoPanel);
   document.getElementById('riwayatSearch').value = nama;
   toggleSearchClear('riwayatSearch'); // set .value via JS gak mancing event 'input', jadi tombol × gak update sendiri
@@ -1910,7 +1909,9 @@ function ltHideBackFab(){
 }
 function ltBackToCustomers(){
   ltHideBackFab();
+  const nama = ltBackNama; ltBackNama = null;
   openSaldoPanel();
+  if(nama) openProfileByName(nama);
 }
 
 // ---- Profile Screen ----
@@ -3709,13 +3710,18 @@ async function togglePrepared(orderId){
   const prevState = order.prepared;
   order.prepared = !order.prepared;
   markRecentToggle(orderId, 'prepared', order.prepared); // proteksi 8 detik biar gak ketiban fetch background yg lagi nunggak
+  savePrepCache(allOrders); // simpan SEKARANG (bukan nunggu API) — pindah tab sebelum API balik gak bakal revert dari cache lama
   renderDayStrip(); renderBesokList();
   if(order._demo) return; // orderan coba-coba, nggak pernah ada di server
   try{
-    await apiPost('set_order_flag', { order_id: order.order_id, field: 'prepared', value: order.prepared }); // FIX 29 Sep 2026: dulu update_order (full-row overwrite, ikut ngirim paid juga) — race kalau dipencet berdekatan sama togglePaid, salah satu bisa nimpa balik field satunya jadi stale. set_order_flag cuma nulis 1 kolom, gak pernah nyentuh kolom lain.
-    savePrepCache(allOrders); // update cache diam-diam biar konsisten pas reload berikutnya
+    await apiPost('update_order', {
+      order_id: order.order_id, delivery_date: order.delivery_date, customer_name: order.customer_name,
+      items_summary: order.items_summary, items: order.items, total: order.total, note: order.note,
+      prepared: order.prepared, device_label: order.device_label, shipping_fee: order.shipping_fee, paid: order.paid,
+      discount_type: order.discount_type || '', discount_value: order.discount_value || 0
+    });
   } catch(e){
-    order.prepared = prevState; markRecentToggle(orderId, 'prepared', order.prepared); renderDayStrip(); renderBesokList(); showToast('Gagal update: ' + e.message);
+    order.prepared = prevState; markRecentToggle(orderId, 'prepared', order.prepared); savePrepCache(allOrders); renderDayStrip(); renderBesokList(); showToast('Gagal update: ' + e.message);
   }
 }
 // Catat perubahan field lokal (prepared/paid) biar loadOrders() gak nimpa nilai ini kalau ada fetch
@@ -3773,13 +3779,27 @@ async function togglePaid(orderId){
   const prevState = order.paid;
   order.paid = !order.paid;
   markRecentToggle(orderId, 'paid', order.paid); // proteksi 8 detik biar gak ketiban fetch background yg lagi nunggak
+  persistPaidLocally(order);
   renderBesokList(); patchRiwayatCardPaidState(orderId, order.paid);
   if(order._demo) return; // orderan coba-coba, nggak pernah ada di server
   try{
-    await apiPost('set_order_flag', { order_id: order.order_id, field: 'paid', value: order.paid }); // FIX 29 Sep 2026: dulu update_order (full-row overwrite, ikut ngirim prepared juga) — race kalau dipencet berdekatan sama togglePrepared, salah satu bisa nimpa balik field satunya jadi stale ("Lunas balik jadi Belum Lunas"). set_order_flag cuma nulis 1 kolom, gak pernah nyentuh kolom lain.
+    await apiPost('update_order', {
+      order_id: order.order_id, delivery_date: order.delivery_date, customer_name: order.customer_name,
+      items_summary: order.items_summary, items: order.items, total: order.total, note: order.note,
+      prepared: order.prepared, device_label: order.device_label, shipping_fee: order.shipping_fee, paid: order.paid,
+      discount_type: order.discount_type || '', discount_value: order.discount_value || 0
+    });
   } catch(e){
-    order.paid = prevState; markRecentToggle(orderId, 'paid', order.paid); renderBesokList(); patchRiwayatCardPaidState(orderId, order.paid); showToast('Gagal update: ' + e.message);
+    order.paid = prevState; markRecentToggle(orderId, 'paid', order.paid); persistPaidLocally(order); renderBesokList(); patchRiwayatCardPaidState(orderId, order.paid); showToast('Gagal update: ' + e.message);
   }
+}
+// Simpan status Lunas ke SEMUA cache lokal (Prep, snapshot Riwayat, cache search) — tanpa ini,
+// pindah tab bikin renderBesok() nimpa allOrders dari cache lama yang masih "Belum Lunas".
+function persistPaidLocally(order){
+  savePrepCache(allOrders);
+  riwayatDefaultSnapshot.forEach(o=>{ if(o.order_id===order.order_id) o.paid = order.paid; });
+  saveRiwayatUnpaidCache(riwayatDefaultSnapshot.filter(o=>!o.paid));
+  Object.keys(riwayatSearchCache).forEach(k => delete riwayatSearchCache[k]);
 }
 // Update tampilan kartu di Riwayat di tempat, TANPA nge-refilter listnya —
 // biar orderan yang baru dilunasin tetep keliatan sampe tab-nya di-refresh/app ditutup.
@@ -4889,6 +4909,29 @@ document.addEventListener('contextmenu', function(e){
   container.addEventListener('pointerup', stop);
   container.addEventListener('pointerleave', stop);
   container.addEventListener('pointercancel', stop);
+})();
+// FIX: klik stepper stok kedobel — attachStokLongPressAccel udah manggil btn.click() sendiri pas pointerdown,
+// lalu klik ASLI dari browser nyusul pas jari diangkat. Buang klik asli (isTrusted) di fase capture;
+// klik buatan long-press (isTrusted=false) tetep jalan, jadi akselerasi gak berubah.
+document.getElementById('categoryListArea').addEventListener('click', function(e){
+  if(e.isTrusted && e.target.closest('.stepper button')){ e.stopPropagation(); e.preventDefault(); }
+}, true);
+// FIX: pas keyboard nutup gara-gara tap tombol +/- , layar ke-geser dan tap berikutnya meleset.
+// Rekam scrollY sebelum keyboard nutup, lalu paksa balik ke posisi itu selama ~700ms.
+(function lockScrollWhileKeyboardCloses(){
+  let rafId = null;
+  document.addEventListener('pointerdown', function(e){
+    if(!e.target.closest('.stepper button')) return;
+    const ae = document.activeElement;
+    if(!ae || !/^(INPUT|TEXTAREA)$/.test(ae.tagName)) return; // keyboard gak lagi kebuka, gak perlu
+    const y = window.scrollY;
+    const until = performance.now() + 700;
+    if(rafId) cancelAnimationFrame(rafId);
+    (function hold(){
+      if(Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
+      rafId = performance.now() < until ? requestAnimationFrame(hold) : null;
+    })();
+  }, true);
 })();
 function syncHeaderHeightVar(){
   const h = document.querySelector('header');
