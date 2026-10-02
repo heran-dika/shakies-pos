@@ -4675,6 +4675,19 @@ function renderShareKertasFrom(categories){
   });
 }
 
+// Item nonaktif (aktif=false) yang ikut terpublish otomatis diaktifin lagi — reuse toggleMenuAktif
+// (optimistic + rollback + toast error sendiri). Dipanggil cuma setelah publish_menu sukses.
+async function activatePublishedInactiveItems(selected){
+  const targets = [];
+  selected.forEach(cat=> cat.items.forEach(it=>{
+    const m = menuItems.find(x=> x.kategori===cat.kategori && x.nama===it.nama);
+    if(m && m.aktif === false) targets.push(m);
+  }));
+  if(targets.length === 0) return;
+  for(const m of targets) await toggleMenuAktif(m.row, m.item_id, false); // sequential, jumlahnya kecil
+  const ok = targets.filter(m=> m.aktif !== false).length;
+  if(ok > 0) showToast(`${ok} item diaktifkan lagi ✓`);
+}
 async function publishMenuToLink(){
   const selected = getSelectedShareItems();
   if(selected.length === 0){ showToast('Nggak ada item yang dicentang'); return; }
@@ -4694,6 +4707,7 @@ async function publishMenuToLink(){
     renderLastPublishChip(lastPublishInfoCache);
     showToast('Menu berhasil di-publish ke link ✓');
     shareKertasImage(); // FIX 18 Sep 2026: abis publish sukses, langsung buka share sheet biar bisa lanjut ke status WA
+    activatePublishedInactiveItems(selected); // gak di-await: jangan bikin share sheet telat (user gesture iOS cepat basi)
   } catch(e){
     if(e.status === 'not_registered'){
       showToast('👀 HP ini belum terdaftar, nggak bisa publish ke link publik.');
@@ -4919,18 +4933,30 @@ document.getElementById('categoryListArea').addEventListener('click', function(e
 // FIX: pas keyboard nutup gara-gara tap tombol +/- , layar ke-geser dan tap berikutnya meleset.
 // Rekam scrollY sebelum keyboard nutup, lalu paksa balik ke posisi itu selama ~700ms.
 (function lockScrollWhileKeyboardCloses(){
-  let rafId = null;
-  document.addEventListener('pointerdown', function(e){
-    if(!e.target.closest('.stepper button')) return;
-    const ae = document.activeElement;
-    if(!ae || !/^(INPUT|TEXTAREA)$/.test(ae.tagName)) return; // keyboard gak lagi kebuka, gak perlu
-    const y = window.scrollY;
+  let rafId = null, savedY = null;
+  const inputFocused = ()=>{ const ae = document.activeElement; return !!ae && /^(INPUT|TEXTAREA)$/.test(ae.tagName); };
+  function hold(y){
     const until = performance.now() + 700;
     if(rafId) cancelAnimationFrame(rafId);
-    (function hold(){
+    (function step(){
       if(Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
-      rafId = performance.now() < until ? requestAnimationFrame(hold) : null;
+      rafId = performance.now() < until ? requestAnimationFrame(step) : null;
     })();
+  }
+  // pointerdown: cuma rekam posisi + mulai kunci scroll. JANGAN blur di sini — kalau keyboard nutup
+  // sebelum jari diangkat, layout geser dan klik bisa jatuh ke elemen lain (tap meleset).
+  document.addEventListener('pointerdown', function(e){
+    if(!e.target.closest('.stepper button') || !inputFocused()) return;
+    savedY = window.scrollY;
+    hold(savedY);
+  }, true);
+  // click (setelah tap kecatat): baru tutup keyboard — iOS gak punya tombol buat nutupnya.
+  document.addEventListener('click', function(e){
+    if(!e.target.closest('.stepper button') || !inputFocused()) return;
+    const y = (savedY !== null) ? savedY : window.scrollY;
+    document.activeElement.blur();
+    hold(y);
+    savedY = null;
   }, true);
 })();
 function syncHeaderHeightVar(){
