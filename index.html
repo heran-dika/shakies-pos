@@ -743,9 +743,17 @@
         .ltv-scope .lt-search svg{flex-shrink:0; color:var(--ink-soft);}
         .ltv-scope .lt-search input{border:0; outline:0; background:transparent; width:100%; font-family:inherit; font-size:14.5px; color:var(--ink);}
         .ltv-scope .lt-search input::placeholder{color:var(--dash);}
-        .ltv-scope .lt-sortbar{display:flex; gap:6px; margin-bottom:10px;}
-        .ltv-scope .lt-sortbar button{flex:1; border:1px solid var(--line); background:var(--zebra); color:var(--ink-soft); font-family:inherit; font-size:12.5px; font-weight:600; padding:8px 6px; border-radius:999px; cursor:pointer; text-align:center;}
-        .ltv-scope .lt-sortbar button.active{background:var(--jade); border-color:var(--jade); color:#fff;}
+                .ltv-scope .lt-searchrow{position:relative; display:flex; gap:8px; margin-bottom:10px;}
+        .ltv-scope .lt-searchrow .lt-search{flex:1; min-width:0; margin-bottom:0;}
+        .ltv-scope .lt-sortbtn{flex-shrink:0; position:relative; width:44px; padding:0; border-radius:12px; border:1px solid var(--line); background:var(--zebra); color:var(--ink-soft); display:flex; align-items:center; justify-content:center; cursor:pointer;}
+        .ltv-scope .lt-sortbtn svg{width:18px; height:18px;}
+        .ltv-scope .lt-sortbtn.on{color:var(--jade-deep); border-color:var(--jade);}
+        .ltv-scope .lt-sortbtn.on::after{content:''; position:absolute; top:6px; right:6px; width:7px; height:7px; border-radius:50%; background:var(--jade);}
+        .ltv-scope .lt-sortpanel{display:none; position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:5; background:var(--bg); border:1px solid var(--line); border-radius:14px; padding:8px; box-shadow:0 8px 24px rgba(31,65,114,.14);}
+        .ltv-scope .lt-sortpanel.open{display:block;}
+        .ltv-scope .lt-sortbar{display:flex; flex-wrap:wrap; gap:6px;}
+        .ltv-scope .lt-sortbar button{flex:1 1 calc(50% - 3px); border:1px solid var(--line); background:var(--zebra); color:var(--ink-soft); font-family:inherit; font-size:12.5px; font-weight:600; padding:8px 6px; border-radius:999px; cursor:pointer; text-align:center;}
+        .ltv-scope .lt-sortbar button.active{border-color:var(--ink); color:var(--ink);}
         .ltv-scope .lt-row{display:flex; align-items:center; gap:12px; padding:12px 4px;}
         .ltv-scope .lt-row:nth-child(even){background:var(--zebra);}
         .ltv-scope .lt-pick{flex-shrink:0; width:34px; height:34px; border-radius:10px; background:var(--jade-tint); border:1px solid transparent; display:flex; align-items:center; justify-content:center; color:var(--jade-deep); cursor:pointer;}
@@ -800,14 +808,20 @@
         .ltv-scope .lt-merge-warn{background:var(--gold-tint); border:1px solid var(--gold); color:#7A5209; border-radius:10px; padding:10px 12px; font-size:12.5px; margin-bottom:12px;}
       </style>
       <div id="saldoListView" class="ltv-scope">
-        <div class="lt-search">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-          <input type="text" id="saldoSearchInput" placeholder="Cari nama customer..." oninput="filterSaldoList(this.value)" autocomplete="off">
-        </div>
-        <div class="lt-sortbar" id="ltSortbar">
-          <button type="button" data-sort="name" class="active" onclick="setLtSort('name')">Nama</button>
-          <button type="button" data-sort="spend" onclick="setLtSort('spend')">Total Spend</button>
-          <button type="button" data-sort="topup" onclick="setLtSort('topup')">Saldo</button>
+        <div class="lt-searchrow">
+          <div class="lt-search">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <input type="text" id="saldoSearchInput" placeholder="Cari nama customer..." oninput="filterSaldoList(this.value)" autocomplete="off">
+          </div>
+          <button type="button" class="lt-sortbtn" id="ltSortBtn" title="Urutkan" aria-label="Urutkan" onclick="ltToggleSortPanel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4"/></svg></button>
+          <div class="lt-sortpanel" id="ltSortPanel">
+            <div class="lt-sortbar" id="ltSortbar">
+              <button type="button" data-sort="name" data-label="Nama" class="active" onclick="setLtSort('name')">Nama</button>
+              <button type="button" data-sort="spend" data-label="Total Spend" onclick="setLtSort('spend')">Total Spend</button>
+              <button type="button" data-sort="last" data-label="Last Order" onclick="setLtSort('last')">Last Order</button>
+              <button type="button" data-sort="topup" data-label="Saldo" onclick="setLtSort('topup')">Saldo</button>
+            </div>
+          </div>
         </div>
         <div id="saldoListArea"><div class="spinner">Memuat...</div></div>
       </div>
@@ -1810,6 +1824,7 @@ function closeSaldoPanel(){
 }
 function showSaldoListView(){
   document.getElementById('saldoListView').style.display = 'block';
+  ltCloseSortPanel();
   document.getElementById('saldoDetailView').style.display = 'none';
   document.getElementById('saldoProfileView').style.display = 'none';
   saldoDetailCustomerId = null;
@@ -1820,6 +1835,9 @@ function showSaldoListView(){
 // digabung, biar alur Top Up & saldo detail yang udah jalan sekarang gak kesenggol sama sekali.
 let customerLtvMap = {};
 let ltSortKey = 'name';
+let ltSortAsc = true;
+// Arah default tiap kunci (asc = naik). Last Order asc = tanggal TERLAMA dulu.
+const LT_SORT_DEFAULT_ASC = {name:true, spend:false, topup:false, last:true};
 async function loadCustomerLtvMap(){
   try{
     const rows = await apiGet('get_customers_ltv', {});
@@ -1830,10 +1848,33 @@ async function loadCustomerLtvMap(){
   }
 }
 function setLtSort(key){
-  ltSortKey = key;
-  document.querySelectorAll('#ltSortbar button').forEach(b => b.classList.toggle('active', b.dataset.sort===key));
+  // Pill yang sama dipencet lagi = balik arah; pill lain = arah default-nya. Panel nutup sendiri.
+  if(key === ltSortKey) ltSortAsc = !ltSortAsc;
+  else { ltSortKey = key; ltSortAsc = LT_SORT_DEFAULT_ASC[key]; }
+  ltCloseSortPanel();
   drawSaldoListRows();
 }
+function ltToggleSortPanel(){ document.getElementById('ltSortPanel').classList.toggle('open'); }
+function ltCloseSortPanel(){ document.getElementById('ltSortPanel').classList.remove('open'); }
+document.addEventListener('click', e => { if(!e.target.closest('.lt-searchrow')) ltCloseSortPanel(); });
+// Penanda: titik di icon kalau urutan bukan default (Nama A-Z); pill aktif dikasih panah arah.
+function ltPaintSort(){
+  document.querySelectorAll('#ltSortbar button').forEach(b => {
+    const on = b.dataset.sort === ltSortKey;
+    b.classList.toggle('active', on);
+    b.textContent = b.dataset.label + (on ? (ltSortAsc ? ' ↑' : ' ↓') : '');
+  });
+  document.getElementById('ltSortBtn').classList.toggle('on', !(ltSortKey==='name' && ltSortAsc));
+}
+// Hari sejak order terakhir (WIB). null kalau belum ada order, atau tanggalnya hari ini / masa depan
+// (ada order yang belum terkirim) — sengaja gak ditampilin & dilempar ke bawah pas disort.
+function ltDaysSince(dateStr){
+  if(!dateStr) return null;
+  const today = new Date().toLocaleDateString('sv-SE', {timeZone:'Asia/Jakarta'});
+  const d = Math.round((Date.parse(today) - Date.parse(dateStr)) / 86400000);
+  return d > 0 ? d : null;
+}
+const LT_ICON_CLOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
 const LT_ICON_PICK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg>';
 const LT_ICON_ORDERS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l3 3v15H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>';
 async function renderSaldoList(){
@@ -1854,12 +1895,25 @@ function drawSaldoListRows(){
     area.innerHTML = `<p class="lt-empty">${q ? 'Gak ketemu nama itu.' : 'Belum ada customer tercatat.'}</p>`;
     return;
   }
-  const sorters = {
-    name: (a,b) => a.display_name.localeCompare(b.display_name, 'id'),
-    spend: (a,b) => b.total_spend - a.total_spend,
-    topup: (a,b) => (b.saldo||0) - (a.saldo||0),
+  ltPaintSort();
+  // Nilai kosong (saldo '-', last order kosong/hari ini/masa depan) SELALU di bawah, apa pun arahnya.
+  const keyFns = {
+    name: c => c.display_name,
+    spend: c => c.total_spend,
+    topup: c => c.saldo,
+    last: c => { const d = ltDaysSince(c.last_order_date); return d === null ? null : -d; },
   };
-  area.innerHTML = list.slice().sort(sorters[ltSortKey]).map(c => {
+  const kf = keyFns[ltSortKey], dir = ltSortAsc ? 1 : -1;
+  const byName = (a,b) => a.display_name.localeCompare(b.display_name, 'id');
+  area.innerHTML = list.slice().sort((a,b) => {
+    const x = kf(a), y = kf(b);
+    if(x === null && y === null) return byName(a,b);
+    if(x === null) return 1;
+    if(y === null) return -1;
+    const r = typeof x === 'string' ? x.localeCompare(y, 'id') : x - y;
+    return (r * dir) || byName(a,b);
+  }).map(c => {
+    const days = ltDaysSince(c.last_order_date);
     const namaAttr = escapeHtml(c.display_name).replace(/'/g,"\\'");
     const saldoNull = c.saldo === null;
     return `<div class="lt-row">
@@ -1871,6 +1925,7 @@ function drawSaldoListRows(){
           <span>${c.total_orders}</span>
           <span class="lt-dot">·</span>
           <span class="lt-spend ${c.total_spend===0?'zero':''}">${rupiah(c.total_spend)}</span>
+          ${days !== null ? `<span class="lt-dot">·</span>${LT_ICON_CLOCK}<span>${days}d</span>` : ''}
         </div>
       </div>
       <div class="lt-topup ${saldoNull?'none':''}" title="Top up saldo" onclick="event.stopPropagation(); openSaldoDetailByName('${namaAttr}')">${saldoNull?'-':rupiah(c.saldo)}</div>
@@ -3285,7 +3340,7 @@ async function loadOrders(){
       // not_registered = belum login (device coba-coba / sesi expired), BUKAN error server —
       // gak usah toast tiap kali app dibuka di device yang emang belum sign in.
       if(e.status !== 'not_registered') showToast('Gagal ambil orderan: ' + e.message);
-      allOrders = demoOrders.concat(previousReal); // gagal fetch — tetep pake data lama drpd kosong
+      allOrders = mergeLocalPendingOrders(previousReal); // gagal fetch — tetep pake data lama drpd kosong; order _demo/_pending/_failed yang dibuat SELAMA fetch ini jalan ikut dipertahankan
       return false;
     }
   })();
@@ -4205,6 +4260,7 @@ function renderRiwayatCards(list){
 
 // ==== STRUK PER-ORDER (Riwayat) ====
 let currentReceiptOrderId = null;
+let currentReceiptOrder = null; // salinan order yang lagi dibuka di struk — Share/Copy baca ini, BUKAN allOrders, jadi tetap jalan walau allOrders lagi ketimpa/belum kebawa fetch server (optimistic)
 const REKENING_LIST = [
   { bank: 'Bank Mandiri', no: '1220011558791', nama: 'Suci Hendra Wati' },
   { bank: 'BCA', no: '2940586014', nama: 'Suci Hendra Wati' }
@@ -4278,9 +4334,15 @@ function buildReceiptBankHTML(){
 }
 
 function openReceiptView(orderId){
-  const order = allOrders.find(o=>o.order_id===orderId);
-  if(!order) return;
+  let order = allOrders.find(o=>o.order_id===orderId);
+  if(!order){
+    // Card Riwayat yang dirender dari cache snapshot bisa tampil SEBELUM get_orders balik, jadi belum ada di allOrders.
+    const snap = riwayatDefaultSnapshot.find(o=>o.order_id===orderId);
+    if(snap){ mergeSearchResultsIntoAllOrders([snap]); order = allOrders.find(o=>o.order_id===orderId); }
+  }
+  if(!order) return; // sengaja tanpa toast: struk harus instan. Kasus ini cuma kalau card-nya sendiri belum punya datanya sama sekali.
   currentReceiptOrderId = orderId;
+  currentReceiptOrder = order;
   document.getElementById('receiptImageArea').innerHTML = buildReceiptImageHTML(order);
   document.getElementById('receiptBankArea').innerHTML = buildReceiptBankHTML();
   document.getElementById('receiptModal').classList.remove('hidden');
@@ -4291,6 +4353,7 @@ function closeReceiptView(){
   document.getElementById('receiptModal').classList.add('hidden');
   document.body.style.overflow = document.getElementById('saldoModal').classList.contains('hidden') ? '' : 'hidden';
   currentReceiptOrderId = null;
+  currentReceiptOrder = null;
 }
 // Swipe ke bawah buat nutup — lebih natural di HP drpd nyari area gelap kecil di pinggir.
 (function setupReceiptSwipeToClose(){
@@ -4313,7 +4376,7 @@ function closeReceiptView(){
 })();
 
 async function shareReceiptImage(){
-  const order = allOrders.find(o=>o.order_id===currentReceiptOrderId);
+  const order = currentReceiptOrder;
   if(!order) return;
   const sourceEl = document.getElementById('receiptImageArea');
   const captureWrap = document.createElement('div');
@@ -4420,7 +4483,7 @@ function generateReceiptText(o){
 }
 
 async function copyReceiptText(){
-  const order = allOrders.find(o=>o.order_id===currentReceiptOrderId);
+  const order = currentReceiptOrder;
   if(!order) return;
   const text = generateReceiptText(order);
   try{
@@ -4879,6 +4942,13 @@ window.addEventListener('popstate', function(){
   if(pendingSkipPops){ pendingSkipPops = false; return; } // udah dihandle sinkron di tempat lain
   const undoFn = layarStack.pop();
   if(undoFn){ undoFn(); return; }
+  // Lagi mode edit di tab Order (dibuka dari card Prep/Riwayat) -> back = Batal edit, balik ke tab asal.
+  const activeTabEl = document.querySelector('.tab.active');
+  if(editingOrderId && activeTabEl && activeTabEl.id === 'tab-order'){
+    cancelEdit();
+    pushSentinel(); // sama kayak jalur exit-warning di bawah: entry yang barusan kepake back diganti baru
+    return;
+  }
   showExitWarning(); // muncul lagi meskipun udah kebuka — itu yg bikin efek "loop"
   pushSentinel(); // v3 sempet nunda ini pake setTimeout — DIBALIKIN ke sinkron, lihat komentar
   // panjang di atas fungsi ini soal kenapa nunda malah lebih parah (History Manipulation
