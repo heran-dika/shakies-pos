@@ -3872,7 +3872,7 @@ function renderDayStrip(){
   const strip = document.getElementById('dayStrip');
   const days = [];
   for(let i=0;i<7;i++){ const d=new Date(); d.setDate(d.getDate()+i); days.push(toLocalISODate(d)); }
-  if(!selectedBesokDate) selectedBesokDate = days[0];
+  if(!selectedBesokDate || !days.includes(selectedBesokDate)) selectedBesokDate = days[0]; // FIX 6 Okt 2026: app hidup lewat tengah malam -> tanggal kemarin nyangkut, list Prep kosong
   strip.innerHTML = days.map(iso=>{
     const [y,m,dd] = iso.split('-').map(Number);
     const dateObj = new Date(y,m-1,dd);
@@ -4411,25 +4411,55 @@ async function shareReceiptImage(){
 // (html2canvas + navigator.share files), cuma sumbernya k-head+k-body+k-foot dari #shareKertasScreen,
 // dengan tombol2 floating (k-topbar/k-lastpublish/k-live-link) dibuang dulu biar screenshot bersih.
 const KERTAS_SHARE_CAPTION = 'https://tinyurl.com/SHAKIESmenu';
-async function shareKertasImage(){
+// FIX 6 Okt 2026: gambar share dulu ngikut tinggi layar HP (ROG tinggi -> gambar lebih tinggi dari 9:16,
+// status WA nge-crop atas/bawah, logo kepotong). Sekarang kanvas dikunci 390x693 (9:16), kertas
+// ditaruh di TENGAH (vertikal), dan kalau menunya banyak font dikecilin (--s) sampai muat di zona
+// aman (sisain KERTAS_PAD_Y atas & bawah buat bar status WA). Menu dikit -> gak nempel atas.
+const KERTAS_W = 390, KERTAS_H = 693, KERTAS_PAD_Y = 72, KERTAS_MIN_SCALE = 0.5; // 0.5 ~ font 7px, di bawah itu gak kebaca di status
+function buildKertasStage(){
   const sourceEl = document.getElementById('shareKertasScreen');
-  // FIX 18 Sep 2026: cloneNode(true) elemen ASLINYA (bukan bikin <div> kosong + copy innerHTML) —
-  // hampir semua styling kertas (.k-head, .kat-title, .item-line, dll) di-scope ke ID
-  // #shareKertasScreen/#shareKertasContent, jadi ID-nya WAJIB kebawa biar CSS-nya kepake.
-  const captureWrap = sourceEl.cloneNode(true);
-  captureWrap.style.cssText = 'position:fixed;left:-9999px;top:0;background:var(--bg,#fff);width:390px;max-width:none;height:auto;box-sizing:border-box;display:flex;flex-direction:column;border-radius:0;box-shadow:none;'; // 390px = lebar CSS iPhone 13 Pro, biar hasil share sepadan sama preview di app
-  captureWrap.classList.add('active'); // jaga-jaga kalau ke-capture pas state .active belum sempat kepasang
-  captureWrap.querySelectorAll('.k-topbar, .k-lastpublish, .k-live-link').forEach(el=>el.remove());
-  document.body.appendChild(captureWrap);
+  // cloneNode(true) elemen ASLINYA — styling kertas di-scope ke ID #shareKertasScreen/#shareKertasContent, jadi ID wajib kebawa.
+  const paper = sourceEl.cloneNode(true);
+  paper.style.cssText = `position:relative;inset:auto;width:${KERTAS_W}px;max-width:none;height:auto;flex:none;box-sizing:border-box;display:flex;flex-direction:column;border-radius:0;box-shadow:none;overflow:visible;background:transparent;`;
+  paper.classList.add('active');
+  paper.querySelectorAll('.k-topbar, .k-lastpublish, .k-live-link').forEach(el=>el.remove());
+  // env(safe-area-inset-*) itu punya device, bukan punya gambar — jangan ikut ke-capture
+  const head = paper.querySelector('.k-head'); if(head) head.style.paddingTop = '14px';
+  const foot = paper.querySelector('.k-foot'); if(foot) foot.style.paddingBottom = '8px';
+  const body = paper.querySelector('.k-body'); if(body){ body.style.flex = 'none'; body.style.overflow = 'visible'; }
+  const stage = document.createElement('div');
+  stage.style.cssText = `position:fixed;left:-9999px;top:0;width:${KERTAS_W}px;height:${KERTAS_H}px;box-sizing:border-box;padding:${KERTAS_PAD_Y}px 0;display:flex;flex-direction:column;justify-content:center;overflow:hidden;background:var(--bg,#fff);`;
+  stage.appendChild(paper);
+  document.body.appendChild(stage);
+  // fit: kecilin isi kertas (bukan head/foot) sampai total tinggi kertas <= zona aman
+  const content = paper.querySelector('#shareKertasContent');
+  const maxH = KERTAS_H - 2*KERTAS_PAD_Y;
+  let sc = 1;
+  content.style.setProperty('--s', sc);
+  for(let i=0; i<6 && paper.offsetHeight > maxH && sc > KERTAS_MIN_SCALE; i++){
+    const fixedH = paper.offsetHeight - content.offsetHeight; // head + foot + padding body
+    const room = Math.max(40, maxH - fixedH);
+    sc = Math.max(KERTAS_MIN_SCALE, sc * (room / content.offsetHeight) * 0.98);
+    content.style.setProperty('--s', sc);
+  }
+  // masih kepanjangan walau udah mentok skala minimum: jangan dipotong diam-diam — tingginya dibiarin nambah
+  // (WA bakal nge-crop) dan user dikasih tau, daripada isi menu ilang tanpa kabar.
+  const overflow = paper.offsetHeight > maxH;
+  if(overflow) stage.style.height = (paper.offsetHeight + 2*KERTAS_PAD_Y) + 'px';
+  return { stage, paper, overflow };
+}
+async function shareKertasImage(){
+  const { stage, overflow } = buildKertasStage();
+  if(overflow) showToast('Menu kepanjangan, bisa kepotong di WA — kurangi item');
   let canvas;
   try{
-    canvas = await html2canvas(captureWrap, { backgroundColor:'#ffffff', scale:2 });
+    canvas = await html2canvas(stage, { backgroundColor:'#ffffff', scale:2 });
   } catch(e){
-    document.body.removeChild(captureWrap);
+    document.body.removeChild(stage);
     showToast('Gagal membuat gambar menu');
     return;
   }
-  document.body.removeChild(captureWrap);
+  document.body.removeChild(stage);
   canvas.toBlob(async (blob)=>{
     if(!blob){ showToast('Gagal membuat gambar menu'); return; }
     const file = new File([blob], `menu-shakies-${Date.now()}.png`, { type:'image/png' });

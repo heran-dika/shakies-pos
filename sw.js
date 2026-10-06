@@ -15,7 +15,7 @@
 // PENTING: kalau ngedit index.html/menu.html dan push ke GitHub, BUMP CACHE_NAME di bawah
 // (v1 -> v2 -> dst) biar service worker lama yang masih nyangkut di beberapa HP tau ada
 // versi baru dan bersihin cache lama pas activate.
-const CACHE_NAME = 'shakies-pos-v4';
+const CACHE_NAME = 'shakies-pos-v5';
 
 // Halaman yang dibuka pas notif order di-klik dan gak ada tab app yang lagi kebuka.
 // Bisa di-override Worker lewat field `url` di payload push.
