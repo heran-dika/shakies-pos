@@ -393,12 +393,12 @@
   .scl-empty{ text-align:center; padding:32px 18px; color:var(--ink-soft); }
 
   #shareKertasScreen{ background:var(--bg); touch-action:none; }
-  #shareKertasScreen .k-head{ padding: calc(env(safe-area-inset-top,0px) + 6px) 20px 14px; text-align:center; flex-shrink:0; border-bottom:1px solid var(--border); }
-  #shareKertasScreen .k-head .km-logo{ width:52px; height:52px; border-radius:50%; overflow:hidden; margin:0 auto 8px; box-shadow:0 2px 8px rgba(0,0,0,.12); }
+  #shareKertasScreen .k-head{ padding: calc(env(safe-area-inset-top,0px) + 6px) 20px calc(28px * var(--g,1)); text-align:center; flex-shrink:0; border-bottom:1px solid var(--border); }
+  #shareKertasScreen .k-head .km-logo{ width:52px; height:52px; border-radius:50%; overflow:hidden; margin:0 auto 4px; box-shadow:0 2px 8px rgba(0,0,0,.12); }
   #shareKertasScreen .k-head .km-logo img{ width:100%; height:100%; object-fit:cover; }
   #shareKertasScreen .k-head .km-brand{ font-family:'Fraunces',serif; font-weight:700; font-size:21px; color:var(--ink); letter-spacing:-0.01em; }
   #shareKertasScreen .k-head .sub{ font-size:16px; color:var(--subtitle); font-weight:700; letter-spacing:.06em; text-transform:uppercase; margin-top:3px; }
-  #shareKertasScreen .k-body{ flex:1; padding:14px 22px; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-start; }
+  #shareKertasScreen .k-body{ flex:1; padding:calc(28px * var(--g,1)) 22px; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-start; }
   #shareKertasContent{ --s:1; }
   #shareKertasContent .kat-block{ margin-bottom:calc(14px * var(--s)); }
   #shareKertasContent .kat-block:last-child{ margin-bottom:0; }
@@ -407,7 +407,7 @@
   #shareKertasContent .item-line .nama{ font-weight:600; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   #shareKertasContent .item-line .dots{ flex:1; border-bottom:1.5px dotted #C9C2B6; transform:translateY(-3px); }
   #shareKertasContent .item-line .harga{ font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--jade-dark); font-size:calc(12.5px * var(--s)); white-space:nowrap; }
-  #shareKertasScreen .k-foot{ text-align:center; flex-shrink:0; color:var(--ink-soft); padding:6px 16px calc(env(safe-area-inset-bottom,0px) + 8px); font-size:10px; }
+  #shareKertasScreen .k-foot{ text-align:center; flex-shrink:0; color:var(--ink-soft); padding:calc(12px * var(--g,1)) 16px calc(env(safe-area-inset-bottom,0px) + 8px); font-size:10px; }
   #shareKertasScreen .k-live-link{ position:absolute; left:22px; right:22px; bottom:calc(env(safe-area-inset-bottom,0px) + 14px); text-align:center; text-decoration:none; padding:11px 14px; border-radius:12px; background:var(--jade-tint); border:1.5px solid var(--jade); color:var(--jade-dark); font-weight:700; font-size:13px; z-index:50; opacity:0; transition:opacity .3s ease; pointer-events:none; }
   #shareKertasScreen .k-live-link.show{ opacity:1; pointer-events:auto; }
   /* FIX 18 Sep 2026: gabung kClose + kPublish jadi satu flex row anchored kanan, biar lebar
@@ -4415,7 +4415,7 @@ const KERTAS_SHARE_CAPTION = 'https://tinyurl.com/SHAKIESmenu';
 // status WA nge-crop atas/bawah, logo kepotong). Sekarang kanvas dikunci 390x693 (9:16), kertas
 // ditaruh di TENGAH (vertikal), dan kalau menunya banyak font dikecilin (--s) sampai muat di zona
 // aman (sisain KERTAS_PAD_Y atas & bawah buat bar status WA). Menu dikit -> gak nempel atas.
-const KERTAS_W = 390, KERTAS_H = 693, KERTAS_PAD_Y = 72, KERTAS_MIN_SCALE = 0.5; // 0.5 ~ font 7px, di bawah itu gak kebaca di status
+const KERTAS_W = 390, KERTAS_H = 693, KERTAS_PAD_Y = 72, KERTAS_MIN_GAP = 0.5, KERTAS_MIN_SCALE = 0.5; // 0.5 ~ font 7px, di bawah itu gak kebaca di status
 function buildKertasStage(){
   const sourceEl = document.getElementById('shareKertasScreen');
   // cloneNode(true) elemen ASLINYA — styling kertas di-scope ke ID #shareKertasScreen/#shareKertasContent, jadi ID wajib kebawa.
@@ -4434,6 +4434,14 @@ function buildKertasStage(){
   // fit: kecilin isi kertas (bukan head/foot) sampai total tinggi kertas <= zona aman
   const content = paper.querySelector('#shareKertasContent');
   const maxH = KERTAS_H - 2*KERTAS_PAD_Y;
+  // 1) rapetin jarak header/footer ke body dulu (dari kondisi normal --g:1 turun maks ke 0.5 = spasi sebelum diperlebar)
+  //    2) baru kalau masih kepanjangan, font dikecilin. Total jarak variabel = 28+28+28+12 = 96px di --g:1.
+  const GAP_TOTAL = 96;
+  paper.style.setProperty('--g', 1);
+  if(paper.offsetHeight > maxH){
+    const g = Math.max(KERTAS_MIN_GAP, 1 - (paper.offsetHeight - maxH) / GAP_TOTAL);
+    paper.style.setProperty('--g', g);
+  }
   let sc = 1;
   content.style.setProperty('--s', sc);
   for(let i=0; i<6 && paper.offsetHeight > maxH && sc > KERTAS_MIN_SCALE; i++){
