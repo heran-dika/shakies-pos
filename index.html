@@ -426,6 +426,16 @@
   .k-lastpublish .lp-lbl{ display:block; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; opacity:.8; }
   .k-lastpublish .lp-val{ display:block; font-size:13px; font-weight:600; line-height:1.3; }
   .k-lastpublish .lp-rel{ display:block; font-size:11.5px; opacity:.85; }
+
+/* BARU 12 Okt 2026: judul Menu + ikon share + hamburger. Tombol aksi lama pindah ke popover; saat mode Stock/Hapus aktif, ☰ jadi ✓ (satu tap = selesai). */
+.menu-ttl{position:relative;display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.menu-iconbtn{width:38px;height:38px;border-radius:10px;border:1.5px solid var(--border);background:#fff;color:var(--ink);display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:700;flex-shrink:0;padding:0;}
+.menu-iconbtn.done{background:var(--jade);border-color:var(--jade);color:#fff;}
+.menu-iconbtn:disabled{opacity:.7;}
+.menu-ham-pop{display:none;flex-direction:column;gap:6px;position:absolute;right:0;top:44px;z-index:30;background:#fff;border:1px solid var(--border);border-radius:12px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);min-width:210px;}
+.menu-ham-pop.open{display:flex;}
+.menu-ham-pop .chili-sm{text-align:left;width:100%;}
+.auth-role-sel{border:1.5px solid var(--border);border-radius:8px;padding:5px 6px;font:inherit;font-size:12px;background:#fff;color:var(--ink);margin-right:6px;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -539,12 +549,15 @@
 
     <!-- MENU -->
     <section class="tab" id="tab-menu">
-      <h2 class="section-title" style="margin-bottom:8px;">Menu</h2>
-      <div id="menuActionRow" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-        <button class="chili-sm" style="background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark);" onclick="openAddMenuModal()">+ Tambah Menu</button>
-        <button class="chili-sm" id="btnToggleStokMode" onclick="toggleStokMode()" style="background:var(--gold-tint);border-color:var(--gold);color:var(--gold);">📦 Stock / Available</button>
-        <button class="chili-sm" id="btnToggleDeleteMode" onclick="toggleDeleteMode()" style="background:#fff;margin-left:auto;">🗑️ Hapus</button>
-        <button class="chili-sm" style="background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark);" onclick="openShareMenu()">🖨️ Bagikan Menu</button>
+      <div class="menu-ttl">
+        <h2 class="section-title" style="margin:0;flex:1;">Menu</h2>
+        <button type="button" class="menu-iconbtn" id="btnMenuShare" onclick="openShareMenu()" aria-label="Bagikan menu"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg></button>
+        <button type="button" class="menu-iconbtn" id="btnMenuHam" onclick="onMenuHamClick(event)" aria-label="Menu aksi">☰</button>
+        <div id="menuActionRow" class="menu-ham-pop">
+          <button class="chili-sm" style="background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark);" onclick="openAddMenuModal()">+ Tambah Menu</button>
+          <button class="chili-sm" id="btnToggleStokMode" onclick="toggleStokMode()" style="background:var(--gold-tint);border-color:var(--gold);color:var(--gold);">📦 Stock / Available</button>
+          <button class="chili-sm" id="btnToggleDeleteMode" onclick="toggleDeleteMode()" style="background:#fff;">🗑️ Hapus</button>
+        </div>
       </div>
       <p class="section-sub">Kelola kategori &amp; item menu.</p>
       <div class="field search-clear-field sticky-menu-search">
@@ -1023,6 +1036,7 @@ let skipNextHighlightScroll = false; // true kalau abis ini langsung disusul ope
 let stokMode = false; // lagi mode "Tambah Stok" di tab Menu?
 let stokModeJustEntered = false; // FIX 16 Sep 2026 (v10): true sesaat abis toggleStokMode() nyalain mode — dipake buat trigger animasi masuk sekali doang, bukan tiap render ulang
 let stokModeJustExited = false; // FIX 16 Sep 2026 (v12): sama kayak di atas tapi kebalikannya — animasi KELUAR mode Stock
+let modeLayerOn = false; // BARU 12 Okt 2026: mode Stock/Hapus punya 1 layar di tumpukan Back (lihat syncModeLayer)
 let deleteMode = false; // lagi mode "Hapus" di tab Menu?
 let pendingStok = {}; // row -> nilai stok baru yang belum disimpen ke server
 let pendingStokItemId = {}; // row -> item_id (dipake buat validasi tulis di backend, row cuma buat UI, lihat FIX 12 Agt 2026)
@@ -1313,7 +1327,7 @@ const API_ACTION_LABELS = {
   delete_order:'hapus orderan', add_menu_item:'tambah menu', update_menu_item:'update menu',
   update_stok:'update stok', delete_menu_row:'hapus menu', delete_category:'hapus kategori',
   publish_menu:'publish menu', topup_saldo:'top up saldo', reconcile_saldo:'alokasi saldo',
-  update_menu_aktif:'update ketersediaan menu', pay_order_with_saldo:'bayar pakai saldo', get_allowed_emails:'ambil daftar email', add_allowed_email:'tambah email', delete_allowed_email:'hapus email', unsubscribe_push:'matikan notifikasi', subscribe_push:'aktifin notifikasi'
+  update_menu_aktif:'update ketersediaan menu', pay_order_with_saldo:'bayar pakai saldo', get_allowed_emails:'ambil daftar email', set_role:'ubah role', add_allowed_email:'tambah email', delete_allowed_email:'hapus email', unsubscribe_push:'matikan notifikasi', subscribe_push:'aktifin notifikasi'
 };
 let activeApiCalls = {}; // callId -> label proses, dipake render badge
 let apiCallSeq = 0;
@@ -1622,6 +1636,13 @@ function renderAuthEmailList(){
     info.appendChild(top);
     info.appendChild(addr);
     row.appendChild(info);
+    const roleSel = document.createElement('select'); // BARU 12 Okt 2026: owner/chef/staf (server: set_role, owner-only, jaga owner terakhir)
+    roleSel.className = 'auth-role-sel';
+    [['owner','Owner'],['chef','Chef'],['staf','Staf']].forEach(([v,t])=>{ const o = document.createElement('option'); o.value = v; o.textContent = t; roleSel.appendChild(o); });
+    const curRole = u.role || (u.is_owner ? 'owner' : 'staf');
+    roleSel.value = curRole;
+    roleSel.addEventListener('change', ()=> setUserRole(u.email, roleSel.value, curRole, roleSel));
+    row.appendChild(roleSel);
     if(!u.is_owner){
       const del = document.createElement('button');
       del.type = 'button';
@@ -1632,6 +1653,23 @@ function renderAuthEmailList(){
     }
     area.appendChild(row);
   });
+}
+
+async function setUserRole(email, role, prevRole, sel){
+  if(authEmailBusy){ sel.value = prevRole; return; }
+  const u = authEmailList.find(x=> x.email === email);
+  const nama = u ? u.alias : email;
+  if(role === 'owner' && !confirm(`Jadikan ${nama} OWNER?\n\nOwner bisa mengubah role semua orang, termasuk menurunkan owner lain.`)){ sel.value = prevRole; return; }
+  authEmailBusy = true;
+  try{
+    await apiPost('set_role', { email, role });
+    showToast(`${nama} sekarang ${role} ✓`);
+  } catch(e){
+    showToast(e.message);
+  } finally {
+    authEmailBusy = false;
+    await loadAuthEmailList();
+  }
 }
 
 async function addAuthEmail(){
@@ -1683,7 +1721,7 @@ async function handleCredentialResponse(response){
   if(statusEl) statusEl.textContent = 'Memverifikasi...';
   try{
     const data = await apiPost('verify_login', { id_token: response.credential });
-    staffSession = { session_token: data.session_token, alias: data.alias, email: data.email, is_owner: data.is_owner, signed_in_at: Date.now() };
+    staffSession = { session_token: data.session_token, alias: data.alias, email: data.email, is_owner: data.is_owner, role: data.role, signed_in_at: Date.now() };
     localStorage.setItem(STAFF_SESSION_KEY, JSON.stringify(staffSession));
     deviceLabel = data.alias;
     applyStaffLabelToUI(data.alias);
@@ -2663,6 +2701,7 @@ function updateStokButtonUI(){
   btn.style.opacity = '1';
   if(fab){ fab.disabled = false; fab.textContent = '✓ Selesai (simpan stok)'; fab.style.opacity = '1'; }
   updateStokFabPosition();
+  syncMenuHamUI(); syncModeLayer();
 }
 function updateStokFabPosition(){
   // Fab ini BUKAN duplikat yang nongol bareng pas mode edit aktif. Tombol aslinya
@@ -2670,7 +2709,7 @@ function updateStokFabPosition(){
   // cuma nongol (ngambang di ATAS) begitu tombol asli itu udah kescroll ilang dari layar —
   // biar tetep bisa mencet "Selesai" tanpa harus scroll balik ke atas dulu.
   const fab = document.getElementById('stokModeFab');
-  const realBtn = document.getElementById('btnToggleStokMode');
+  const realBtn = document.getElementById('btnMenuHam'); // 12 Okt 2026: tombol Stock pindah ke popover -> patokan visibilitas FAB = ikon ☰/✓
   if(!fab || !realBtn) return;
   const activeMenuTab = document.getElementById('tab-menu').classList.contains('active');
   if(!stokMode || !activeMenuTab){ fab.classList.remove('show'); return; }
@@ -2684,6 +2723,45 @@ function updateDeleteButtonUI(){
   btn.style.borderColor = deleteMode ? 'var(--chili)' : 'var(--border)';
   btn.style.color = deleteMode ? 'var(--chili)' : 'var(--ink)';
   btn.textContent = deleteMode ? '✓ Selesai Hapus' : '🗑️ Hapus';
+  syncMenuHamUI(); syncModeLayer();
+}
+// ==== BARU 12 Okt 2026: hamburger Menu + tumpukan Back untuk mode Stock/Hapus ====
+// ☰ buka/tutup popover aksi. Selama mode Stock ATAU Hapus aktif, ☰ berubah jadi ✓ dan 1 tap = selesai
+// (Stock: simpan stok, Hapus: keluar mode) tanpa buka popover.
+function onMenuHamClick(ev){
+  if(ev) ev.stopPropagation();
+  if(stokMode){ toggleStokMode(); return; }
+  if(deleteMode){ toggleDeleteMode(); return; }
+  document.getElementById('menuActionRow').classList.toggle('open');
+}
+function closeMenuHamPop(){ const p = document.getElementById('menuActionRow'); if(p) p.classList.remove('open'); }
+document.addEventListener('click', function(e){
+  if(!e.target.closest('#menuActionRow, #btnMenuHam')) closeMenuHamPop();
+  else if(e.target.closest('#menuActionRow button')) closeMenuHamPop(); // aksi di popover dipencet -> popover nutup
+});
+function syncMenuHamUI(){
+  const b = document.getElementById('btnMenuHam'); if(!b) return;
+  const on = stokMode || deleteMode;
+  b.disabled = false;
+  b.textContent = on ? '✓' : '☰';
+  b.classList.toggle('done', on);
+  b.setAttribute('aria-label', deleteMode ? 'Selesai hapus' : (stokMode ? 'Selesai edit stok (simpan)' : 'Menu aksi'));
+  if(on) closeMenuHamPop();
+}
+// Mode Stock/Hapus = 1 layar di layarStack (pola pushLayar/kembaliLayar yang sama dgn modal lain), jadi Back
+// membatalkan mode itu — bukan malah mundur ke layar di belakangnya (mis. kertas share).
+function syncModeLayer(){
+  const on = stokMode || deleteMode;
+  if(on && !modeLayerOn){ modeLayerOn = true; pushLayar(undoModeLayer); }
+  else if(!on && modeLayerOn){ modeLayerOn = false; kembaliLayar(); }
+}
+function undoModeLayer(){ // dipanggil popstate (tombol Back): batalin mode, perubahan stok yang belum disimpan dibuang
+  modeLayerOn = false;
+  const hadPending = stokMode && Object.keys(pendingStok).length > 0;
+  if(stokMode) exitStokMode();
+  if(deleteMode) exitDeleteMode();
+  renderMenuManage();
+  if(hadPending) showToast('Edit stok dibatalkan');
 }
 function exitStokMode(){ stokMode = false; pendingStok = {}; pendingStokItemId = {}; stokModeJustExited = true; updateStokButtonUI(); }
 function exitDeleteMode(){ deleteMode = false; updateDeleteButtonUI(); }
@@ -2726,7 +2804,7 @@ function quickEditStokFabSlideEndHandler(e){
   shakeElement(fab, 'shake'); // getar sebentar begitu kelar geser turun, biar keliatan "landed"
 }
 function showQuickEditStokFab(){
-  const realBtn = document.getElementById('btnToggleStokMode');
+  const realBtn = document.getElementById('btnMenuHam'); // 12 Okt 2026: tombol Stock pindah ke popover -> patokan visibilitas FAB = ikon ☰/✓
   if(realBtn){
     const rect = realBtn.getBoundingClientRect();
     const realBtnVisible = rect.bottom > 0 && rect.top < window.innerHeight;
@@ -2764,8 +2842,8 @@ function quickEnterStokMode(){
 }
 function toggleStokMode(){
   if(stokMode){ saveStokChanges(); return; }
-  if(deleteMode) exitDeleteMode();
   stokMode = true; pendingStok = {}; pendingStokItemId = {};
+  if(deleteMode) exitDeleteMode(); // stokMode sengaja di-set DULU: layar Back dipakai ulang, nggak ke-pop lalu di-push lagi
   stokModeJustEntered = true; // trigger animasi masuk sekali doang buat render berikutnya
   updateStokButtonUI();
   renderMenuManage();
@@ -2790,6 +2868,7 @@ async function saveStokChanges(){
   const btn = document.getElementById('btnToggleStokMode');
   const fab = document.getElementById('stokModeFab');
   btn.disabled = true; btn.textContent = '⏳ Menyimpan...'; btn.style.opacity = '.7';
+  const hamBtn = document.getElementById('btnMenuHam'); if(hamBtn){ hamBtn.disabled = true; hamBtn.textContent = '⏳'; }
   if(fab){ fab.disabled = true; fab.textContent = '⏳ Menyimpan...'; fab.style.opacity = '.7'; }
   try{
     for(const [row, stok] of entries){
@@ -5101,6 +5180,12 @@ bindDateDisplay('riwayatDateTo', 'riwayatDateToDisplay', { placeholder: 'Sampai 
   if(lastTab !== 'order') switchTab(lastTab);
 
   await loadMenu();
+  // BARU 12 Okt 2026: shortcut manifest "Share Menu" -> ?tab=menu&share=1 -> buka layar Bagikan Menu (checklist).
+  // Web Share butuh tap user, jadi cuma layarnya yang dibuka; user tap sendiri tombol berikutnya.
+  if(new URLSearchParams(location.search).get('share') === '1'){
+    try{ history.replaceState(null, '', location.pathname); }catch(e){}
+    openShareMenu();
+  }
   loadCustomers();
   loadCustomerSaldoMap();
   // Prefetch orderan di background (gak di-await) begitu app dibuka, biar pas tab Prep/Riwayat

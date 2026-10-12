@@ -8,5 +8,13 @@
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "shortcuts": [
+    { "name": "Prep Today", "short_name": "Prep", "url": "./index.html?tab=besok",
+      "icons": [{ "src": "shortcut-prep.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Create Order", "short_name": "Order", "url": "./index.html?tab=order",
+      "icons": [{ "src": "shortcut-order.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Share Menu", "short_name": "Share Menu", "url": "./index.html?tab=menu&share=1",
+      "icons": [{ "src": "shortcut-menu.png", "sizes": "192x192", "type": "image/png" }] }
   ]
 }
