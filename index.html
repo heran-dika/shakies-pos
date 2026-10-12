@@ -436,6 +436,90 @@
 .menu-ham-pop.open{display:flex;}
 .menu-ham-pop .chili-sm{text-align:left;width:100%;}
 .auth-email-row .auth-role-sel{width:96px;flex:0 0 96px;padding:7px 8px;border-radius:8px;font-size:13px;}  /* override select{width:100%;padding:12px} global */
+
+/* ==== B2 12 Okt 2026: sheet Resep ==== */
+.rs .neg{color:var(--chili);font-weight:700}
+.rs .sub{font-size:11px;color:var(--ink-soft)}
+.rs .sheet-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px}
+.rs .sheet-head h3{font-family:'Fraunces',serif;font-size:18px;margin:0}
+.rs .x{border:none;background:var(--jade-tint);color:var(--jade-dark);width:30px;height:30px;border-radius:50%;font-size:15px;font-weight:700}
+.rs label.lb{display:block;font-size:12px;font-weight:700;color:var(--ink-soft);margin:14px 0 6px;text-transform:uppercase;letter-spacing:.4px}
+.rs .rs-ns{display:flex;align-items:stretch;border:1.5px solid var(--border);border-radius:var(--radius-sm);overflow:hidden}
+.rs .rs-ns button{width:46px;border:none;background:var(--jade-tint);color:var(--jade-dark);font-size:20px;font-weight:700;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.rs .rs-ns button:active{background:var(--jade);color:#fff}
+.rs .rs-ns button:disabled{opacity:.35}
+.rs .rs-ns .val{flex:1;text-align:center;padding:10px 6px;font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:17px}
+.rs .hint{font-size:11.5px;color:var(--ink-soft);margin-top:5px}
+.rs .hpp{background:var(--gold-tint);border:1px solid var(--gold);border-radius:var(--radius-sm);padding:11px 13px;margin-top:12px}
+.rs .hpp strong{font-family:'IBM Plex Mono',monospace;font-size:17px;color:var(--gold)}
+.rs .sticky-foot{position:sticky;bottom:0;background:var(--surface);padding:12px 0 calc(14px + env(safe-area-inset-bottom));margin-top:14px;border-top:1px solid var(--border)}
+.rs button.primary{width:100%;border:none;background:var(--jade);color:#fff;border-radius:var(--radius-sm);padding:14px;font-size:15px;font-weight:700}
+.rs button.primary:disabled{opacity:.6}
+.rs button.secondary{width:100%;border:1.5px solid var(--border);background:#fff;color:var(--ink);border-radius:var(--radius-sm);padding:12px;font-size:14px;font-weight:600;margin-top:8px}
+.rs .sum{font-size:14px;line-height:1.6}
+.rs .sum .row{display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:13px}
+.rs .tbl{border:1px solid var(--border);border-radius:var(--radius-sm);margin-top:6px;overflow:hidden}
+.rs .tr{display:grid;grid-template-columns:1fr 96px 84px;gap:8px;padding:9px 12px;border-bottom:1px dashed var(--border);font-size:14px;align-items:baseline}
+.rs .tr:last-child{border-bottom:none}
+.rs .tr span+span{text-align:right;font-family:'IBM Plex Mono',monospace;font-size:13px}
+.rs .tr em{display:block;font-style:normal;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft)}
+.rs .tr.th,.rs .tr.th span+span{font-family:'DM Sans',sans-serif;font-size:11.5px;color:var(--ink-soft);font-weight:700}
+.rs .tr.tot{background:var(--jade-tint);font-weight:700}
+.rs .tr.e{grid-template-columns:1fr 96px}
+.rs .ovr{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;font-size:13px;border-top:1px dashed var(--border)}
+.rs .er.hd{font-size:11.5px;color:var(--ink-soft);font-weight:700;margin-bottom:4px}
+.rs .er.hd span{text-align:center}
+.rs .er input.tl{text-align:left;font-family:'DM Sans',sans-serif}
+.rs .three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.rs .rs-ns button.dis{opacity:.35}
+.rs #rsTitle{display:inline-block;transform-origin:left center;border-radius:8px;padding:2px 6px;margin-left:-6px}
+.rs #rsTitle.pop{animation:namePop 1s cubic-bezier(.34,1.56,.64,1)}
+.rs textarea#noteE{width:100%;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:11px 13px;font:inherit;font-size:14px;color:var(--ink);resize:vertical;background:#fff}
+.rs .ancbox{background:var(--jade-tint);border:1.5px solid var(--jade);border-radius:12px;padding:8px 8px 6px;margin-bottom:8px}
+.rs .ancbox .er{margin-bottom:4px}
+.rs .notev{white-space:pre-wrap;border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 13px;font-size:14px;background:#fff;line-height:1.5}
+.rs .hr{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-top:4px}
+.rs .hr span{font-size:13px}
+.rs .tr small{font-size:11px;color:var(--ink-soft)}
+.rs .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rs .two .rs-ns button{width:38px}
+.rs .two .rs-ns .val{font-size:15px;padding:10px 2px}
+.rs .numlbl{font-size:12px;color:var(--ink-soft);font-weight:600;margin-bottom:5px}
+.rs .er{display:grid;grid-template-columns:1fr 104px 26px;gap:8px;align-items:start;margin-bottom:8px}
+.rs .er select,.rs .er input,.rs .plain{width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font:inherit;font-size:14px;background:#fff;color:var(--ink)}
+.rs .er input,.rs .plain{text-align:right;font-family:'IBM Plex Mono',monospace}
+.rs .plain{font-size:16px;padding:11px 10px}
+.rs .er input:disabled{background:#f6f4f0;color:var(--ink-soft)}
+.rs .er em{font-style:normal;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);display:block;margin-top:3px;min-height:13px}
+.rs .er .rm{border:none;background:none;color:var(--chili);font-size:16px;padding:8px 0}
+.rs .grip{border:none;background:none;color:var(--ink-soft);font-size:18px;padding:6px 0;touch-action:none;cursor:grab;align-self:start;margin-top:3px}
+.rs .more{border:none;background:var(--jade-tint);color:var(--jade-dark);border-radius:8px;font-size:16px;font-weight:700;height:36px;align-self:start}
+.rs .sepE{display:grid;grid-template-columns:28px 1fr 34px;align-items:center;gap:8px;margin:0 0 8px;font-size:11.5px;color:var(--ink-soft)}
+.rs .sepE span{display:flex;align-items:center;gap:8px}
+.rs .sepE span::before,.rs .sepE span::after{content:'';flex:1;border-top:1.5px solid #cfc7b8}
+.rs .sep{border-top:1.5px solid #cfc7b8;margin:2px 12px}
+.rs .dragging{opacity:.92;box-shadow:0 6px 18px rgba(0,0,0,.22);background:#fff;position:relative;z-index:5}
+.rs .dropb{box-shadow:0 -2px 0 var(--jade)}
+.rs .dropa{box-shadow:0 2px 0 var(--jade)}
+#rsRowMenu{position:fixed;z-index:70;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.18);min-width:170px;padding:4px;display:none}
+#rsRowMenu.on{display:block}
+#rsRowMenu button,#rsRowMenu .mi{display:block;width:100%;text-align:left;border:none;background:none;padding:10px 12px;font-size:14px;font-weight:600;border-radius:8px;color:var(--ink)}
+#rsRowMenu .mi{color:var(--ink-soft);font-weight:500;font-size:12px}
+#rsRowMenu button.d{color:var(--chili)}
+@keyframes namePop{0%{transform:scale(1);background:transparent}25%{transform:scale(1.25);background:var(--gold-tint)}70%{transform:scale(1.25);background:var(--gold-tint)}100%{transform:scale(1);background:transparent}}
+.rs #rsTitle.pop{animation:namePop 1s cubic-bezier(.34,1.56,.64,1)}
+#resepM.rs-staff .owner-only{display:none!important}
+.rs .sheet-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px}
+.rs .modal-body{padding:0}
+.rs-entry{margin-left:auto;border:1.5px solid var(--jade);background:var(--jade-tint);color:var(--jade-dark);border-radius:8px;padding:8px 12px;font-size:13px;font-weight:700;cursor:pointer}
+.rs-entry:disabled{opacity:.5}
+.rs-ns{display:flex;align-items:stretch;border:1.5px solid var(--border);border-radius:var(--radius-sm);overflow:hidden}
+.rs-badge{position:absolute;left:50%;bottom:calc(100% + 3px);transform:translateX(-50%) scale(.6);background:var(--jade);color:#fff;font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:12px;padding:2px 8px;border-radius:999px;opacity:0;pointer-events:none;white-space:nowrap;z-index:3}
+.rs-badge.show{opacity:1;transform:translateX(-50%) scale(1);transition:transform .26s cubic-bezier(.34,1.56,.64,1),opacity .18s}
+.rs-badge.gone{opacity:0;transform:translateX(-50%) scale(.8);transition:opacity .25s,transform .25s}
+.rs-flash{animation:rsFlash .9s ease}@keyframes rsFlash{0%{background:var(--jade-tint)}100%{background:transparent}}
+.rs .sepE .rm{border:none;background:none;color:var(--chili);font-size:16px;padding:8px 0;cursor:pointer}
+#resepConfM,#resepDiscM{z-index:60}#resepM{z-index:55}#rsRowMenu{z-index:90}
 </style>
 </head>
 <body>
@@ -923,6 +1007,7 @@
           <label style="display:flex;align-items:center;gap:6px;font-size:14px;font-weight:500;cursor:pointer;">
             <input type="radio" name="addMenuStokType" value="unlimited" id="addMenuStokUnlimited" onchange="onStokTypeChange()"> Unlimited
           </label>
+          <span id="addMenuResepSlot" style="margin-left:auto;"></span>
         </div>
       </div>
       <div class="field" id="addMenuStokParentField">
@@ -1003,6 +1088,34 @@
   <div class="wa-apply-msg" id="waApplyMsg"></div>
 </div>
 
+
+<div class="modal-overlay hidden" id="resepM"><div class="modal-sheet rs">
+  <div class="sheet-head"><div><h3 id="rsTitle" style="margin:0">Resep</h3><div class="sub" id="rsFrom"></div></div><div style="display:flex;gap:8px;align-items:center"><button type="button" class="chili-sm owner-only" id="btnRsEdit" style="background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark)">✎ Edit</button><button type="button" class="x" id="btnRsClose" aria-label="Tutup">✕</button></div></div>
+  <div id="viewR">
+    <label class="lb" style="margin-top:4px" id="jLbl">Jangkar</label>
+    <div class="rs-ns"><button type="button" data-h="jm:0" id="jm" aria-label="kurangi">−</button><div class="val" id="jVal"></div><button type="button" data-h="jp:0" id="jp" aria-label="tambah">+</button></div>
+    <div class="hint" id="jHint"></div>
+    <label class="lb">Bahan untuk adonan ini</label><div class="tbl" id="tbl"></div>
+    <div id="enrWrap"><label class="lb">Waktu & energi (ikut ukuran adonan)</label><div class="tbl" id="enr"></div></div>
+    <div id="pkWrap"><label class="lb">Packaging (per pcs)</label><div class="tbl" id="pk"></div></div>
+    <label class="lb">Hasil adonan</label><div id="hasilV"></div><div class="hint" id="yHint"></div>
+    <div class="hpp" id="hppBox"><div class="sub">HPP penuh</div><div id="hppList"></div><div class="sub" id="hppNote" style="margin-top:3px"></div></div>
+    <div id="noteWrap" style="display:none"><label class="lb">Catatan</label><div id="noteV" class="notev"></div></div>
+  </div>
+  <div id="editR" style="display:none"></div>
+  <div class="sticky-foot" id="footV"><button type="button" class="primary" id="btnProduksi">Selesai Produksi</button></div>
+  <div class="sticky-foot" id="footE" style="display:none"><button type="button" class="primary" id="btnRsSave">Simpan resep</button><button type="button" class="secondary" id="btnRsCancel">Batal</button></div>
+</div></div>
+<div class="modal-overlay hidden" id="resepDiscM"><div class="modal-sheet rs">
+  <div class="sheet-head"><h3 style="margin:0">Buang perubahan?</h3></div><div style="font-size:14px;color:var(--ink-soft)">Perubahan resep yang belum disimpan akan hilang.</div>
+  <div class="sticky-foot"><button type="button" class="primary" id="btnBuang" style="background:var(--chili)">Buang perubahan</button><button type="button" class="secondary" id="btnLanjut">Lanjut edit</button></div>
+</div></div>
+<div class="modal-overlay hidden" id="resepConfM"><div class="modal-sheet rs">
+  <div class="sheet-head"><h3 style="margin:0">Simpan produksi?</h3><button type="button" class="x" id="btnConfX" aria-label="Tutup">✕</button></div>
+  <div class="sum" id="confBody"></div>
+  <div class="sticky-foot"><button type="button" class="primary" id="btnSimpan">Simpan produksi</button><button type="button" class="secondary" id="btnConfCancel">Batal</button></div>
+</div></div>
+<div id="rsRowMenu"></div>
 <script>
 // ==== KONFIGURASI ====
 const CONFIG = {
@@ -3293,6 +3406,7 @@ function openAddMenuModal(){
   populateStokParentSelect(null);
   document.getElementById('addMenuStokParent').value = '';
   document.getElementById('addMenuStokTerbatas').checked = true;
+  { const _rs = document.getElementById('addMenuResepSlot'); if(_rs) _rs.innerHTML = ''; }
   onStokTypeChange();
   document.getElementById('addMenuModal').classList.remove('hidden');
   pushLayar(closeAddMenuModal);
@@ -3317,6 +3431,7 @@ function openEditMenuModal(row){
   onStokTypeChange();
   document.getElementById('addMenuModal').classList.remove('hidden');
   pushLayar(closeAddMenuModal);
+  if(window.rsSetupEditButton) rsSetupEditButton(item); // B2: tombol 📖 Resep ›
 }
 function closeAddMenuModal(){ document.getElementById('addMenuModal').classList.add('hidden'); editingMenuRow = null; pendingMenuClientId = null; }
 function onCatSelectChange(){
@@ -5206,6 +5321,352 @@ if('serviceWorker' in navigator){
     navigator.serviceWorker.register('./sw.js').catch(()=>{ /* non-fatal — app tetep jalan tanpa SW */ });
   });
 }
+
+// ==== BARU 12 Okt 2026 — B2: sheet Resep + Selesai Produksi (port dari mockup-resep-produksi.html) ====
+// Backend: get_resep_index / get_resep / get_bahan / save_resep / save_bahan / save_tarif / add_produksi (resep.js di worker).
+// Angka di UI = gram (desimal 0,1); ke server dikirim bilangan bulat 0,1 gr (dg = gram x 10).
+// Hak akses ditegakkan SERVER (staf ditolak, chef tanpa harga); UI cuma ikut: .owner-only disembunyikan untuk non-owner.
+(function(){
+'use strict';
+const $ = id => document.getElementById(id), qs = s => document.querySelector(s);
+const dF = v => (Math.round(v*10)/10).toLocaleString('id-ID');
+const f1 = n => n.toLocaleString('id-ID',{minimumFractionDigits:1,maximumFractionDigits:1}) + ' gr';
+let RS = null, MB = {}, REC = null, COST = null, S = null, idxCache = null, holdT, holdI, busy = false, tempId = 0;
+const isOwner = () => !!staffSession && (staffSession.is_owner === true || staffSession.role === 'owner');
+const M = b => MB[b] || { n:'?', p:0, pcs:null };
+const totG = rows => rows.reduce((s,x)=>s+x.g,0);
+const biaya = rows => rows.reduce((s,x)=>s+x.g*M(x.b).p,0);
+const ancM = R => M(R.rows[R.anc.i].b), ancF = R => ancM(R).pcs || 1, ancU = R => ancF(R) > 1 ? 'butir' : 'gr', baseG = R => R.rows[R.anc.i].g;
+const baseLbl = R => dF(baseG(R)/ancF(R)) + ' ' + ancU(R) + ' ' + ancM(R).n;
+const kerjaMnt = R => R.kerja == null ? R.proof.reduce((s,x)=>s+x.mnt,0) : R.kerja;
+const ovenTot = R => R.oven.reduce((s,x)=>s+x.mnt,0);
+const pcsTxt = (b,g) => { const m = M(b); return m.pcs && g > 0 ? '≈ ' + String(Math.round(g/m.pcs*2)/2).replace('.',',') + ' butir' : ''; };
+const nameOf = id => { const it = menuItems.find(m=>m.item_id===id); return it ? it.nama : id; };
+const packFor = (R,id) => R.pack.filter(x=>x.u==='all'||x.u===id).reduce((s,x)=>s+x.p,0);
+const eRows = (R,kk) => [
+  { n:'Tenaga kerja', mnt:kerjaMnt(R)*kk, jam:COST.upah/COST.pembagi },
+  { n:'Listrik AC', mnt:kerjaMnt(R)*kk, jam:COST.watt/1000*COST.listrik },
+  { n:'Gas oven', mnt:ovenTot(R)*kk, jam:COST.gasKgJam*COST.lpg/COST.lpgKg, dari:1, kosong:!COST.gasKgJam }
+].map(x=>({ ...x, c:x.mnt/60*x.jam }));
+const eTot = (R,kk) => eRows(R,kk).reduce((s,x)=>s+x.c,0);
+const hppFull = R => { const t = totG(R.rows), g = R.hasil[0].g; return { b:biaya(R.rows)/t*g, o:eTot(R,1)/t*g, k:packFor(R,R.hasil[0].id) }; };
+const k = () => baseG(REC) > 0 ? S.jangkar/baseG(REC) : 1;
+const clone = o => JSON.parse(JSON.stringify(o));
+const reduce = matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+// ---------- indeks resep (tombol di Edit Menu Item) ----------
+async function rsIndex(force){
+  if(idxCache && !force) return idxCache;
+  const list = await apiGet('get_resep_index', {});
+  idxCache = {}; (list||[]).forEach(e => idxCache[e.item_id] = e);
+  return idxCache;
+}
+async function setupEditButton(item){
+  const slot = $('addMenuResepSlot'); if(!slot) return;
+  slot.innerHTML = '';
+  if(!staffSession) return; // guest/coba-coba: nggak ada resep
+  slot.innerHTML = '<button type="button" class="rs-entry" disabled>…</button>';
+  try{
+    const idx = await rsIndex();
+    if(!$('addMenuModal') || $('addMenuModal').classList.contains('hidden')) return;
+    const e = idx[item.item_id], b = slot.firstChild; if(!b) return;
+    if(e){ b.disabled = false; b.textContent = '📖 Resep ›'; b.onclick = () => openResep(item.item_id); }
+    else if(isOwner() && !item.stok_induk){ b.disabled = false; b.textContent = '+ Buat resep'; b.onclick = () => openResep(item.item_id); }
+    else slot.innerHTML = '';
+  } catch(e){ slot.innerHTML = ''; } // staf / tanpa akses: tombolnya nggak muncul
+}
+
+// ---------- muat resep dari server ----------
+function mkMaster(list){ MB = {}; list.forEach(b => MB[b.id] = { id:b.id, n:b.nama, p:(b.harga_per_kg||0)/1000, pcs:b.berat_per_butir_dg ? b.berat_per_butir_dg/10 : null, amb:b.ambang_habis_dg, dirty:false }); }
+function fromServer(r){
+  const rows = r.bahan.map(x => ({ b:x.bahan_id, g:x.qty_dg/10 }));
+  let ai = rows.findIndex(x => x.b === r.jangkar.bahan_id); if(ai < 0) ai = 0;
+  const f = M(rows[ai].b).pcs || 1;
+  return { item_id:r.item_id, resep_id:r.resep_id, versi:r.versi, rows, anc:{ i:ai, min:r.jangkar.min_dg/10/f, max:r.jangkar.max_dg/10/f, step:r.jangkar.step_dg/10/f },
+    proof:r.proofing.map(x=>({n:x.n,mnt:x.mnt})), oven:r.oven.map(x=>({atas:x.atas,bawah:x.bawah,mnt:x.mnt})),
+    pack:r.packaging.map(x=>({ n:x.n, p:x.p||0, u:x.u })), note:r.catatan||'', kerja:r.kerja_mnt, pemisah:r.pemisah_setelah,
+    hasil:r.hasil.map(h=>({ id:h.item_id, g:h.gramasi_dg/10, n:h.jumlah_bawaan })) };
+}
+function blankRec(itemId){
+  const tid = --tempId; MB[tid] = { id:null, tid, n:'', p:0, pcs:null, amb:null, dirty:true, isNew:true };
+  return { item_id:itemId, resep_id:null, versi:null, rows:[{ b:tid, g:1000 }], anc:{ i:0, min:500, max:1500, step:100 }, proof:[{ n:'Proofing', mnt:0 }], oven:[{ atas:180, bawah:180, mnt:0 }], pack:[], note:'', kerja:null, pemisah:null, hasil:[{ id:itemId, g:50, n:0 }] };
+}
+async function openResep(itemId){
+  if(busy) return; busy = true;
+  try{
+    const [r, master] = await Promise.all([apiGet('get_resep', { item_id:itemId }), apiGet('get_bahan', {})]);
+    mkMaster(master || []);
+    COST = null;
+    let startEdit = false;
+    if(r){
+      REC = fromServer(r);
+      if(r.tarif) COST = { upah:r.tarif.upah_bulan, pembagi:r.tarif.upah_pembagi, listrik:r.tarif.listrik_per_kwh, watt:r.tarif.daya_ac_watt, lpg:r.tarif.lpg_per_tabung, lpgKg:r.tarif.lpg_kg_per_tabung, gasKgJam:r.tarif.gas_kg_per_jam };
+    } else {
+      if(!isOwner()){ showToast('Item ini belum punya resep.'); return; }
+      const t = await apiGet('get_tarif', {});
+      COST = { upah:t.upah_bulan, pembagi:t.upah_pembagi, listrik:t.listrik_per_kwh, watt:t.daya_ac_watt, lpg:t.lpg_per_tabung, lpgKg:t.lpg_kg_per_tabung, gasKgJam:t.gas_kg_per_jam };
+      REC = blankRec(itemId); startEdit = true;
+    }
+    S = { jangkar:baseG(REC), h:[], edit:null, saving:false, cid:null, from:itemId };
+    $('resepM').classList.toggle('rs-staff', !isOwner());
+    const idx = idxCache && idxCache[itemId];
+    const t = $('rsTitle'); t.textContent = 'Resep ' + nameOf(REC.item_id); t.classList.remove('pop');
+    $('rsFrom').textContent = idx && idx.item_utama_id !== itemId ? 'dibuka dari ' + nameOf(itemId) : '';
+    resetH(); drawResep(); open('resepM', rsBack);
+    if(startEdit){ S.edit = clone(REC); S.bk = { MB:clone(MB), COST:clone(COST) }; S.snap = snapNow(); drawResep(); }
+    if(idx && idx.item_utama_id !== itemId && !reduce) setTimeout(()=>{ void t.offsetWidth; t.classList.add('pop'); }, 220);
+  } catch(e){ showToast(e.message); }
+  finally { busy = false; }
+}
+const open = (id, undo) => { $(id).classList.remove('hidden'); pushLayar(undo || (()=>close(id))); };
+const close = id => $(id).classList.add('hidden');
+const snapNow = () => JSON.stringify([S.edit, MB, COST]);
+const dirty = () => S.edit && JSON.stringify([S.edit, MB, COST]) !== S.snap;
+// Back/✕: editor -> tampilan -> tutup. Dipanggil lewat popstate (kembaliLayar), jadi kalau sheet MASIH terbuka layar-nya di-push ulang.
+function rsBack(){
+  if(S && S.edit){
+    if(dirty()){ pushLayar(rsBack); open('resepDiscM', ()=>close('resepDiscM')); return; }
+    leaveEdit(false); pushLayar(rsBack); return;
+  }
+  close('resepM');
+}
+function leaveEdit(restore){
+  if(restore && S.bk){ MB = clone(S.bk.MB); COST = clone(S.bk.COST); }
+  S.edit = null; S.bk = null; drawResep();
+}
+function resetH(){ S.h = REC.hasil.map(x=>({ id:x.id, g:x.g, n:x.n, edited:false })); $('hasilV').dataset.key = ''; recalc(); }
+function recalc(){ const tot = totG(REC.rows)*k(), o = S.h.slice(1).reduce((s,x)=>s+x.g*x.n,0), r = S.h[0]; if(!r.edited) r.n = r.g > 0 ? Math.max(0, Math.floor((tot-o)/r.g+1e-9)) : 0; }
+
+// ---------- tampilan ----------
+function drawResep(){
+  const ed = !!S.edit;
+  $('viewR').style.display = ed ? 'none' : ''; $('editR').style.display = ed ? '' : 'none';
+  $('footV').style.display = ed ? 'none' : ''; $('footE').style.display = ed ? '' : 'none'; $('btnRsEdit').style.display = ed ? 'none' : '';
+  if(ed){ drawEditor(); return; }
+  recalc();
+  const kk = k(), tot = totG(REC.rows)*kk, f = ancF(REC), u = ancU(REC), A = REC.anc, own = isOwner() && COST;
+  $('jLbl').textContent = ancM(REC).n + ' (jangkar)'; $('jVal').textContent = dF(S.jangkar/f) + ' ' + u;
+  $('jm').classList.toggle('dis', S.jangkar <= A.min*f); $('jp').classList.toggle('dis', S.jangkar >= A.max*f);
+  $('jHint').textContent = `Kisaran ${dF(A.min)}–${dF(A.max)} ${u} · tiap tekan ±${dF(A.step)} ${u} · tahan buat cepat`;
+  const sep = ix => REC.pemisah === ix+1 && ix < REC.rows.length-1 ? '<div class="sep"></div>' : '';
+  $('tbl').innerHTML = `<div class="tr th"><span>Bahan</span><span>Gramasi</span><span class="owner-only">Harga</span></div>` +
+    REC.rows.map((x,ix) => { const pc = pcsTxt(x.b, x.g*kk), m = M(x.b);
+      return `<div class="tr"><span>${escapeHtml(m.n)}${pc?`<em>${pc}</em>`:''}</span><span>${f1(x.g*kk)}</span><span class="owner-only">${m.p?rupiah(x.g*kk*m.p):'—'}</span></div>` + sep(ix); }).join('') +
+    `<div class="tr tot"><span>Total adonan</span><span>${f1(tot)}</span><span class="owner-only">${own?rupiah(biaya(REC.rows)*kk):''}</span></div>` +
+    REC.proof.map(x=>`<div class="ovr"><span>${escapeHtml(x.n)}</span><span>⏱ <b>${x.mnt} mnt</b></span></div>`).join('') +
+    REC.oven.map(x=>`<div class="ovr"><span>🔥 Atas <b>${x.atas}°C</b> · Bawah <b>${x.bawah}°C</b></span><span>⏱ <b>${Math.round(x.mnt*kk)} mnt</b></span></div>`).join('');
+  $('enrWrap').style.display = own ? '' : 'none';
+  if(own) $('enr').innerHTML = eRows(REC,kk).map(x=>`<div class="tr e"><span>${x.n}<em>${Math.round(x.mnt)} mnt · ${x.kosong?'belum diisi':rupiah(x.jam)+'/jam'}${x.dari?' · dari oven':''}</em></span><span>${x.kosong?'—':rupiah(x.c)}</span></div>`).join('') + `<div class="tr e tot"><span>Total waktu & energi</span><span>${rupiah(eTot(REC,kk))}</span></div>`;
+  const npcs = x => S.h.filter(y=>x.u==='all'||x.u===y.id).reduce((s,y)=>s+y.n,0), multi = S.h.length > 1;
+  $('pkWrap').style.display = REC.pack.length ? '' : 'none';
+  $('pk').innerHTML = REC.pack.map(x=>`<div class="tr e"><span>${escapeHtml(x.n)}${multi&&x.u!=='all'?` <small>(${escapeHtml(nameOf(x.u))})</small>`:''}<em class="owner-only">× ${npcs(x)} pcs = ${rupiah(x.p*npcs(x))}</em></span><span class="owner-only">${rupiah(x.p)}/pcs</span></div>`).join('') +
+    `<div class="tr e tot owner-only"><span>Total packaging</span><span>${rupiah(REC.pack.reduce((s,x)=>s+x.p*npcs(x),0))}</span></div>`;
+  const hv = $('hasilV'), key = S.h.map(x=>x.id).join();
+  if(hv.dataset.key !== key){ hv.dataset.key = key; hv.innerHTML = S.h.map((x,i)=>`<div style="margin-bottom:10px"><div class="numlbl" style="color:var(--ink);font-weight:700">${escapeHtml(nameOf(x.id))}</div><div class="two"><div><div class="numlbl">Gramasi per roti (mentah)</div><div class="rs-ns"><button type="button" data-h="gm:${i}">−</button><div class="val" id="hg${i}"></div><button type="button" data-h="gp:${i}">+</button></div></div><div><div class="numlbl">Jumlah jadi (layak jual)</div><div class="rs-ns"><button type="button" data-h="nm:${i}">−</button><div class="val" id="hn${i}"></div><button type="button" data-h="np:${i}">+</button></div></div></div></div>`).join(''); }
+  S.h.forEach((x,i) => { $('hg'+i).textContent = dF(x.g) + ' gr'; $('hn'+i).textContent = x.n + ' pcs'; });
+  const used = S.h.reduce((s,x)=>s+x.g*x.n,0), sisa = tot - used, pcsAll = S.h.reduce((s,x)=>s+x.n,0);
+  $('yHint').innerHTML = sisa < -1e-6 ? `<span class="neg">Melebihi adonan ${f1(-sisa)}</span>` : `Terpakai ${f1(used)} dari ${f1(tot)} · sisa ${f1(Math.max(0,sisa))}. Baris pertama otomatis dari sisa adonan.`;
+  $('hppBox').style.display = own ? '' : 'none';
+  if(own){ const bt = biaya(REC.rows)*kk + eTot(REC,kk), ref = hppFull(REC);
+    $('hppList').innerHTML = S.h.map(x=>`<div class="hr"><span>${escapeHtml(nameOf(x.id))}</span><strong>${used?rupiah(x.g*bt/used+packFor(REC,x.id))+' / pcs':'—'}</strong></div>`).join('');
+    $('hppNote').textContent = `Biaya bahan + waktu & energi dibagi ke gram adonan yang jadi roti, jadi makin banyak pcs makin murah. Packaging per pcs. Acuan resep: ${rupiah(ref.b+ref.o+ref.k)} / pcs.` + (COST.gasKgJam ? '' : ' Biaya gas belum diisi, HPP belum lengkap.'); }
+  $('noteWrap').style.display = REC.note && REC.note.trim() ? '' : 'none'; $('noteV').textContent = REC.note || '';
+  const over = sisa < -1e-6;
+  $('btnProduksi').disabled = over || pcsAll === 0 || S.saving;
+  $('btnProduksi').textContent = over ? 'Melebihi adonan' : `Selesai Produksi · +${pcsAll} pcs`;
+}
+function setJ(d){ const A = REC.anc, f = ancF(REC), n = Math.min(A.max*f, Math.max(A.min*f, S.jangkar + d*A.step*f)); if(n === S.jangkar) return; S.jangkar = n; drawResep(); }
+function hAct(a,i){ if(a==='jm'||a==='jp'){ setJ(a==='jm'?-1:1); return; }
+  const r = S.h[i]; if(a==='gm'||a==='gp'){ r.g = Math.max(0, Math.round((r.g + (a==='gm'?-1:1))*10)/10); r.edited = false; } else { r.n = Math.max(0, r.n + (a==='nm'?-1:1)); r.edited = true; } drawResep(); }
+const stopHold = () => { clearTimeout(holdT); clearInterval(holdI); };
+$('resepM').addEventListener('pointerdown', e => { const b = e.target.closest('[data-h]'); if(!b) return; e.preventDefault(); stopHold(); const [a,i] = b.dataset.h.split(':'), fn = () => hAct(a,+i); fn(); holdT = setTimeout(()=>{ holdI = setInterval(fn,130); }, 380); });
+['pointerup','pointercancel'].forEach(ev => document.addEventListener(ev, stopHold)); window.addEventListener('blur', stopHold);
+$('resepM').addEventListener('contextmenu', e => { if(e.target.closest('[data-h]')) e.preventDefault(); });
+
+// ---------- editor (owner) ----------
+const inp = (sec,i,key,v,cls,step) => `<input class="${cls||''}" data-sec="${sec}" data-i="${i}" data-k="${key}" ${cls==='tl'?'type="text"':`type="number" min="0" inputmode="decimal" step="${step||1}"`} value="${escapeHtml(String(v))}">`;
+const rmb = (sec,i) => `<button type="button" class="rm" data-del="${sec}:${i}" aria-label="hapus">✕</button>`;
+const addBtn = (sec,t) => `<button type="button" class="secondary" data-add="${sec}" style="margin:2px 0 0">${t}</button>`;
+const hd = (cols,ls) => `<div class="er hd" style="grid-template-columns:${cols}">${ls.map(l=>`<span>${l}</span>`).join('')}<span></span></div>`;
+const F = (l,a,v,s) => `<div><div class="numlbl">${l}</div><input class="plain" type="number" min="0" inputmode="decimal" step="${s||1}" ${a} value="${v}"></div>`;
+const sepHtml = '<div class="sepE" data-item><button type="button" class="grip" data-grip="s" aria-label="geser pembatas">⠿</button><span>pembatas basah / kering</span><button type="button" class="rm" data-sepx aria-label="hapus pembatas">✕</button></div>';
+const edRows = (E,fn) => E.rows.map((r,i)=>fn(r,i) + (E.pemisah===i+1 && i<E.rows.length-1 ? sepHtml : '')).join('');
+const stokable = E => menuItems.filter(it => !it.stok_induk && it.item_id !== E.item_id && !E.hasil.some(h=>h.id===it.item_id));
+function drawEditor(){
+  const E = S.edit, multi = E.hasil.length > 1, u = ancU(E), used = E.rows.map(r=>r.b);
+  const emTxt = i => pcsTxt(E.rows[i].b, E.rows[i].g);
+  $('editR').innerHTML = `<div class="hint" style="margin:0 0 10px">Takaran untuk ${escapeHtml(baseLbl(E))}. Bahan lain ikut menyesuaikan saat produksi. Geser ⠿ untuk memindah baris; ⋯ untuk jadikan jangkar atau hapus.</div>` +
+   edRows(E,(r,i)=>{ const m = M(r.b), opts = Object.values(MB).filter(x=>!x.isNew && (x.id===r.b || !used.includes(x.id)));
+     const row = `<div class="er" style="grid-template-columns:28px 1fr 104px 34px"><button type="button" class="grip" data-grip="${i}" aria-label="geser">⠿</button><div>${m.isNew ? `<input class="tl" data-nb="${i}" placeholder="Nama bahan baru" value="${escapeHtml(m.n)}">` : `<select data-i="${i}">${opts.map(x=>`<option value="${x.id}" ${x.id===r.b?'selected':''}>${escapeHtml(x.n)}</option>`).join('')}<option value="__new">＋ Bahan baru…</option></select><em id="pc${i}">${emTxt(i)}</em>`}</div><input type="number" min="0" inputmode="decimal" step="0.1" data-g="${i}" value="${r.g}"><button type="button" class="more" data-more="${i}" aria-label="menu bahan">⋯</button></div>`;
+     return i===E.anc.i ? `<div class="ancbox" data-item>${row}<div class="sub" style="margin:2px 0 6px 2px">Jangkar: stepper di resep mengatur jumlah ini, bahan lain ikut.</div><div class="three">${F('Min ('+u+')','data-a="min"',E.anc.min)}${F('Maks ('+u+')','data-a="max"',E.anc.max)}${F('Langkah ('+u+')','data-a="step"',E.anc.step)}</div></div>` : `<div data-item>${row}</div>`; }) +
+   `<button type="button" class="secondary" id="addB" style="margin:2px 0 0">+ Tambah bahan</button>${E.pemisah==null&&E.rows.length>1?'<button type="button" class="secondary" data-addsep style="margin:6px 0 0">+ Pembatas basah / kering</button>':''}
+   <div class="tr tot" style="border-radius:10px;margin-top:12px"><span>Total adonan</span><span id="edTot"></span></div>
+   <div class="owner-only"><label class="lb">Harga & berat bahan</label><div class="er hd" style="grid-template-columns:1fr 70px 96px"><span>Bahan</span><span>gr/butir</span><span>Rp/kg</span></div>` +
+   E.rows.map(r=>{ const m = M(r.b); return `<div class="er" style="grid-template-columns:1fr 70px 96px"><div style="font-size:14px;padding-top:9px" data-mpname="${r.b}">${escapeHtml(m.n||'(bahan baru)')}</div><input type="number" min="0" inputmode="decimal" data-mpcs="${r.b}" value="${m.pcs||''}" placeholder="—"><input type="number" min="0" inputmode="decimal" data-mp="${r.b}" value="${Math.round(m.p*1000)}"></div>`; }).join('') +
+   `<div class="hint">Harga per kg diisi di sini (Tahap 1); dari menu Beli baru di Tahap 2.</div></div>
+   <label class="lb">Proofing (menit, info saja)</label>` +
+   E.proof.map((x,i)=>`<div class="er" style="grid-template-columns:1fr 84px 34px">${inp('proof',i,'n',x.n,'tl')}${inp('proof',i,'mnt',x.mnt)}${rmb('proof',i)}</div>`).join('') + addBtn('proof','+ Tambah proofing') +
+   `<label class="lb">Oven</label>` + hd('1fr 1fr 1fr 34px',['Atas °C','Bawah °C','Menit']) +
+   E.oven.map((x,i)=>`<div class="er" style="grid-template-columns:1fr 1fr 1fr 34px">${inp('oven',i,'atas',x.atas)}${inp('oven',i,'bawah',x.bawah)}${inp('oven',i,'mnt',x.mnt)}${rmb('oven',i)}</div>`).join('') + addBtn('oven','+ Tambah oven') +
+   `<label class="lb">Packaging (Rp per pcs)</label>` +
+   E.pack.map((x,i)=>`<div class="er" style="grid-template-columns:${multi?'1fr 70px 96px 34px':'1fr 104px 34px'}">${inp('pack',i,'n',x.n,'tl')}${inp('pack',i,'p',x.p)}${multi?`<select data-sec="pack" data-i="${i}" data-k="u"><option value="all" ${x.u==='all'?'selected':''}>Semua ukuran</option>${E.hasil.map(y=>`<option value="${y.id}" ${x.u===y.id?'selected':''}>${escapeHtml(nameOf(y.id))}</option>`).join('')}</select>`:''}${rmb('pack',i)}</div>`).join('') + addBtn('pack','+ Tambah packaging') +
+   `<div class="owner-only"><label class="lb">Bahan utama non-stok (harga bisa diedit)</label>
+   <div class="two">${F('Waktu pengerjaan (menit)','data-r="kerja"',kerjaMnt(E))}<div style="align-self:end">${E.kerja==null?'<span class="sub">otomatis = total proofing</span>':'<button type="button" class="secondary" id="kAuto" style="margin:0;padding:11px 8px">↺ Otomatis</button>'}</div></div>
+   <div class="hint">Bawaan = total waktu proofing (<span id="kProof"></span> mnt). Ketik angka sendiri kalau beda, biasanya proofing + 30–45 mnt. Ikut ukuran adonan; menentukan upah dan listrik AC. Gas dihitung dari total menit oven.</div>
+   <div class="two" style="margin-top:8px">${F('Listrik (Rp/kWh)','data-c="listrik"',COST.listrik,'0.01')}${F('Daya AC (watt)','data-c="watt"',COST.watt)}</div>
+   <div class="two" style="margin-top:8px">${F('Gas LPG (Rp/tabung)','data-c="lpg"',COST.lpg)}${F('Konsumsi oven (kg/jam)','data-c="gasKgJam"',COST.gasKgJam,'0.05')}</div>
+   <div class="two" style="margin-top:8px">${F('Upah per bulan (Rp)','data-c="upah"',COST.upah)}<div></div></div>
+   <div class="hint">Upah per jam = upah ÷ ${COST.pembagi} = ${rupiah(COST.upah/COST.pembagi)}</div></div>
+   <label class="lb">Hasil adonan (tiap ukuran)</label>` + hd('1fr 66px 62px 34px',['Item','Gramasi','Jumlah']) +
+   E.hasil.map((x,i)=>`<div class="er" style="grid-template-columns:1fr 66px 62px 34px"><div>${i===0?`<div style="font-size:14px;font-weight:600;padding-top:9px">${escapeHtml(nameOf(x.id))}</div>`:`<select data-sec="hasil" data-i="${i}" data-k="id">${[{item_id:x.id,nama:nameOf(x.id)}].concat(stokable(E)).map(it=>`<option value="${it.item_id}" ${it.item_id===x.id?'selected':''}>${escapeHtml(it.nama)}</option>`).join('')}</select>`}</div>${inp('hasil',i,'g',x.g)}${inp('hasil',i,'n',i===0?'':x.n)}${i===0?'<span></span>':rmb('hasil',i)}</div>`).join('') + (stokable(E).length ? addBtn('hasil','+ Tambah ukuran') : '') +
+   `<div class="hint">Jumlah baris pertama otomatis dari sisa adonan; ubah gramasi atau jumlahnya, yang lain mengikuti. Nilai bawaan, tetap bisa diubah tiap produksi.</div>
+   <div class="hpp owner-only"><div class="sub">HPP acuan (ukuran pertama)</div><strong id="edHpp"></strong></div>
+   <label class="lb">Catatan</label><textarea id="noteE" rows="3" placeholder="Tulis catatan resep…">${escapeHtml(E.note||'')}</textarea>`;
+  updEd();
+}
+function updEd(skip){
+  const E = S.edit, tot = totG(E.rows); $('edTot').textContent = f1(tot);
+  const n0 = qs('#editR [data-sec="hasil"][data-i="0"][data-k="n"]'), oth = E.hasil.slice(1).reduce((s,x)=>s+x.g*x.n,0);
+  if(n0 && skip !== n0) n0.value = E.hasil[0].g > 0 ? Math.max(0, Math.floor((tot-oth)/E.hasil[0].g+1e-9)) : 0;
+  const kp = E.proof.reduce((s,x)=>s+x.mnt,0), kpe = $('kProof'); if(kpe) kpe.textContent = kp;
+  if(E.kerja == null){ const ki = qs('#editR [data-r="kerja"]'); if(ki && document.activeElement !== ki) ki.value = kp; }
+  const hh = $('edHpp'); if(hh && COST && tot > 0){ const h = hppFull(E); hh.textContent = rupiah(h.b+h.o+h.k) + ' / pcs (bahan ' + rupiah(h.b) + ' + waktu & energi ' + rupiah(h.o) + ' + packaging ' + rupiah(h.k) + ')'; }
+}
+const resetAnc = E => { const f = ancF(E), b = baseG(E)/f; E.anc.min = Math.max(1, Math.round(b*0.5)); E.anc.max = Math.round(b*1.5); E.anc.step = f > 1 ? 1 : 100; };
+function rmRow(i){ const E = S.edit; E.rows.splice(i,1); if(i === E.anc.i) E.anc.i = 0; else if(i < E.anc.i) E.anc.i--; if(E.pemisah != null){ if(i < E.pemisah) E.pemisah--; if(E.pemisah < 1 || E.pemisah >= E.rows.length) E.pemisah = null; } drawEditor(); }
+$('editR').addEventListener('input', e => { const E = S.edit, t = e.target, d = t.dataset; if(!E) return;
+  if(t.type === 'number' && parseFloat(t.value) < 0) t.value = 0;
+  if(t.id === 'noteE'){ E.note = t.value; return; }
+  if(d.nb !== undefined){ const bb = E.rows[+d.nb].b; MB[bb].n = t.value; const lb = qs('#editR [data-mpname="'+bb+'"]'); if(lb) lb.textContent = t.value || '(bahan baru)'; return; }
+  const v = Math.max(0, parseFloat(t.value) || 0);
+  if(d.sec === 'hasil' && d.k === 'n' && +d.i === 0){ const n = parseInt(t.value); if(n > 0){ const rem = totG(E.rows) - E.hasil.slice(1).reduce((s,x)=>s+x.g*x.n,0); E.hasil[0].g = Math.round(rem/n*10)/10; qs('#editR [data-sec="hasil"][data-i="0"][data-k="g"]').value = E.hasil[0].g; updEd(t); } }
+  else if(d.sec){ E[d.sec][+d.i][d.k] = t.type === 'number' ? v : t.value; updEd(); }
+  else if(d.g !== undefined){ const i = +d.g; E.rows[i].g = v; const pc = $('pc'+i); if(pc) pc.textContent = pcsTxt(E.rows[i].b, v); updEd(); }
+  else if(d.c !== undefined){ COST[d.c] = v; updEd(); }
+  else if(d.mp !== undefined){ const m = MB[d.mp]; m.p = v/1000; m.dirty = true; updEd(); }
+  else if(d.mpcs !== undefined){ const m = MB[d.mpcs]; m.pcs = v > 0 ? v : null; m.dirty = true; }
+  else if(d.r !== undefined){ if(d.r === 'kerja' && !$('kAuto')) t.closest('.two').children[1].innerHTML = '<button type="button" class="secondary" id="kAuto" style="margin:0;padding:11px 8px">↺ Otomatis</button>'; E.kerja = v; updEd(); }
+  else if(d.a !== undefined){ E.anc[d.a] = v; } });
+$('editR').addEventListener('change', e => { const E = S.edit, t = e.target, d = t.dataset; if(!E) return;
+  if(d.nb !== undefined) return;
+  if(d.sec){ if(t.tagName !== 'SELECT') return; const r = E[d.sec][+d.i], old = r[d.k]; r[d.k] = t.value; if(d.sec === 'hasil') E.pack.forEach(p => { if(p.u === old) p.u = t.value; }); drawEditor(); return; }
+  if(d.i === undefined) return; const i = +d.i;
+  if(t.value === '__new'){ const tid = --tempId; MB[tid] = { id:null, tid, n:'', p:0, pcs:null, amb:null, dirty:true, isNew:true }; E.rows[i].b = tid; drawEditor(); setTimeout(()=>{ const x = qs('#editR [data-nb]'); if(x) x.focus(); }, 30); }
+  else { E.rows[i].b = +t.value; if(i === E.anc.i) resetAnc(E); drawEditor(); } });
+$('editR').addEventListener('click', e => { const E = S.edit; if(!E) return; const t = e.target;
+  const mo = t.closest('[data-more]'); if(mo){ openRowMenu(mo, +mo.dataset.more); return; }
+  if(t.closest('[data-sepx]')){ E.pemisah = null; drawEditor(); return; }
+  if(t.closest('[data-addsep]')){ E.pemisah = Math.max(1, E.rows.length-1); drawEditor(); return; }
+  if(t.id === 'kAuto'){ E.kerja = null; drawEditor(); return; }
+  const del = t.closest('[data-del]'); if(del){ const [s,i] = del.dataset.del.split(':'), gone = E[s].splice(+i,1)[0]; if(s === 'hasil') E.pack.forEach(p => { if(p.u === gone.id) p.u = 'all'; }); drawEditor(); return; }
+  const ad = t.closest('[data-add]'); if(ad){ const s = ad.dataset.add; E[s].push(s==='proof'?{n:'Proofing',mnt:0}:s==='oven'?{atas:180,bawah:180,mnt:0}:s==='pack'?{n:'Packaging baru',p:0,u:'all'}:{ id:(stokable(E)[0]||{}).item_id, g:30, n:0 }); drawEditor(); return; }
+  if(t.id === 'addB'){ const free = Object.values(MB).find(x=>!x.isNew && !E.rows.some(r=>r.b===x.id)); if(free){ E.rows.push({ b:free.id, g:0 }); } else { const tid = --tempId; MB[tid] = { id:null, tid, n:'', p:0, pcs:null, amb:null, dirty:true, isNew:true }; E.rows.push({ b:tid, g:0 }); } drawEditor(); } });
+// menu ⋯ per baris + geser (grip)
+const rowMenu = $('rsRowMenu');
+function openRowMenu(btn,i){ const E = S.edit, r = btn.getBoundingClientRect();
+  rowMenu.innerHTML = (i !== E.anc.i ? `<button type="button" data-m="pin:${i}">📌 Jadikan jangkar</button>` : '<div class="mi">Baris ini jangkar</div>') + (E.rows.length > 1 ? `<button type="button" class="d" data-m="rm:${i}">✕ Hapus bahan</button>` : '');
+  rowMenu.style.left = Math.max(8, Math.min(r.right-170, innerWidth-178)) + 'px'; rowMenu.style.top = Math.min(r.bottom+4, innerHeight-110) + 'px'; rowMenu.classList.add('on'); }
+document.addEventListener('click', e => { if(!e.target.closest('#rsRowMenu,[data-more]')) rowMenu.classList.remove('on'); });
+$('resepM').addEventListener('scroll', () => rowMenu.classList.remove('on'), true);
+rowMenu.addEventListener('click', e => { const b = e.target.closest('[data-m]'), E = S && S.edit; if(!b || !E) return; const [a,x] = b.dataset.m.split(':'), i = +x; rowMenu.classList.remove('on');
+  if(a === 'pin'){ E.anc.i = i; resetAnc(E); drawEditor(); } else rmRow(i); });
+let dg = null;
+const seqOf = E => { const s = E.rows.map((_,i)=>i); if(E.pemisah != null) s.splice(E.pemisah,0,'s'); return s; };
+const othersOf = () => [...document.querySelectorAll('#editR [data-item]')].filter(x => !dg || x !== dg.it);
+document.addEventListener('pointerdown', e => { const g = e.target.closest('#editR [data-grip]'); if(!g || !S || !S.edit) return; e.preventDefault(); rowMenu.classList.remove('on'); const it = g.closest('[data-item]'); g.setPointerCapture(e.pointerId); dg = { it, id:g.dataset.grip, y0:e.clientY, k:0 }; it.classList.add('dragging'); });
+document.addEventListener('pointermove', e => { if(!dg) return; dg.it.style.transform = `translateY(${e.clientY-dg.y0}px)`; const o = othersOf(); o.forEach(x=>x.classList.remove('dropb','dropa')); dg.k = o.filter(el=>{ const b = el.getBoundingClientRect(); return b.top+b.height/2 < e.clientY; }).length; if(dg.k < o.length) o[dg.k].classList.add('dropb'); else o[o.length-1].classList.add('dropa'); });
+function endDrag(ok){ if(!dg) return; const E = S && S.edit, d = dg; dg = null;
+  if(ok && E){ let kk = d.k; const sep = d.id === 's'; if(sep) kk = Math.min(Math.max(kk,1), E.rows.length-1);
+    const s = seqOf(E).filter(x => String(x) !== d.id); s.splice(kk, 0, sep ? 's' : +d.id);
+    if(s[0] !== 's' && s[s.length-1] !== 's'){ const old = E.rows, anc = old[E.anc.i]; E.rows = s.filter(x=>x!=='s').map(i=>old[i]); E.anc.i = E.rows.indexOf(anc); const p = s.indexOf('s'); E.pemisah = p < 0 ? null : p; } }
+  if(S && S.edit) drawEditor(); }
+document.addEventListener('pointerup', () => endDrag(true)); document.addEventListener('pointercancel', () => endDrag(false));
+
+// ---------- simpan resep (owner) ----------
+async function saveResep(){
+  const E = S.edit, btn = $('btnRsSave');
+  if(!E.rows.length) return showToast('Resep butuh minimal 1 bahan.');
+  if(E.rows.some(r => !M(r.b).n.trim())) return showToast('Ada bahan baru yang namanya masih kosong.');
+  if(baseG(E) <= 0) return showToast('Takaran bahan jangkar harus lebih dari 0.');
+  btn.disabled = true; btn.textContent = 'Menyimpan…';
+  try{
+    const idOf = {}; // id sementara -> id server
+    for(const m of Object.values(MB)){
+      const used = E.rows.some(r => r.b === (m.isNew ? m.tid : m.id));
+      if(m.isNew){ if(!used) continue; const res = await apiPost('save_bahan', { nama:m.n.trim(), harga_per_kg:Math.round(m.p*1000), berat_per_butir_dg:m.pcs ? Math.round(m.pcs*10) : null, client_bahan_id:(m.cid = m.cid || crypto.randomUUID()) }); idOf[m.tid] = res.id; }
+      else if(m.dirty){ await apiPost('save_bahan', { id:m.id, nama:m.n, harga_per_kg:Math.round(m.p*1000), berat_per_butir_dg:m.pcs ? Math.round(m.pcs*10) : null, ambang_habis_dg:m.amb }); }
+    }
+    const real = b => idOf[b] || b;
+    if(COST && JSON.stringify(COST) !== JSON.stringify(S.bk && S.bk.COST)) await apiPost('save_tarif', { upah_bulan:Math.round(COST.upah), upah_pembagi:COST.pembagi, listrik_per_kwh:COST.listrik, daya_ac_watt:Math.round(COST.watt), lpg_per_tabung:Math.round(COST.lpg), lpg_kg_per_tabung:COST.lpgKg, gas_kg_per_jam:COST.gasKgJam });
+    const fa = (MB[E.rows[E.anc.i].b] || {}).pcs || 1;
+    await apiPost('save_resep', { item_id:E.item_id, versi:E.versi, jangkar_bahan_id:real(E.rows[E.anc.i].b),
+      jangkar_min_dg:Math.round(E.anc.min*fa*10), jangkar_max_dg:Math.round(E.anc.max*fa*10), jangkar_step_dg:Math.round(E.anc.step*fa*10),
+      kerja_mnt:E.kerja == null ? null : Math.round(E.kerja), proofing:E.proof, oven:E.oven, packaging:E.pack, catatan:E.note || '', pemisah_setelah:E.pemisah,
+      bahan:E.rows.map(r=>({ bahan_id:real(r.b), qty_dg:Math.round(r.g*10) })), hasil:E.hasil.map(h=>({ item_id:h.id, gramasi_dg:Math.round(h.g*10), jumlah_bawaan:h.n||0 })) });
+    idxCache = null; showToast('Resep disimpan ✓');
+    const itemId = E.item_id; S.edit = null; // muat ulang dari server supaya id & versi benar
+    const [r, master, t] = await Promise.all([apiGet('get_resep',{item_id:itemId}), apiGet('get_bahan',{}), apiGet('get_tarif',{})]);
+    mkMaster(master||[]); REC = fromServer(r);
+    COST = { upah:t.upah_bulan, pembagi:t.upah_pembagi, listrik:t.listrik_per_kwh, watt:t.daya_ac_watt, lpg:t.lpg_per_tabung, lpgKg:t.lpg_kg_per_tabung, gasKgJam:t.gas_kg_per_jam };
+    S.jangkar = baseG(REC); resetH(); S.bk = null; drawResep();
+    if(!$('resepM').classList.contains('rs-staff')) $('rsTitle').textContent = 'Resep ' + nameOf(REC.item_id);
+  } catch(e){ showToast('Gagal simpan resep: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = 'Simpan resep'; }
+}
+
+// ---------- Selesai Produksi ----------
+function askProduksi(){
+  const kk = k();
+  $('confBody').innerHTML = `<div style="margin-bottom:6px;font-weight:600">Kurangi bahan</div>` + REC.rows.map((x,ix)=>`<div class="row"><span>${escapeHtml(M(x.b).n)}</span><span>−${f1(x.g*kk)}</span></div>` + (REC.pemisah===ix+1&&ix<REC.rows.length-1?'<div class="sep" style="margin:4px 0"></div>':'')).join('') +
+    `<div style="margin:12px 0 6px;font-weight:600">Tambah stok</div>` + S.h.filter(x=>x.n>0).map(x=>{ const it = menuItems.find(m=>m.item_id===x.id), from = it ? (it.stok||0) : 0; return `<div class="row"><span>${escapeHtml(nameOf(x.id))}</span><span>${it&&it.unlimited?'unlimited':from+' → '+(from+x.n)+' (+'+x.n+')'}</span></div>`; }).join('');
+  S.cid = S.cid || crypto.randomUUID(); // sekali per konfirmasi; dipakai ulang buat retry (idempotensi server)
+  $('btnSimpan').disabled = false; $('btnSimpan').textContent = 'Simpan produksi'; open('resepConfM', () => close('resepConfM'));
+}
+async function doProduksi(){
+  if(S.saving) return; S.saving = true; const b = $('btnSimpan'); b.disabled = true; b.textContent = 'Menyimpan...';
+  try{
+    const res = await apiPost('add_produksi', { client_produksi_id:S.cid, resep_id:REC.resep_id, versi:REC.versi, jangkar_dg:Math.round(S.jangkar*10),
+      hasil:S.h.filter(x=>x.n>0).map(x=>({ item_id:x.id, gramasi_dg:Math.round(x.g*10), jumlah:x.n })), device_label:deviceLabel });
+    S.saving = false; S.cid = null; produced(res);
+  } catch(e){ S.saving = false; b.disabled = false; b.textContent = 'Simpan produksi'; showToast((e.status === 'not_registered' ? 'Sesi login habis — sign in ulang, lalu coba lagi. ' : '') + e.message); }
+}
+function produced(res){
+  // 1) ganti stok lokal dari respons SERVER dulu (supaya update_stok absolut berikutnya nggak menimpa dari angka basi)
+  const stok = res.stok_akhir || {}, tg = [];
+  Object.keys(stok).forEach(id => { const it = menuItems.find(m=>m.item_id===id); if(it){ tg.push({ id, row:it.row, from:it.stok||0, to:stok[id] }); it.stok = stok[id]; } });
+  // 2) tutup semua sheet, lalu masuk mode Stock (tunggu popstate dari tutupSemuaLayar selesai) dan animasikan +N
+  tutupSemuaLayar(() => { ['resepConfM','resepDiscM','resepM'].forEach(close); closeAddMenuModal(); });
+  setTimeout(() => { if(!stokMode) toggleStokMode(); setTimeout(() => animate(tg), 420); }, 450);
+}
+function animate(tg){
+  const els = tg.map(t => ({ ...t, add:t.to-t.from, qty:$('stokval-'+t.row) })).filter(e => e.qty && e.add !== 0);
+  const done = () => { exitStokMode(); renderMenuManage(); showToast('Produksi tersimpan ✓'); };
+  if(!els.length){ done(); return; }
+  els[0].qty.closest('.menu-item-manage').scrollIntoView({ block:'center', behavior:reduce?'auto':'smooth' });
+  els.forEach(e => { e.qty.textContent = e.from; const st = e.qty.closest('.stepper'); st.style.position = 'relative'; e.bd = document.createElement('span'); e.bd.className = 'rs-badge'; e.bd.textContent = '+' + e.add; st.appendChild(e.bd); e.row_ = e.qty.closest('.menu-item-manage'); e.row_.classList.add('rs-flash'); });
+  if(reduce){ els.forEach(e => { e.qty.textContent = e.to; e.bd.remove(); }); setTimeout(done, 300); return; }
+  setTimeout(() => els.forEach(e => e.bd.classList.add('show')), 380);
+  setTimeout(() => { const t0 = performance.now(), D = 900;
+    (function f(now){ const p = Math.min(1,(now-t0)/D), ea = 1-Math.pow(1-p,3);
+      els.forEach(e => { e.qty.textContent = Math.round(e.from + e.add*ea); e.bd.textContent = '+' + Math.round(e.add*(1-ea)); });
+      if(p < 1) requestAnimationFrame(f); else { els.forEach(e => e.bd.classList.add('gone')); setTimeout(() => { els.forEach(e => { e.qty.textContent = e.to; e.bd.remove(); }); setTimeout(done, 400); }, 260); } })(t0); }, 1380);
+}
+
+// ---------- tombol ----------
+$('btnRsEdit').onclick = () => { S.edit = clone(REC); S.bk = { MB:clone(MB), COST:clone(COST) }; S.snap = snapNow(); drawResep(); };
+$('btnRsCancel').onclick = () => kembaliLayar();
+$('btnRsSave').onclick = saveResep;
+$('btnRsClose').onclick = () => kembaliLayar();
+$('btnProduksi').onclick = askProduksi;
+$('btnSimpan').onclick = doProduksi;
+$('btnConfCancel').onclick = () => kembaliLayar();
+$('btnConfX').onclick = () => kembaliLayar();
+$('btnBuang').onclick = () => { leaveEdit(true); close('resepDiscM'); kembaliLayar(); }; // Buang: tutup dialog (pop layarnya) lalu keluar editor
+$('btnLanjut').onclick = () => kembaliLayar();
+window.rsSetupEditButton = setupEditButton;
+window.rsInvalidateIndex = () => { idxCache = null; };
+})();
+
 </script>
 </body>
 </html>
