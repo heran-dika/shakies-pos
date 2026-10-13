@@ -518,6 +518,7 @@
 .rs-badge.show{opacity:1;transform:translateX(-50%) scale(1);transition:transform .26s cubic-bezier(.34,1.56,.64,1),opacity .18s}
 .rs-badge.gone{opacity:0;transform:translateX(-50%) scale(.8);transition:opacity .25s,transform .25s}
 .rs-flash{animation:rsFlash .9s ease}@keyframes rsFlash{0%{background:var(--jade-tint)}100%{background:transparent}}
+.rs .sepE span::after{display:none}
 .rs .sepE .rm{border:none;background:none;color:var(--chili);font-size:16px;padding:8px 0;cursor:pointer}
 #resepConfM,#resepDiscM{z-index:60}#resepM{z-index:55}#rsRowMenu{z-index:90}
 </style>
@@ -5384,12 +5385,12 @@ function fromServer(r){
   const f = M(rows[ai].b).pcs || 1;
   return { item_id:r.item_id, resep_id:r.resep_id, versi:r.versi, rows, anc:{ i:ai, min:r.jangkar.min_dg/10/f, max:r.jangkar.max_dg/10/f, step:r.jangkar.step_dg/10/f },
     proof:r.proofing.map(x=>({n:x.n,mnt:x.mnt})), oven:r.oven.map(x=>({atas:x.atas,bawah:x.bawah,mnt:x.mnt})),
-    pack:r.packaging.map(x=>({ n:x.n, p:x.p||0, u:x.u })), note:r.catatan||'', kerja:r.kerja_mnt, pemisah:r.pemisah_setelah,
+    pack:r.packaging.map(x=>({ n:x.n, p:x.p||0, u:x.u })), note:r.catatan||'', kerja:r.kerja_mnt, pemisah:Array.isArray(r.pemisah) ? r.pemisah.slice() : (r.pemisah_setelah ? [r.pemisah_setelah] : []),
     hasil:r.hasil.map(h=>({ id:h.item_id, g:h.gramasi_dg/10, n:h.jumlah_bawaan })) };
 }
 function blankRec(itemId){
   const tid = --tempId; MB[tid] = { id:null, tid, n:'', p:0, pcs:null, amb:null, dirty:true, isNew:true };
-  return { item_id:itemId, resep_id:null, versi:null, rows:[{ b:tid, g:1000 }], anc:{ i:0, min:500, max:1500, step:100 }, proof:[{ n:'Proofing', mnt:0 }], oven:[{ atas:180, bawah:180, mnt:0 }], pack:[], note:'', kerja:null, pemisah:null, hasil:[{ id:itemId, g:50, n:0 }] };
+  return { item_id:itemId, resep_id:null, versi:null, rows:[{ b:tid, g:1000 }], anc:{ i:0, min:500, max:1500, step:100 }, proof:[{ n:'Proofing', mnt:0 }], oven:[{ atas:180, bawah:180, mnt:0 }], pack:[], note:'', kerja:null, pemisah:[], hasil:[{ id:itemId, g:50, n:0 }] };
 }
 async function openResep(itemId){
   if(busy) return; busy = true;
@@ -5448,7 +5449,7 @@ function drawResep(){
   $('jLbl').textContent = ancM(REC).n + ' (jangkar)'; $('jVal').textContent = dF(S.jangkar/f) + ' ' + u;
   $('jm').classList.toggle('dis', S.jangkar <= A.min*f); $('jp').classList.toggle('dis', S.jangkar >= A.max*f);
   $('jHint').textContent = `Kisaran ${dF(A.min)}–${dF(A.max)} ${u} · tiap tekan ±${dF(A.step)} ${u} · tahan buat cepat`;
-  const sep = ix => REC.pemisah === ix+1 && ix < REC.rows.length-1 ? '<div class="sep"></div>' : '';
+  const sep = ix => REC.pemisah.includes(ix+1) && ix < REC.rows.length-1 ? '<div class="sep"></div>' : '';
   $('tbl').innerHTML = `<div class="tr th"><span>Bahan</span><span>Gramasi</span><span class="owner-only">Harga</span></div>` +
     REC.rows.map((x,ix) => { const pc = pcsTxt(x.b, x.g*kk), m = M(x.b);
       return `<div class="tr"><span>${escapeHtml(m.n)}${pc?`<em>${pc}</em>`:''}</span><span>${f1(x.g*kk)}</span><span class="owner-only">${m.p?rupiah(x.g*kk*m.p):'—'}</span></div>` + sep(ix); }).join('') +
@@ -5489,8 +5490,8 @@ const rmb = (sec,i) => `<button type="button" class="rm" data-del="${sec}:${i}" 
 const addBtn = (sec,t) => `<button type="button" class="secondary" data-add="${sec}" style="margin:2px 0 0">${t}</button>`;
 const hd = (cols,ls) => `<div class="er hd" style="grid-template-columns:${cols}">${ls.map(l=>`<span>${l}</span>`).join('')}<span></span></div>`;
 const F = (l,a,v,s) => `<div><div class="numlbl">${l}</div><input class="plain" type="number" min="0" inputmode="decimal" step="${s||1}" ${a} value="${v}"></div>`;
-const sepHtml = '<div class="sepE" data-item><button type="button" class="grip" data-grip="s" aria-label="geser pembatas">⠿</button><span>pembatas basah / kering</span><button type="button" class="rm" data-sepx aria-label="hapus pembatas">✕</button></div>';
-const edRows = (E,fn) => E.rows.map((r,i)=>fn(r,i) + (E.pemisah===i+1 && i<E.rows.length-1 ? sepHtml : '')).join('');
+const sepHtml = k => `<div class="sepE" data-item><button type="button" class="grip" data-grip="s${k}" aria-label="geser pembatas">⠿</button><span></span><button type="button" class="rm" data-sepx="${k}" aria-label="hapus pembatas">✕</button></div>`;
+const edRows = (E,fn) => E.rows.map((r,i)=>fn(r,i) + (E.pemisah.includes(i+1) && i<E.rows.length-1 ? sepHtml(E.pemisah.indexOf(i+1)) : '')).join('');
 const stokable = E => menuItems.filter(it => !it.stok_induk && it.item_id !== E.item_id && !E.hasil.some(h=>h.id===it.item_id));
 function drawEditor(){
   const E = S.edit, multi = E.hasil.length > 1, u = ancU(E), used = E.rows.map(r=>r.b);
@@ -5499,7 +5500,7 @@ function drawEditor(){
    edRows(E,(r,i)=>{ const m = M(r.b), opts = Object.values(MB).filter(x=>!x.isNew && (x.id===r.b || !used.includes(x.id)));
      const row = `<div class="er" style="grid-template-columns:28px 1fr 104px 34px"><button type="button" class="grip" data-grip="${i}" aria-label="geser">⠿</button><div>${m.isNew ? `<input class="tl" data-nb="${i}" placeholder="Nama bahan baru" value="${escapeHtml(m.n)}">` : `<select data-i="${i}">${opts.map(x=>`<option value="${x.id}" ${x.id===r.b?'selected':''}>${escapeHtml(x.n)}</option>`).join('')}<option value="__new">＋ Bahan baru…</option></select><em id="pc${i}">${emTxt(i)}</em>`}</div><input type="number" min="0" inputmode="decimal" step="0.1" data-g="${i}" value="${r.g}"><button type="button" class="more" data-more="${i}" aria-label="menu bahan">⋯</button></div>`;
      return i===E.anc.i ? `<div class="ancbox" data-item>${row}<div class="sub" style="margin:2px 0 6px 2px">Jangkar: stepper di resep mengatur jumlah ini, bahan lain ikut.</div><div class="three">${F('Min ('+u+')','data-a="min"',E.anc.min)}${F('Maks ('+u+')','data-a="max"',E.anc.max)}${F('Langkah ('+u+')','data-a="step"',E.anc.step)}</div></div>` : `<div data-item>${row}</div>`; }) +
-   `<button type="button" class="secondary" id="addB" style="margin:2px 0 0">+ Tambah bahan</button>${E.pemisah==null&&E.rows.length>1?'<button type="button" class="secondary" data-addsep style="margin:6px 0 0">+ Pembatas basah / kering</button>':''}
+   `<button type="button" class="secondary" id="addB" style="margin:2px 0 0">+ Tambah bahan</button>${E.pemisah.length<3&&E.rows.length-1>E.pemisah.length?`<button type="button" class="secondary" data-addsep style="margin:6px 0 0">+ Pembatas (${E.pemisah.length}/3)</button>`:''}
    <div class="tr tot" style="border-radius:10px;margin-top:12px"><span>Total adonan</span><span id="edTot"></span></div>
    <div class="owner-only"><label class="lb">Harga & berat bahan</label><div class="er hd" style="grid-template-columns:1fr 70px 96px"><span>Bahan</span><span>gr/butir</span><span>Rp/kg</span></div>` +
    E.rows.map(r=>{ const m = M(r.b); return `<div class="er" style="grid-template-columns:1fr 70px 96px"><div style="font-size:14px;padding-top:9px" data-mpname="${r.b}">${escapeHtml(m.n||'(bahan baru)')}</div><input type="number" min="0" inputmode="decimal" data-mpcs="${r.b}" value="${m.pcs||''}" placeholder="—"><input type="number" min="0" inputmode="decimal" data-mp="${r.b}" value="${Math.round(m.p*1000)}"></div>`; }).join('') +
@@ -5533,7 +5534,7 @@ function updEd(skip){
   const hh = $('edHpp'); if(hh && COST && tot > 0){ const h = hppFull(E); hh.textContent = rupiah(h.b+h.o+h.k) + ' / pcs (bahan ' + rupiah(h.b) + ' + waktu & energi ' + rupiah(h.o) + ' + packaging ' + rupiah(h.k) + ')'; }
 }
 const resetAnc = E => { const f = ancF(E), b = baseG(E)/f; E.anc.min = Math.max(1, Math.round(b*0.5)); E.anc.max = Math.round(b*1.5); E.anc.step = f > 1 ? 1 : 100; };
-function rmRow(i){ const E = S.edit; E.rows.splice(i,1); if(i === E.anc.i) E.anc.i = 0; else if(i < E.anc.i) E.anc.i--; if(E.pemisah != null){ if(i < E.pemisah) E.pemisah--; if(E.pemisah < 1 || E.pemisah >= E.rows.length) E.pemisah = null; } drawEditor(); }
+function rmRow(i){ const E = S.edit; E.rows.splice(i,1); if(i === E.anc.i) E.anc.i = 0; else if(i < E.anc.i) E.anc.i--; E.pemisah = [...new Set(E.pemisah.map(p => i < p ? p-1 : p).filter(p => p >= 1 && p < E.rows.length))].sort((a,b)=>a-b); drawEditor(); }
 $('editR').addEventListener('input', e => { const E = S.edit, t = e.target, d = t.dataset; if(!E) return;
   if(t.type === 'number' && parseFloat(t.value) < 0) t.value = 0;
   if(t.id === 'noteE'){ E.note = t.value; return; }
@@ -5555,8 +5556,8 @@ $('editR').addEventListener('change', e => { const E = S.edit, t = e.target, d =
   else { E.rows[i].b = +t.value; if(i === E.anc.i) resetAnc(E); drawEditor(); } });
 $('editR').addEventListener('click', e => { const E = S.edit; if(!E) return; const t = e.target;
   const mo = t.closest('[data-more]'); if(mo){ openRowMenu(mo, +mo.dataset.more); return; }
-  if(t.closest('[data-sepx]')){ E.pemisah = null; drawEditor(); return; }
-  if(t.closest('[data-addsep]')){ E.pemisah = Math.max(1, E.rows.length-1); drawEditor(); return; }
+  const sx = t.closest('[data-sepx]'); if(sx){ E.pemisah.splice(+sx.dataset.sepx, 1); drawEditor(); return; }
+  if(t.closest('[data-addsep]')){ const free = []; for(let q = 1; q < E.rows.length; q++) if(!E.pemisah.includes(q)) free.push(q); if(free.length && E.pemisah.length < 3){ E.pemisah.push(free[free.length-1]); E.pemisah.sort((a,b)=>a-b); } drawEditor(); return; }
   if(t.id === 'kAuto'){ E.kerja = null; drawEditor(); return; }
   const del = t.closest('[data-del]'); if(del){ const [s,i] = del.dataset.del.split(':'), gone = E[s].splice(+i,1)[0]; if(s === 'hasil') E.pack.forEach(p => { if(p.u === gone.id) p.u = 'all'; }); drawEditor(); return; }
   const ad = t.closest('[data-add]'); if(ad){ const s = ad.dataset.add; E[s].push(s==='proof'?{n:'Proofing',mnt:0}:s==='oven'?{atas:180,bawah:180,mnt:0}:s==='pack'?{n:'Packaging baru',p:0,u:'all'}:{ id:(stokable(E)[0]||{}).item_id, g:30, n:0 }); drawEditor(); return; }
@@ -5571,14 +5572,16 @@ $('resepM').addEventListener('scroll', () => rowMenu.classList.remove('on'), tru
 rowMenu.addEventListener('click', e => { const b = e.target.closest('[data-m]'), E = S && S.edit; if(!b || !E) return; const [a,x] = b.dataset.m.split(':'), i = +x; rowMenu.classList.remove('on');
   if(a === 'pin'){ E.anc.i = i; resetAnc(E); drawEditor(); } else rmRow(i); });
 let dg = null;
-const seqOf = E => { const s = E.rows.map((_,i)=>i); if(E.pemisah != null) s.splice(E.pemisah,0,'s'); return s; };
+const seqOf = E => { const out = []; let n = 0; E.rows.forEach((_,i) => { if(i > 0 && E.pemisah.includes(i)) out.push('s'+(n++)); out.push(i); }); return out; };
 const othersOf = () => [...document.querySelectorAll('#editR [data-item]')].filter(x => !dg || x !== dg.it);
 document.addEventListener('pointerdown', e => { const g = e.target.closest('#editR [data-grip]'); if(!g || !S || !S.edit) return; e.preventDefault(); rowMenu.classList.remove('on'); const it = g.closest('[data-item]'); g.setPointerCapture(e.pointerId); dg = { it, id:g.dataset.grip, y0:e.clientY, k:0 }; it.classList.add('dragging'); });
 document.addEventListener('pointermove', e => { if(!dg) return; dg.it.style.transform = `translateY(${e.clientY-dg.y0}px)`; const o = othersOf(); o.forEach(x=>x.classList.remove('dropb','dropa')); dg.k = o.filter(el=>{ const b = el.getBoundingClientRect(); return b.top+b.height/2 < e.clientY; }).length; if(dg.k < o.length) o[dg.k].classList.add('dropb'); else o[o.length-1].classList.add('dropa'); });
 function endDrag(ok){ if(!dg) return; const E = S && S.edit, d = dg; dg = null;
-  if(ok && E){ let kk = d.k; const sep = d.id === 's'; if(sep) kk = Math.min(Math.max(kk,1), E.rows.length-1);
-    const s = seqOf(E).filter(x => String(x) !== d.id); s.splice(kk, 0, sep ? 's' : +d.id);
-    if(s[0] !== 's' && s[s.length-1] !== 's'){ const old = E.rows, anc = old[E.anc.i]; E.rows = s.filter(x=>x!=='s').map(i=>old[i]); E.anc.i = E.rows.indexOf(anc); const p = s.indexOf('s'); E.pemisah = p < 0 ? null : p; } }
+  if(ok && E){ const s = seqOf(E).filter(x => String(x) !== d.id); s.splice(d.k, 0, d.id[0] === 's' ? d.id : +d.id);
+    // sah kalau garis nggak di ujung dan nggak ada dua garis bersebelahan; selain itu gerakannya dibatalkan
+    const bad = typeof s[0] === 'string' || typeof s[s.length-1] === 'string' || s.some((x,i) => typeof x === 'string' && typeof s[i+1] === 'string');
+    if(!bad){ const old = E.rows, anc = old[E.anc.i]; let c = 0; const seps = []; s.forEach(x => { if(typeof x === 'string') seps.push(c); else c++; });
+      E.rows = s.filter(x => typeof x === 'number').map(i => old[i]); E.anc.i = E.rows.indexOf(anc); E.pemisah = seps; } }
   if(S && S.edit) drawEditor(); }
 document.addEventListener('pointerup', () => endDrag(true)); document.addEventListener('pointercancel', () => endDrag(false));
 
@@ -5601,7 +5604,7 @@ async function saveResep(){
     const fa = (MB[E.rows[E.anc.i].b] || {}).pcs || 1;
     await apiPost('save_resep', { item_id:E.item_id, versi:E.versi, jangkar_bahan_id:real(E.rows[E.anc.i].b),
       jangkar_min_dg:Math.round(E.anc.min*fa*10), jangkar_max_dg:Math.round(E.anc.max*fa*10), jangkar_step_dg:Math.round(E.anc.step*fa*10),
-      kerja_mnt:E.kerja == null ? null : Math.round(E.kerja), proofing:E.proof, oven:E.oven, packaging:E.pack, catatan:E.note || '', pemisah_setelah:E.pemisah,
+      kerja_mnt:E.kerja == null ? null : Math.round(E.kerja), proofing:E.proof, oven:E.oven, packaging:E.pack, catatan:E.note || '', pemisah:E.pemisah,
       bahan:E.rows.map(r=>({ bahan_id:real(r.b), qty_dg:Math.round(r.g*10) })), hasil:E.hasil.map(h=>({ item_id:h.id, gramasi_dg:Math.round(h.g*10), jumlah_bawaan:h.n||0 })) });
     idxCache = null; showToast('Resep disimpan ✓');
     const itemId = E.item_id; S.edit = null; // muat ulang dari server supaya id & versi benar
@@ -5617,7 +5620,7 @@ async function saveResep(){
 // ---------- Selesai Produksi ----------
 function askProduksi(){
   const kk = k();
-  $('confBody').innerHTML = `<div style="margin-bottom:6px;font-weight:600">Kurangi bahan</div>` + REC.rows.map((x,ix)=>`<div class="row"><span>${escapeHtml(M(x.b).n)}</span><span>−${f1(x.g*kk)}</span></div>` + (REC.pemisah===ix+1&&ix<REC.rows.length-1?'<div class="sep" style="margin:4px 0"></div>':'')).join('') +
+  $('confBody').innerHTML = `<div style="margin-bottom:6px;font-weight:600">Kurangi bahan</div>` + REC.rows.map((x,ix)=>`<div class="row"><span>${escapeHtml(M(x.b).n)}</span><span>−${f1(x.g*kk)}</span></div>` + (REC.pemisah.includes(ix+1)&&ix<REC.rows.length-1?'<div class="sep" style="margin:4px 0"></div>':'')).join('') +
     `<div style="margin:12px 0 6px;font-weight:600">Tambah stok</div>` + S.h.filter(x=>x.n>0).map(x=>{ const it = menuItems.find(m=>m.item_id===x.id), from = it ? (it.stok||0) : 0; return `<div class="row"><span>${escapeHtml(nameOf(x.id))}</span><span>${it&&it.unlimited?'unlimited':from+' → '+(from+x.n)+' (+'+x.n+')'}</span></div>`; }).join('');
   S.cid = S.cid || crypto.randomUUID(); // sekali per konfirmasi; dipakai ulang buat retry (idempotensi server)
   $('btnSimpan').disabled = false; $('btnSimpan').textContent = 'Simpan produksi'; open('resepConfM', () => close('resepConfM'));
@@ -5664,6 +5667,7 @@ $('btnConfX').onclick = () => kembaliLayar();
 $('btnBuang').onclick = () => { leaveEdit(true); close('resepDiscM'); kembaliLayar(); }; // Buang: tutup dialog (pop layarnya) lalu keluar editor
 $('btnLanjut').onclick = () => kembaliLayar();
 window.rsSetupEditButton = setupEditButton;
+window.rsState = () => S; // dipakai tes headless
 window.rsInvalidateIndex = () => { idxCache = null; };
 })();
 
