@@ -573,13 +573,16 @@
 .bh .dayh{font-size:11.5px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.4px;margin:16px 0 0}
 .bh-staff .owner-only{display:none!important}
 #bhM{z-index:55}#bhItemM,#bhStokM,#bhHistM{z-index:56}#bhDiscM{z-index:58}
-/* 14 Okt 2026: sheet Bahan (daftar) layar penuh, bukan bottom sheet yang menempel di bawah */
-#bhM .modal-sheet.bh{height:100vh;height:100dvh;max-height:100vh;max-height:100dvh;border-radius:0;padding-top:calc(20px + env(safe-area-inset-top))}
-/* 14 Okt 2026: sheet Resep (lihat/edit/+ Resep) tinggi tetap, footer Simpan/Batal menempel di bawah, bukan di tengah kalau isi pendek */
-#resepM .modal-sheet.rs{min-height:88vh;display:flex;flex-direction:column}
+/* 14 Okt 2026 (rev): sheet RESEP layar penuh; sheet BAHAN (daftar) tinggi tetap = max sheet lain (92vh), bukan menempel setinggi isi */
+#resepM .modal-sheet.rs{height:100vh;height:100dvh;max-height:100vh;max-height:100dvh;border-radius:0;padding-top:calc(22px + env(safe-area-inset-top));display:flex;flex-direction:column}
+#bhM .modal-sheet.bh{height:92vh}
+.modal-sheet.rs{padding-bottom:0}
+.rs .sticky-foot{padding-bottom:calc(10px + env(safe-area-inset-bottom))}
 #resepM .modal-sheet.rs>*{flex-shrink:0}
 #resepM .sticky-foot{margin-top:auto}
 #resepM #viewR,#resepM #editR{padding-bottom:14px}
+#bhTarifM{z-index:56}
+.bh .bsec{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-soft);margin:14px 0 2px}
 #btnBahan .bp{margin:0 0 0 4px}
 </style>
 </head>
@@ -616,7 +619,7 @@
       <div class="field">
         <label class="field-label">Nama Customer</label>
         <div style="display:flex;gap:8px;align-items:center;">
-          <input type="text" id="custName" list="customerList" autocomplete="off" placeholder="Nama pemesan (kosongin = pakai nama HP)" style="flex:1;">
+          <input type="text" id="custName" list="customerList" autocomplete="off" autocapitalize="words" placeholder="Nama pemesan (kosongin = pakai nama HP)" style="flex:1;">
           <button type="button" class="saldo-icon-btn" onclick="openSaldoPanel()" aria-label="Saldo customer">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           </button>
@@ -1209,6 +1212,11 @@
   <button type="button" class="secondary" id="bhItemHist">🕘 Riwayat bahan ini</button>
   <div class="sticky-foot"><button type="button" class="primary" id="bhSaveItem">Simpan</button></div>
 </div></div>
+<div class="modal-overlay hidden" id="bhTarifM"><div class="modal-sheet bh">
+  <div class="sheet-head"><h3 id="bhTarifTitle"></h3><button type="button" class="x" id="bhTarifX" aria-label="Tutup">✕</button></div>
+  <div id="bhTarifBody"></div>
+  <div class="sticky-foot"><button type="button" class="primary" id="bhTarifSave">Simpan</button></div>
+</div></div>
 <div class="modal-overlay hidden" id="bhStokM"><div class="modal-sheet bh">
   <div class="sheet-head"><div><h3>Tambah stok</h3><div class="sub">Isi per bahan yang dibeli. Foto struk menyusul.</div></div><button type="button" class="x" id="bhStokX" aria-label="Tutup">✕</button></div>
   <div id="bhLines"></div>
@@ -1558,6 +1566,14 @@ function saveBahanCache(list){
   catch(e){ /* nggak fatal */ }
 }
 
+const RESEP_CACHE_KEY = 'pos-resep-cache-v1', TARIF_CACHE_KEY = 'pos-tarif-cache-v1';
+function loadResepCache(){ try{ const p = JSON.parse(localStorage.getItem(RESEP_CACHE_KEY) || 'null'); return p && typeof p === 'object' ? p : {}; } catch(e){ return {}; } } // { index:[...], items:{ [item_id]: respons get_resep } }
+function saveResepCache(patch){ try{ localStorage.setItem(RESEP_CACHE_KEY, JSON.stringify(Object.assign(loadResepCache(), patch))); } catch(e){ /* nggak fatal */ } }
+function saveResepItemCache(itemId, r){ const items = loadResepCache().items || {}; items[itemId] = r; saveResepCache({ items }); }
+function clearResepItemsCache(){ saveResepCache({ items: {} }); } // harga bahan / biaya dasar berubah -> HPP di resep tersimpan jadi basi
+function loadTarifCache(){ try{ const p = JSON.parse(localStorage.getItem(TARIF_CACHE_KEY) || 'null'); return p && p.t ? p.t : null; } catch(e){ return null; } }
+function saveTarifCache(t){ try{ localStorage.setItem(TARIF_CACHE_KEY, JSON.stringify({ t, cachedAt: Date.now() })); } catch(e){ /* nggak fatal */ } }
+
 // ==== API ====
 // Revisi 12 Agt 2026: badge kecil di pojok kanan atas nunjukin proses backend apa yang lagi
 // jalan (dan tetep nampil kalau lebih dari 1 bareng) — biar pas muncul "server bermasalah"
@@ -1602,8 +1618,8 @@ function rawRespSnippet(text){
   return cleaned.slice(0, 100) + (cleaned.length > 100 ? '...' : '');
 }
 const API_TIMEOUT_MS = 18000; // Apps Script kadang hang (bukan error format, beneran gak respond) — tanpa ini fetch nunggu tanpa batas
-async function apiGet(action, params){
-  const callId = apiStatusBegin(action);
+async function apiGet(action, params, opts){
+  const callId = (opts && opts.silent) ? 0 : apiStatusBegin(action); // silent = refresh di belakang layar, tanpa badge "server proses"
   try{
     // session_token dikirim di SEMUA request GET (harmless buat action publik yg gak butuh login,
     // backend cuma cek token itu buat action yang emang digembok — lihat doGet() di Code_production.gs)
@@ -1637,7 +1653,7 @@ async function apiGet(action, params){
     }
     return json.data;
   } finally {
-    apiStatusEnd(callId);
+    if(callId) apiStatusEnd(callId);
   }
 }
 async function apiPost(action, payload){
@@ -2313,6 +2329,8 @@ function renderLtProfile(p){
     <div class="lt-stat-row"><span class="label">Avg Transaction Value</span><span class="val soft">${rupiah(avgM)}</span><span class="val soft">${rupiah(avgY)}</span></div>
     <div class="lt-stat-row"><span class="label">LTV (Proyeksi)</span><span class="val">${rupiah(ltvM)}</span><span class="val">${rupiah(ltvY)}</span></div>`;
 }
+function titleCaseNama(s){ return String(s).trim().replace(/\s+/g, ' ').toLowerCase().replace(/(^|[\s\-'.])(\p{L})/gu, (m, a, b) => a + b.toUpperCase()); }
+function ltTitleCaseInput(){ const i = document.getElementById('ltNameInput'); if(i){ i.value = titleCaseNama(i.value); i.focus(); } }
 function renderLtNameRow(){
   const p = ltProfileData;
   if(!ltEditingName){
@@ -2322,7 +2340,8 @@ function renderLtNameRow(){
       <button type="button" class="lt-btn-merge" onclick="ltMergeStub()">Merge</button>`;
   } else {
     document.getElementById('ltNameRow').innerHTML = `
-      <input type="text" id="ltNameInput" value="${escapeHtml(p.display_name)}" style="flex:1;min-width:0;font-family:inherit;font-size:16px;font-weight:700;border:1.5px solid var(--jade);border-radius:8px;padding:6px 8px;">
+      <input type="text" id="ltNameInput" autocapitalize="words" value="${escapeHtml(p.display_name)}" style="flex:1;min-width:0;font-family:inherit;font-size:16px;font-weight:700;border:1.5px solid var(--jade);border-radius:8px;padding:6px 8px;">
+      <div class="lt-edit-pen" title="Rapikan huruf besar" onclick="ltTitleCaseInput()" style="font-size:13px;font-weight:700">Aa</div>
       <div class="lt-edit-pen" title="Simpan" onclick="ltToggleEditName()">✓</div>
       <button type="button" class="lt-btn-merge" onclick="ltMergeStub()">Merge</button>`;
     document.getElementById('ltNameInput').focus();
@@ -2338,12 +2357,13 @@ async function ltToggleEditName(){
   const newName = input.value.trim();
   const oldName = ltProfileData.display_name;
   if(!newName){ showToast('Nama gak boleh kosong.'); return; }
-  if(newName.toLowerCase() === oldName.toLowerCase()){ ltEditingName = false; renderLtNameRow(); return; }
+  if(newName === oldName){ ltEditingName = false; renderLtNameRow(); return; } // 14 Okt: dulu dibandingin lowercase, jadi ganti kapital doang (budi santoso -> Budi Santoso) gak pernah kesimpan
 
   // Cek tabrakan nama DULU (data-nya udah ada di customerLtvMap, gak perlu ke server) — kalau
   // nama baru itu ternyata udah dipake customer lain, JANGAN langsung nyatuin. Kasih warning +
   // jumlah transaksi kedua sisi, user yang mutusin.
-  const collision = Object.values(customerLtvMap).find(c => c.display_name.toLowerCase() === newName.toLowerCase());
+  const caseOnly = newName.toLowerCase() === oldName.toLowerCase(); // beda huruf besar/kecil doang = customer yang sama, bukan tabrakan
+  const collision = caseOnly ? null : Object.values(customerLtvMap).find(c => c.display_name.toLowerCase() === newName.toLowerCase());
   if(collision){
     ltEditingName = false;
     renderLtNameRow();
@@ -5487,8 +5507,15 @@ const reduce = matchMedia('(prefers-reduced-motion:reduce)').matches;
 // ---------- indeks resep (tombol di Edit Menu Item) ----------
 async function rsIndex(force){
   if(idxCache && !force) return idxCache;
+  const build = list => { const m = {}; (list||[]).forEach(e => m[e.item_id] = e); return m; };
+  const cached = force ? null : loadResepCache().index; // 14 Okt 2026: cache-first, refresh diam-diam di belakang
+  if(Array.isArray(cached)){
+    idxCache = build(cached);
+    apiGet('get_resep_index', {}, {silent:true}).then(l => { saveResepCache({ index:l || [] }); idxCache = build(l); }).catch(() => {});
+    return idxCache;
+  }
   const list = await apiGet('get_resep_index', {});
-  idxCache = {}; (list||[]).forEach(e => idxCache[e.item_id] = e);
+  saveResepCache({ index:list || [] }); idxCache = build(list);
   return idxCache;
 }
 async function setupEditButton(item){
@@ -5522,27 +5549,34 @@ function blankRec(itemId){
   return { item_id:itemId, resep_id:null, versi:null, rows:[{ b:tid, g:1000 }], anc:{ i:0, min:500, max:1500, step:100 }, proof:[{ n:'Proofing', mnt:0 }], oven:[{ atas:180, bawah:180, mnt:0 }], pack:[], note:'', kerja:null, pemisah:[], hasil:[{ id:itemId, g:50, n:0 }] };
 }
 // rsLoad: 0 idle · 1 lagi memuat (layar sudah di-push) · 2 dibatalkan (Back pas memuat / gagal)
-let rsLoad = 0;
+let rsLoad = 0, rsHold = false; // rsHold: Selesai Produksi ditahan selama data segar belum datang (resep dibuka dari cache)
+const costOf = t => ({ upah:t.upah_bulan, pembagi:t.upah_pembagi, listrik:t.listrik_per_kwh, watt:t.daya_ac_watt, lpg:t.lpg_per_tabung, lpgKg:t.lpg_kg_per_tabung, gasKgJam:t.gas_kg_per_jam });
 async function openResep(itemId){
   if(busy) return; busy = true;
   // 14 Okt 2026: layar di-push SINKRON saat tap (history.pushState butuh user activation; kalau nunggu server dulu,
   // Chrome bisa menandai entry-nya "skippable" dan Back melompati sheet). Sheet baru muncul setelah data siap.
   rsLoad = 1; pushLayar(rsBack);
   try{
-    const cb = loadBahanCache(); // master bahan dari cache kalau ada; get_bahan di belakang buat buka berikutnya
-    const [r, master] = await Promise.all([apiGet('get_resep', { item_id:itemId }), cb ? Promise.resolve(cb) : apiGet('get_bahan', {})]);
+    // Cache-first: resep + bahan yang pernah dibuka -> sheet kebuka LANGSUNG dari cache; data segar diambil diam-diam
+    // (tanpa badge) dan dipakai kalau user belum utak-atik. Selama belum datang, tombol Selesai Produksi ditahan.
+    const cr = (loadResepCache().items || {})[itemId] || null, cb = loadBahanCache(), useCache = !!(cr && cb);
+    const pr = apiGet('get_resep', { item_id:itemId }, useCache ? {silent:true} : undefined);
+    const pb = apiGet('get_bahan', {}, cb ? {silent:true} : undefined);
+    let r, master;
+    if(useCache){ r = cr; master = cb; pr.catch(() => {}); pb.catch(() => {}); }
+    else [r, master] = await Promise.all([pr, pb]);
     if(rsLoad === 2){ rsLoad = 0; return; } // user udah Back pas lagi memuat
-    if(cb) apiGet('get_bahan', {}).then(l => saveBahanCache(l || [])).catch(() => {}); else saveBahanCache(master || []);
+    if(!useCache){ saveBahanCache(master || []); if(r) saveResepItemCache(itemId, r); }
     mkMaster(master || []);
     COST = null;
     let startEdit = false;
     if(r){
       REC = fromServer(r);
-      if(r.tarif) COST = { upah:r.tarif.upah_bulan, pembagi:r.tarif.upah_pembagi, listrik:r.tarif.listrik_per_kwh, watt:r.tarif.daya_ac_watt, lpg:r.tarif.lpg_per_tabung, lpgKg:r.tarif.lpg_kg_per_tabung, gasKgJam:r.tarif.gas_kg_per_jam };
+      if(r.tarif) COST = costOf(r.tarif);
     } else {
       if(!isOwner()){ showToast('Item ini belum punya resep.'); rsLoad = 2; kembaliLayar(); return; }
-      const t = await apiGet('get_tarif', {});
-      COST = { upah:t.upah_bulan, pembagi:t.upah_pembagi, listrik:t.listrik_per_kwh, watt:t.daya_ac_watt, lpg:t.lpg_per_tabung, lpgKg:t.lpg_kg_per_tabung, gasKgJam:t.gas_kg_per_jam };
+      const t = await apiGet('get_tarif', {}); saveTarifCache(t);
+      COST = costOf(t);
       REC = blankRec(itemId); startEdit = true;
     }
     S = { jangkar:baseG(REC), h:[], edit:null, saving:false, cid:null, from:itemId };
@@ -5552,9 +5586,25 @@ async function openResep(itemId){
     $('rsFrom').textContent = idx && idx.item_utama_id !== itemId ? 'dibuka dari ' + nameOf(itemId) : '';
     resetH(); drawResep(); rsLoad = 0; $('resepM').classList.remove('hidden'); // layar sudah di-push di awal openResep
     if(startEdit){ S.edit = clone(REC); S.bk = { MB:clone(MB), COST:clone(COST) }; S.snap = snapNow(); drawResep(); }
+    if(useCache) refreshResepBg(itemId, r, master, pr, pb);
     if(idx && idx.item_utama_id !== itemId && !reduce) setTimeout(()=>{ void t.offsetWidth; t.classList.add('pop'); }, 220);
   } catch(e){ showToast(e.message); if(rsLoad === 1){ rsLoad = 2; kembaliLayar(); } }
   finally { busy = false; }
+}
+async function refreshResepBg(itemId, oldR, oldMaster, pr, pb){
+  rsHold = true; $('btnProduksi').disabled = true;
+  try{
+    const [nr, nb] = await Promise.all([pr, pb]);
+    saveBahanCache(nb || []); if(nr) saveResepItemCache(itemId, nr);
+    if($('resepM').classList.contains('hidden') || !S || S.from !== itemId || S.edit) return;
+    if(JSON.stringify(nr) === JSON.stringify(oldR) && JSON.stringify(nb || []) === JSON.stringify(oldMaster)) return;
+    if(!nr){ showToast('Resep ini sudah dihapus. Tutup lalu buka lagi.'); return; }
+    if(S.jangkar === baseG(REC) && !S.h.some(x => x.edited)){ // user belum utak-atik -> pakai data segar
+      mkMaster(nb || []); REC = fromServer(nr); if(nr.tarif) COST = costOf(nr.tarif);
+      S.jangkar = baseG(REC); resetH(); drawResep();
+    } else showToast('Resep/harga diperbarui. Tutup lalu buka lagi.');
+  } catch(e){ /* diam: tetap pakai cache */ }
+  finally { rsHold = false; if(S && S.from === itemId && !S.edit && !$('resepM').classList.contains('hidden')) drawResep(); } // drawResep ngitung ulang status tombol
 }
 const open = (id, undo) => { $(id).classList.remove('hidden'); pushLayar(undo || (()=>close(id))); };
 const close = id => $(id).classList.add('hidden');
@@ -5611,7 +5661,7 @@ function drawResep(){
     $('hppNote').textContent = `Biaya bahan + waktu & energi dibagi ke gram adonan yang jadi roti, jadi makin banyak pcs makin murah. Packaging per pcs. Acuan resep: ${rupiah(ref.b+ref.o+ref.k)} / pcs.` + (COST.gasKgJam ? '' : ' Biaya gas belum diisi, HPP belum lengkap.'); }
   $('noteWrap').style.display = REC.note && REC.note.trim() ? '' : 'none'; $('noteV').textContent = REC.note || '';
   const over = sisa < -1e-6;
-  $('btnProduksi').disabled = over || pcsAll === 0 || S.saving;
+  $('btnProduksi').disabled = over || pcsAll === 0 || S.saving || rsHold;
   $('btnProduksi').textContent = over ? 'Melebihi adonan' : `Selesai Produksi · +${pcsAll} pcs`;
 }
 function setJ(d){ const A = REC.anc, f = ancF(REC), n = Math.min(A.max*f, Math.max(A.min*f, S.jangkar + d*A.step*f)); if(n === S.jangkar) return; S.jangkar = n; drawResep(); }
@@ -5652,10 +5702,7 @@ function drawEditor(){
    `<div class="owner-only"><label class="lb">Bahan utama non-stok (harga bisa diedit)</label>
    <div class="two">${F('Waktu pengerjaan (menit)','data-r="kerja"',kerjaMnt(E))}<div style="align-self:end">${E.kerja==null?'<span class="sub">otomatis = total proofing</span>':'<button type="button" class="secondary" id="kAuto" style="margin:0;padding:11px 8px">↺ Otomatis</button>'}</div></div>
    <div class="hint">Bawaan = total waktu proofing (<span id="kProof"></span> mnt). Ketik angka sendiri kalau beda, biasanya proofing + 30–45 mnt. Ikut ukuran adonan; menentukan upah dan listrik AC. Gas dihitung dari total menit oven.</div>
-   <div class="two" style="margin-top:8px">${F('Listrik (Rp/kWh)','data-c="listrik"',COST.listrik,'0.01')}${F('Daya AC (watt)','data-c="watt"',COST.watt)}</div>
-   <div class="two" style="margin-top:8px">${F('Gas LPG (Rp/tabung)','data-c="lpg"',COST.lpg)}${F('Konsumsi oven (kg/jam)','data-c="gasKgJam"',COST.gasKgJam,'0.05')}</div>
-   <div class="two" style="margin-top:8px">${F('Upah per bulan (Rp)','data-c="upah"',COST.upah)}<div></div></div>
-   <div class="hint">Upah per jam = upah ÷ ${COST.pembagi} = ${rupiah(COST.upah/COST.pembagi)}</div></div>
+   <div class="hint" style="margin-top:8px">Harga dan spesifikasi listrik, gas LPG, dan upah diatur di 🧂 Bahan → Biaya dasar (satu harga untuk semua resep).</div></div>
    <label class="lb">Hasil adonan (tiap ukuran)</label>` + hd('1fr 66px 62px 34px',['Item','Gramasi','Jumlah']) +
    E.hasil.map((x,i)=>`<div class="er" style="grid-template-columns:1fr 66px 62px 34px"><div>${i===0?`<div style="font-size:14px;font-weight:600;padding-top:9px">${escapeHtml(nameOf(x.id))}</div>`:`<select data-sec="hasil" data-i="${i}" data-k="id">${[{item_id:x.id,nama:nameOf(x.id)}].concat(stokable(E)).map(it=>`<option value="${it.item_id}" ${it.item_id===x.id?'selected':''}>${escapeHtml(it.nama)}</option>`).join('')}</select>`}</div>${inp('hasil',i,'g',x.g)}${inp('hasil',i,'n',i===0?'':x.n)}${i===0?'<span></span>':rmb('hasil',i)}</div>`).join('') + (stokable(E).length ? addBtn('hasil','+ Tambah ukuran') : '') +
    `<div class="hint">Jumlah baris pertama otomatis dari sisa adonan; ubah gramasi atau jumlahnya, yang lain mengikuti. Nilai bawaan, tetap bisa diubah tiap produksi.</div>
@@ -5744,9 +5791,10 @@ async function saveResep(){
       jangkar_min_dg:Math.round(E.anc.min*fa*10), jangkar_max_dg:Math.round(E.anc.max*fa*10), jangkar_step_dg:Math.round(E.anc.step*fa*10),
       kerja_mnt:E.kerja == null ? null : Math.round(E.kerja), proofing:E.proof, oven:E.oven, packaging:E.pack, catatan:E.note || '', pemisah:E.pemisah,
       bahan:E.rows.map(r=>({ bahan_id:real(r.b), qty_dg:Math.round(r.g*10) })), hasil:E.hasil.map(h=>({ item_id:h.id, gramasi_dg:Math.round(h.g*10), jumlah_bawaan:h.n||0 })) });
-    idxCache = null; showToast('Resep disimpan ✓');
+    idxCache = null; saveResepCache({ index:null }); showToast('Resep disimpan ✓');
     const itemId = E.item_id; S.edit = null; // muat ulang dari server supaya id & versi benar
     const [r, master, t] = await Promise.all([apiGet('get_resep',{item_id:itemId}), apiGet('get_bahan',{}), apiGet('get_tarif',{})]);
+    saveResepItemCache(itemId, r); saveBahanCache(master||[]); saveTarifCache(t);
     mkMaster(master||[]); REC = fromServer(r);
     COST = { upah:t.upah_bulan, pembagi:t.upah_pembagi, listrik:t.listrik_per_kwh, watt:t.daya_ac_watt, lpg:t.lpg_per_tabung, lpgKg:t.lpg_kg_per_tabung, gasKgJam:t.gas_kg_per_jam };
     S.jangkar = baseG(REC); resetH(); S.bk = null; drawResep();
@@ -5806,7 +5854,7 @@ $('btnBuang').onclick = () => { leaveEdit(true); close('resepDiscM'); kembaliLay
 $('btnLanjut').onclick = () => kembaliLayar();
 window.rsSetupEditButton = setupEditButton;
 window.rsState = () => S; // dipakai tes headless
-window.rsInvalidateIndex = () => { idxCache = null; };
+window.rsInvalidateIndex = () => { idxCache = null; saveResepCache({ index:null }); };
 })();
 
 
@@ -5847,11 +5895,39 @@ function fromServer(list){
   });
   return out;
 }
-async function load(force, soft){
+async function load(force, soft, silent){
   if(!force && Date.now() - loaded < 15000) return;
-  const l = await apiGet('get_bahan', {}); saveBahanCache(l || []);
+  const l = await apiGet('get_bahan', {}, silent ? {silent:true} : undefined); saveBahanCache(l || []);
   if(soft && (reorder || dirty.bhItemM || dirty.bhStokM)) return; // lagi atur posisi / ngisi form: jangan timpa B di tengah jalan, cache tetap diperbarui
   B = fromServer(l || []); loaded = Date.now();
+}
+// ---------- Biaya dasar (listrik, gas LPG, upah): satu harga universal untuk semua resep, diedit satu per satu ----------
+let T = null, tg = null, tarifSaving = false;
+async function loadTarif(silent){ if(!isOwner()) return; const t = await apiGet('get_tarif', {}, silent ? {silent:true} : undefined); T = t; saveTarifCache(t); }
+const TARIF_DEF = {
+  listrik:{ title:'Listrik', f:[['listrik_per_kwh','Listrik (Rp per kWh)','0.01'],['daya_ac_watt','Daya AC (watt)','1']] },
+  gas:{ title:'Gas LPG', f:[['lpg_per_tabung','Harga tabung (Rp)','1'],['lpg_kg_per_tabung','Isi tabung (kg)','0.1'],['gas_kg_per_jam','Konsumsi oven (kg per jam)','0.05']] },
+  upah:{ title:'Upah', f:[['upah_bulan','Upah per bulan (Rp)','1']] }
+};
+const nf = (v, d) => (+v || 0).toLocaleString('id-ID', {maximumFractionDigits: d == null ? 2 : d});
+function tarifHtml(){
+  if(!isOwner() || !T) return '';
+  const row = (g, nm, sub, val) => `<div class="brow" data-tarif="${g}" tabindex="0" role="button" style="cursor:pointer"><div style="flex:1;min-width:0"><div class="nm">${nm}</div><div class="sub">${sub}</div></div><div style="text-align:right"><div class="st">${val}</div></div></div>`;
+  return '<div class="bsec" style="margin-top:2px">Biaya dasar (dipakai semua resep)</div>'
+    + row('listrik', 'Listrik', 'AC ' + nf(T.daya_ac_watt, 0) + ' W', rp(T.listrik_per_kwh) + '/kWh')
+    + row('gas', 'Gas LPG', 'isi ' + nf(T.lpg_kg_per_tabung, 1) + ' kg · oven ' + nf(T.gas_kg_per_jam, 2) + ' kg/jam', rp(T.lpg_per_tabung) + '/tabung')
+    + row('upah', 'Upah', '÷ ' + nf(T.upah_pembagi, 0) + ' = ' + rp(T.upah_bulan / (T.upah_pembagi || 1)) + '/jam', rp(T.upah_bulan) + '/bln')
+    + '<div class="bsec">Bahan</div>';
+}
+function tarifHint(){
+  const v = k => +((document.querySelector('#bhTarifBody [data-tk="' + k + '"]') || {}).value) || 0;
+  $('bhTarifHint').textContent = tg === 'gas' ? (v('lpg_kg_per_tabung') > 0 ? 'Harga gas per kg = ' + rp(v('lpg_per_tabung') / v('lpg_kg_per_tabung')) : 'Isi tabung (kg) wajib diisi.')
+    : tg === 'upah' ? 'Upah per jam = upah ÷ ' + nf(T.upah_pembagi, 0) + ' = ' + rp(v('upah_bulan') / (T.upah_pembagi || 1)) : '';
+}
+function openTarif(g){
+  if(!T || !isOwner()) return; tg = g; const d = TARIF_DEF[g]; dirty.bhTarifM = false; $('bhTarifTitle').textContent = d.title;
+  $('bhTarifBody').innerHTML = d.f.map(([k, l, st]) => `<label class="lb">${l}</label><input class="bplain" data-tk="${k}" type="number" min="0" step="${st}" inputmode="decimal" value="${T[k] == null ? '' : T[k]}">`).join('') + '<div class="hint" id="bhTarifHint"></div>';
+  tarifHint(); openM('bhTarifM', guarded('bhTarifM'));
 }
 function status(b){
   if(b.stok === null) return {t:'Belum di-opname', c:'bp-mut'};
@@ -5876,7 +5952,7 @@ function rowHtml(b, cls){
 function renderList(){
   chip();
   const q = reorder ? '' : $('bhQ').value.trim().toLowerCase(), L = q ? BH().filter(b => b.nama.toLowerCase().includes(q)) : B;
-  if(!L.length){ $('bhList').innerHTML = '<div class="hint" style="padding:12px 0">' + (q ? 'Tidak ada bahan yang cocok.' : 'Belum ada bahan. Tambah lewat ☰ → + Bahan.') + '</div>'; return; }
+  if(!L.length){ $('bhList').innerHTML = (q ? '' : tarifHtml()) + '<div class="hint" style="padding:12px 0">' + (q ? 'Tidak ada bahan yang cocok.' : 'Belum ada bahan. Tambah lewat ☰ → + Bahan.') + '</div>'; return; }
   if(reorder){
     $('bhList').innerHTML = L.map((b, i) => b.sep
       ? `<div class="brow sepr" data-k="${b.id}"><button type="button" class="grip" aria-label="Geser garis">≡</button><div style="flex:1;border-top:2px solid #cfc7b8"></div><span class="sub" style="margin-left:8px">garis</span><button type="button" class="brm" data-rm="${b.id}" aria-label="Hapus garis">✕</button></div>`
@@ -5886,7 +5962,7 @@ function renderList(){
   const R = []; let top = false;
   L.forEach(b => { if(b.sep){ if(R.length) R[R.length-1].sa = 1; else top = true; return; } R.push({b}); });
   if(top && R.length) R[0].sb = 1;
-  $('bhList').innerHTML = R.map(r => rowHtml(r.b, (r.sa ? ' sepa' : '') + (r.sb ? ' sepb' : ''))).join('');
+  $('bhList').innerHTML = (q ? '' : tarifHtml()) + R.map(r => rowHtml(r.b, (r.sa ? ' sepa' : '') + (r.sb ? ' sepb' : ''))).join('');
 }
 function setReorder(on){
   reorder = on; const bb = $('bhBurger'); bb.textContent = on ? '✓' : '☰'; bb.classList.toggle('done', on); bb.setAttribute('aria-label', on ? 'Selesai atur posisi' : 'Menu bahan');
@@ -5924,8 +6000,25 @@ const endDrag = () => { if(!drag) return; drag.classList.remove('dragging'); dra
 LST.addEventListener('pointerup', endDrag); LST.addEventListener('pointercancel', endDrag);
 LST.addEventListener('click', e => {
   const rm = e.target.closest('[data-rm]'); if(rm){ B = B.filter(x => String(x.id) !== rm.dataset.rm); renderList(); return; }
+  const tf = e.target.closest('[data-tarif]'); if(tf && !reorder){ openTarif(tf.dataset.tarif); return; }
   const ed = e.target.closest('[data-edit]'); if(ed && !reorder) openItem(ed.dataset.edit);
 });
+LST.addEventListener('keydown', e => { if(e.key === 'Enter' && e.target.dataset && e.target.dataset.tarif && !reorder) openTarif(e.target.dataset.tarif); });
+$('bhTarifBody').addEventListener('input', () => { dirty.bhTarifM = true; tarifHint(); });
+$('bhTarifX').onclick = () => kembaliLayar();
+$('bhTarifSave').onclick = async () => {
+  if(tarifSaving || !T) return;
+  const n = Object.assign({}, T); let bad = false;
+  document.querySelectorAll('#bhTarifBody [data-tk]').forEach(i => { const v = parseFloat(i.value); if(!(v >= 0)) bad = true; else n[i.dataset.tk] = v; });
+  if(bad){ showToast('Isi semua angkanya dulu.'); return; }
+  if(tg === 'gas' && !(n.lpg_kg_per_tabung > 0)){ showToast('Isi tabung (kg) harus lebih dari 0.'); return; }
+  tarifSaving = true;
+  try{
+    await apiPost('save_tarif', { upah_bulan:Math.round(n.upah_bulan), upah_pembagi:n.upah_pembagi, listrik_per_kwh:n.listrik_per_kwh, daya_ac_watt:Math.round(n.daya_ac_watt), lpg_per_tabung:Math.round(n.lpg_per_tabung), lpg_kg_per_tabung:n.lpg_kg_per_tabung, gas_kg_per_jam:n.gas_kg_per_jam });
+    T = n; saveTarifCache(T); clearResepItemsCache(); dirty.bhTarifM = false; renderList(); showToast('Tersimpan'); kembaliLayar();
+  } catch(e){ showToast('Gagal simpan: ' + e.message); }
+  finally { tarifSaving = false; }
+};
 
 // ---------- buka sheet ----------
 async function openBahan(){
@@ -5934,10 +6027,11 @@ async function openBahan(){
   // Layar di-push sinkron saat tap (bukan setelah nunggu server), biar Back reliabel.
   const c = loadBahanCache();
   B = c ? fromServer(c) : [];
+  T = isOwner() ? loadTarifCache() : null;
   applyRole(); $('bhQ').value = ''; reorder = false; setReorder(false);
   if(!c) $('bhList').innerHTML = '<div class="hint" style="padding:12px 0">Memuat bahan…</div>';
   openM('bhM', bahanUndo);
-  try{ await load(true, true); if(!$('bhM').classList.contains('hidden') && !reorder) renderList(); }
+  try{ await Promise.all([load(true, true, !!c), isOwner() ? loadTarif(!!T).catch(() => {}) : null]); if(!$('bhM').classList.contains('hidden') && !reorder) renderList(); }
   catch(e){ showToast('Gagal memuat bahan: ' + e.message); if(!c) $('bhList').innerHTML = '<div class="hint" style="padding:12px 0">Gagal memuat. Tutup lalu buka lagi.</div>'; }
   finally { busy = false; }
 }
@@ -5996,7 +6090,7 @@ $('bhSaveItem').onclick = async () => {
       if(!id){ id = String(r.id || r.bahan_id); cur = id; }
     }
     if(v !== ''){ await apiPost('add_opname', {client_opname_id: cidOp, bahan_id: +id, fisik_dg: Math.max(0, Math.round(parseFloat(v) * 10))}); }
-    await load(true); renderList(); dirty.bhItemM = false;
+    await load(true); clearResepItemsCache(); renderList(); dirty.bhItemM = false;
     const b = byId(id), s = b && status(b);
     showToast(s && s.t === 'Habis' && !wasHabis ? b.nama + ' habis' : 'Tersimpan');
     kembaliLayar();
@@ -6037,7 +6131,7 @@ $('bhSaveStok').onclick = async () => {
   stokSaving = true; $('bhSaveStok').disabled = true; $('bhSaveStok').textContent = 'Menyimpan…';
   try{
     await apiPost('add_stok', {client_beli_id: cidStok, baris});
-    await load(true); renderList(); dirty.bhStokM = false; showToast(baris.length + ' bahan ditambahkan'); stokSaving = false; kembaliLayar();
+    await load(true); clearResepItemsCache(); renderList(); dirty.bhStokM = false; showToast(baris.length + ' bahan ditambahkan'); stokSaving = false; kembaliLayar();
   }catch(e){ stokSaving = false; showToast(e.message || 'Gagal menyimpan'); cnt(); }
 };
 
