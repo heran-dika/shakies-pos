@@ -573,6 +573,13 @@
 .bh .dayh{font-size:11.5px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.4px;margin:16px 0 0}
 .bh-staff .owner-only{display:none!important}
 #bhM{z-index:55}#bhItemM,#bhStokM,#bhHistM{z-index:56}#bhDiscM{z-index:58}
+/* 14 Okt 2026: sheet Bahan (daftar) layar penuh, bukan bottom sheet yang menempel di bawah */
+#bhM .modal-sheet.bh{height:100vh;height:100dvh;max-height:100vh;max-height:100dvh;border-radius:0;padding-top:calc(20px + env(safe-area-inset-top))}
+/* 14 Okt 2026: sheet Resep (lihat/edit/+ Resep) tinggi tetap, footer Simpan/Batal menempel di bawah, bukan di tengah kalau isi pendek */
+#resepM .modal-sheet.rs{min-height:88vh;display:flex;flex-direction:column}
+#resepM .modal-sheet.rs>*{flex-shrink:0}
+#resepM .sticky-foot{margin-top:auto}
+#resepM #viewR,#resepM #editR{padding-bottom:14px}
 #btnBahan .bp{margin:0 0 0 4px}
 </style>
 </head>
@@ -1532,6 +1539,22 @@ function loadRiwayatUnpaidCache(){
 }
 function saveRiwayatUnpaidCache(orders){
   try{ localStorage.setItem(RIWAYAT_UNPAID_CACHE_KEY, JSON.stringify({ orders, cachedAt: Date.now() })); }
+  catch(e){ /* nggak fatal */ }
+}
+
+// Cache daftar bahan (get_bahan) — dipakai sheet Bahan & sheet Resep. Cache-first: sheet kebuka langsung dari sini,
+// refresh jalan di belakang. Satu device = satu role (keputusan 14 Okt 2026), jadi gak dipisah per role.
+const BAHAN_CACHE_KEY = 'pos-bahan-cache-v1';
+function loadBahanCache(){
+  try{
+    const raw = localStorage.getItem(BAHAN_CACHE_KEY);
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed.list) ? parsed.list : null;
+  } catch(e){ return null; }
+}
+function saveBahanCache(list){
+  try{ localStorage.setItem(BAHAN_CACHE_KEY, JSON.stringify({ list, cachedAt: Date.now() })); }
   catch(e){ /* nggak fatal */ }
 }
 
@@ -5498,10 +5521,18 @@ function blankRec(itemId){
   const tid = --tempId; MB[tid] = { id:null, tid, n:'', p:0, pcs:null, amb:null, dirty:true, isNew:true };
   return { item_id:itemId, resep_id:null, versi:null, rows:[{ b:tid, g:1000 }], anc:{ i:0, min:500, max:1500, step:100 }, proof:[{ n:'Proofing', mnt:0 }], oven:[{ atas:180, bawah:180, mnt:0 }], pack:[], note:'', kerja:null, pemisah:[], hasil:[{ id:itemId, g:50, n:0 }] };
 }
+// rsLoad: 0 idle · 1 lagi memuat (layar sudah di-push) · 2 dibatalkan (Back pas memuat / gagal)
+let rsLoad = 0;
 async function openResep(itemId){
   if(busy) return; busy = true;
+  // 14 Okt 2026: layar di-push SINKRON saat tap (history.pushState butuh user activation; kalau nunggu server dulu,
+  // Chrome bisa menandai entry-nya "skippable" dan Back melompati sheet). Sheet baru muncul setelah data siap.
+  rsLoad = 1; pushLayar(rsBack);
   try{
-    const [r, master] = await Promise.all([apiGet('get_resep', { item_id:itemId }), apiGet('get_bahan', {})]);
+    const cb = loadBahanCache(); // master bahan dari cache kalau ada; get_bahan di belakang buat buka berikutnya
+    const [r, master] = await Promise.all([apiGet('get_resep', { item_id:itemId }), cb ? Promise.resolve(cb) : apiGet('get_bahan', {})]);
+    if(rsLoad === 2){ rsLoad = 0; return; } // user udah Back pas lagi memuat
+    if(cb) apiGet('get_bahan', {}).then(l => saveBahanCache(l || [])).catch(() => {}); else saveBahanCache(master || []);
     mkMaster(master || []);
     COST = null;
     let startEdit = false;
@@ -5509,7 +5540,7 @@ async function openResep(itemId){
       REC = fromServer(r);
       if(r.tarif) COST = { upah:r.tarif.upah_bulan, pembagi:r.tarif.upah_pembagi, listrik:r.tarif.listrik_per_kwh, watt:r.tarif.daya_ac_watt, lpg:r.tarif.lpg_per_tabung, lpgKg:r.tarif.lpg_kg_per_tabung, gasKgJam:r.tarif.gas_kg_per_jam };
     } else {
-      if(!isOwner()){ showToast('Item ini belum punya resep.'); return; }
+      if(!isOwner()){ showToast('Item ini belum punya resep.'); rsLoad = 2; kembaliLayar(); return; }
       const t = await apiGet('get_tarif', {});
       COST = { upah:t.upah_bulan, pembagi:t.upah_pembagi, listrik:t.listrik_per_kwh, watt:t.daya_ac_watt, lpg:t.lpg_per_tabung, lpgKg:t.lpg_kg_per_tabung, gasKgJam:t.gas_kg_per_jam };
       REC = blankRec(itemId); startEdit = true;
@@ -5519,10 +5550,10 @@ async function openResep(itemId){
     const idx = idxCache && idxCache[itemId];
     const t = $('rsTitle'); t.textContent = 'Resep ' + nameOf(REC.item_id); t.classList.remove('pop');
     $('rsFrom').textContent = idx && idx.item_utama_id !== itemId ? 'dibuka dari ' + nameOf(itemId) : '';
-    resetH(); drawResep(); open('resepM', rsBack);
+    resetH(); drawResep(); rsLoad = 0; $('resepM').classList.remove('hidden'); // layar sudah di-push di awal openResep
     if(startEdit){ S.edit = clone(REC); S.bk = { MB:clone(MB), COST:clone(COST) }; S.snap = snapNow(); drawResep(); }
     if(idx && idx.item_utama_id !== itemId && !reduce) setTimeout(()=>{ void t.offsetWidth; t.classList.add('pop'); }, 220);
-  } catch(e){ showToast(e.message); }
+  } catch(e){ showToast(e.message); if(rsLoad === 1){ rsLoad = 2; kembaliLayar(); } }
   finally { busy = false; }
 }
 const open = (id, undo) => { $(id).classList.remove('hidden'); pushLayar(undo || (()=>close(id))); };
@@ -5531,6 +5562,7 @@ const snapNow = () => JSON.stringify([S.edit, MB, COST]);
 const dirty = () => S.edit && JSON.stringify([S.edit, MB, COST]) !== S.snap;
 // Back/✕: editor -> tampilan -> tutup. Dipanggil lewat popstate (kembaliLayar), jadi kalau sheet MASIH terbuka layar-nya di-push ulang.
 function rsBack(){
+  if(rsLoad){ rsLoad = rsLoad === 1 ? 2 : 0; return; } // Back saat memuat = batal buka; 2 = sisa dari pembukaan gagal/batal
   if(S && S.edit){
     if(dirty()){ pushLayar(rsBack); open('resepDiscM', ()=>close('resepDiscM')); return; }
     leaveEdit(false); pushLayar(rsBack); return;
@@ -5815,7 +5847,12 @@ function fromServer(list){
   });
   return out;
 }
-async function load(force){ if(!force && Date.now() - loaded < 15000) return; const l = await apiGet('get_bahan', {}); B = fromServer(l || []); loaded = Date.now(); }
+async function load(force, soft){
+  if(!force && Date.now() - loaded < 15000) return;
+  const l = await apiGet('get_bahan', {}); saveBahanCache(l || []);
+  if(soft && (reorder || dirty.bhItemM || dirty.bhStokM)) return; // lagi atur posisi / ngisi form: jangan timpa B di tengah jalan, cache tetap diperbarui
+  B = fromServer(l || []); loaded = Date.now();
+}
 function status(b){
   if(b.stok === null) return {t:'Belum di-opname', c:'bp-mut'};
   if(b.stok <= 0 || (b.need && b.stok < b.need)) return {t:'Habis', c:'bp-red'};
@@ -5893,10 +5930,22 @@ LST.addEventListener('click', e => {
 // ---------- buka sheet ----------
 async function openBahan(){
   if(busy) return; busy = true;
-  try{ await load(true); }catch(e){ showToast('Gagal memuat bahan: ' + e.message); busy = false; return; }
-  busy = false; applyRole(); $('bhQ').value = ''; reorder = false; setReorder(false); openM('bhM', bahanUndo);
+  // 14 Okt 2026: cache-first. Sheet kebuka LANGSUNG (tampil bahan terakhir dari cache), data segar diambil di belakang.
+  // Layar di-push sinkron saat tap (bukan setelah nunggu server), biar Back reliabel.
+  const c = loadBahanCache();
+  B = c ? fromServer(c) : [];
+  applyRole(); $('bhQ').value = ''; reorder = false; setReorder(false);
+  if(!c) $('bhList').innerHTML = '<div class="hint" style="padding:12px 0">Memuat bahan…</div>';
+  openM('bhM', bahanUndo);
+  try{ await load(true, true); if(!$('bhM').classList.contains('hidden') && !reorder) renderList(); }
+  catch(e){ showToast('Gagal memuat bahan: ' + e.message); if(!c) $('bhList').innerHTML = '<div class="hint" style="padding:12px 0">Gagal memuat. Tutup lalu buka lagi.</div>'; }
+  finally { busy = false; }
 }
-function refreshChip(){ if(!canSee()) return; load(false).then(() => { chip(); }).catch(() => {}); }
+function refreshChip(){
+  if(!canSee()) return;
+  if(!B.length){ const c = loadBahanCache(); if(c){ B = fromServer(c); chip(); } } // chip "kurang N" langsung dari cache
+  load(false).then(() => { chip(); }).catch(() => {});
+}
 
 // ---------- sheet item (nama/harga/berat + stok awal/opname) ----------
 const gauge = (c, a) => `<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 17a8.5 8.5 0 1 1 17 0" fill="none" stroke="#cfc7b8" stroke-width="2" stroke-linecap="round"/><g transform="rotate(${a} 12 17)"><line x1="12" y1="17" x2="12" y2="8" stroke="${c}" stroke-width="2.4" stroke-linecap="round"/></g><circle cx="12" cy="17" r="2" fill="${c}"/></svg>`;
