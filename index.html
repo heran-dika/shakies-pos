@@ -521,6 +521,59 @@
 .rs .sepE span::after{display:none}
 .rs .sepE .rm{border:none;background:none;color:var(--chili);font-size:16px;padding:8px 0;cursor:pointer}
 #resepConfM,#resepDiscM{z-index:60}#resepM{z-index:55}#rsRowMenu{z-index:90}
+/* ===== Sheet Bahan (Tahap 2, 13 Okt 2026) — semua scoped .bh ===== */
+.modal-sheet.bh{padding:20px 18px 0;max-height:92vh}
+.bh .sub{font-size:11px;color:var(--ink-soft)}
+.bh .sheet-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px}
+.bh .sheet-head h3{font-family:'Fraunces',serif;font-size:18px;margin:0}
+.bh .x{border:none;background:var(--jade-tint);color:var(--jade-dark);width:30px;height:30px;border-radius:50%;font-size:15px;font-weight:700}
+.bh label.lb{display:block;font-size:12px;font-weight:700;color:var(--ink-soft);margin:14px 0 6px;text-transform:uppercase;letter-spacing:.4px}
+.bh .hint{font-size:11.5px;color:var(--ink-soft);margin-top:5px}.bh .hint:empty{display:none}
+.bh .hint.up{color:var(--jade);font-weight:700}.bh .hint.dn{color:var(--chili);font-weight:700}
+.bh .sticky-foot{position:sticky;bottom:0;background:var(--surface);padding:12px 0 calc(14px + env(safe-area-inset-bottom));margin-top:14px;border-top:1px solid var(--border)}
+.bh button.primary{width:100%;border:none;background:var(--jade);color:#fff;border-radius:var(--radius-sm);padding:14px;font-size:15px;font-weight:700}
+.bh button.primary:disabled{opacity:.6}
+.bh button.secondary{width:100%;border:1.5px solid var(--border);background:#fff;color:var(--ink);border-radius:var(--radius-sm);padding:12px;font-size:14px;font-weight:600;margin-top:8px}
+.bh .bfi,.bh .bplain{width:100%;padding:11px 13px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font:inherit;font-size:15px;background:#fff;color:var(--ink)}
+.bh .bplain{text-align:right;font-family:'IBM Plex Mono',monospace;font-size:16px}
+.bh .bp{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;margin-top:3px}
+.bh .bp-gold{background:var(--gold-tint);color:var(--gold)}.bh .bp-red{background:var(--chili-tint);color:var(--chili)}.bh .bp-mut{background:#f6f4f0;color:var(--ink-soft)}.bh .bp-jade{background:var(--jade-tint);color:var(--jade-dark)}
+.bh .bbar{display:flex;gap:8px;align-items:center;position:relative}
+.bh .bib{width:38px;height:38px;flex-shrink:0;border-radius:10px;border:1.5px solid var(--border);background:#fff;color:var(--ink);display:flex;align-items:center;justify-content:center;font-size:19px}
+.bh .bib.done{background:var(--jade);border-color:var(--jade);color:#fff;font-weight:700}
+.bh .bham{display:none;flex-direction:column;position:absolute;right:0;top:44px;z-index:25;background:#fff;border:1px solid var(--border);border-radius:12px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);min-width:170px}
+.bh .bham.on{display:flex}.bh .bham .chili-sm{text-align:left;margin:2px 0;width:100%}
+.bh .bcard{background:#fff;border:1px solid var(--border);border-radius:16px;padding:2px 14px;margin-top:12px}
+.bh .brow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px dashed var(--border)}
+.bh .brow:last-child{border-bottom:none}
+.bh .brow .nm{font-size:14px;font-weight:600}
+.bh .brow .st{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;text-align:right}
+.bh .brow.sepa{border-bottom:2px solid #cfc7b8}.bh .brow.sepb{border-top:2px solid #cfc7b8}
+.bh .brow.nob{border-bottom:none}.bh .brow.sepr{border-bottom:none;padding:2px 0}
+.bh .grip{border:none;background:none;color:var(--ink-soft);font-size:20px;padding:6px 10px 6px 0;touch-action:none;cursor:grab;line-height:1}
+.bh .dragging{opacity:.92;box-shadow:0 6px 18px rgba(0,0,0,.22);background:#fff;position:relative;z-index:5}
+.bh .brm{border:none;background:none;color:var(--chili);font-size:16px;padding:8px 0 8px 8px}
+.bh .hrow{display:grid;grid-template-columns:1fr 62px 66px 54px;gap:8px;align-items:center}
+.bh .hrow .bplain,.bh .hrow select{padding:11px 8px;font-size:15px}
+.bh .gp{display:flex;flex-direction:column;align-items:center;justify-content:center;height:46px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:#fff;line-height:1;padding:0}
+.bh .gp small{font-size:10px;color:var(--ink-soft);font-weight:700}.bh .gp i{font-style:normal;font-size:18px;color:var(--ink)}
+.bh .gp.on{background:var(--jade-tint);border-color:var(--jade)}.bh .gp.on small{color:var(--jade-dark)}
+.bh .info4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:16px}
+.bh .i4{display:flex;flex-direction:column;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:13px;text-align:center;line-height:1.2}
+.bh .three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.bh .numlbl{font-size:12px;color:var(--ink-soft);font-weight:600;margin-bottom:5px}
+.bh .lnx{border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:10px;margin-top:10px;background:#fff}
+.bh .lnx .bplain{font-size:14px;padding:9px 8px}.bh .lnx select{font-size:14px;padding:9px 10px}
+.bh .evt{border:1px solid var(--border);border-radius:var(--radius-sm);margin-top:10px;overflow:hidden;background:#fff}
+.bh .eh{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--bg);border-bottom:1px dashed var(--border);flex-wrap:wrap}
+.bh .eh b{font-size:14px;flex:1;min-width:0}
+.bh .er2{display:grid;grid-template-columns:1fr 82px 100px;gap:8px;padding:8px 12px;border-bottom:1px dashed var(--border);font-size:13px;align-items:baseline}
+.bh .er2:last-child{border-bottom:none}.bh .er2 .m{font-family:'IBM Plex Mono',monospace;font-size:12px;text-align:right}
+.bh .m.dn{color:var(--chili)}.bh .m.up{color:var(--jade)}.bh .m.mut{color:var(--ink-soft)}
+.bh .ts{font-size:10.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace}
+.bh .dayh{font-size:11.5px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.4px;margin:16px 0 0}
+.bh-staff .owner-only{display:none!important}
+#bhM{z-index:55}#bhItemM,#bhStokM,#bhHistM{z-index:56}#bhDiscM{z-index:58}
+#btnBahan .bp{margin:0 0 0 4px}
 </style>
 </head>
 <body>
@@ -642,6 +695,7 @@
           <button class="chili-sm" style="background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark);" onclick="openAddMenuModal()">+ Tambah Menu</button>
           <button class="chili-sm" id="btnToggleStokMode" onclick="toggleStokMode()" style="background:var(--gold-tint);border-color:var(--gold);color:var(--gold);">📦 Stock / Available</button>
           <button class="chili-sm" id="btnToggleDeleteMode" onclick="toggleDeleteMode()" style="background:#fff;">🗑️ Hapus</button>
+          <button class="chili-sm" id="btnBahan" type="button" style="display:none;background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark);">🧂 Bahan <span class="bp bp-gold" id="bhChip" style="display:none"></span></button>
         </div>
       </div>
       <p class="section-sub">Kelola kategori &amp; item menu.</p>
@@ -1110,6 +1164,58 @@
 <div class="modal-overlay hidden" id="resepDiscM"><div class="modal-sheet rs">
   <div class="sheet-head"><h3 style="margin:0">Buang perubahan?</h3></div><div style="font-size:14px;color:var(--ink-soft)">Perubahan resep yang belum disimpan akan hilang.</div>
   <div class="sticky-foot"><button type="button" class="primary" id="btnBuang" style="background:var(--chili)">Buang perubahan</button><button type="button" class="secondary" id="btnLanjut">Lanjut edit</button></div>
+</div></div>
+<!-- ===== Sheet Bahan (Tahap 2) ===== -->
+<div class="modal-overlay hidden" id="bhM"><div class="modal-sheet bh">
+  <div class="sheet-head"><h3>Bahan</h3><button type="button" class="x" id="bhX" aria-label="Tutup">✕</button></div>
+  <div class="bbar">
+    <input class="bfi" id="bhQ" type="search" placeholder="Cari bahan…" aria-label="Cari bahan">
+    <div id="bhRmBar" style="flex:1;display:none;align-items:center;justify-content:space-between;gap:8px"><span class="hint" style="margin:0">Seret ≡ untuk geser</span><button type="button" class="chili-sm" id="bhAddSep" style="background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark)">+ Garis</button></div>
+    <button type="button" class="bib" id="bhBurger" aria-label="Menu bahan" aria-expanded="false">☰</button>
+    <div class="bham" id="bhHam">
+      <button type="button" class="chili-sm owner-only" id="bhGoNew" style="background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark)">+ Bahan</button>
+      <button type="button" class="chili-sm owner-only" id="bhGoStok" style="background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark)">+ Stok</button>
+      <button type="button" class="chili-sm owner-only" id="bhGoReord" style="background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark)">↕ Atur posisi</button>
+      <button type="button" class="chili-sm" id="bhGoHist" style="background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark)">🕘 Riwayat</button>
+    </div>
+  </div>
+  <div class="bcard" id="bhList"></div>
+  <div style="height:18px"></div>
+</div></div>
+<div class="modal-overlay hidden" id="bhItemM"><div class="modal-sheet bh">
+  <div class="sheet-head"><h3 id="bhTitle"></h3><button type="button" class="x" id="bhItemX" aria-label="Tutup">✕</button></div>
+  <div class="owner-only" id="bhMeta">
+    <label class="lb" for="bhNama" style="margin-top:4px">Nama bahan</label><input class="bfi" id="bhNama">
+    <label class="lb" for="bhHarga">Harga (Rp) · berat · satuan</label>
+    <div class="hrow"><input class="bplain" id="bhHarga" type="number" min="0" inputmode="numeric" placeholder="Harga" aria-label="Harga">
+      <input class="bplain" id="bhBerat" type="number" min="0" step="any" inputmode="decimal" value="1" aria-label="Angka berat">
+      <select class="bfi" id="bhSat" aria-label="Satuan berat"><option>kg</option><option>gr</option></select>
+      <button type="button" class="gp" id="bhGp" aria-expanded="false" aria-label="Berat per butir"><small>gr/pcs</small><i>↵</i></button></div>
+    <div id="bhButirBox" style="display:none"><label class="lb" for="bhButir">Berat per butir (gr/pcs), untuk bahan butiran seperti telur</label>
+      <input class="bplain" id="bhButir" type="number" min="0" step="0.1" inputmode="decimal"></div>
+  </div>
+  <label class="lb" for="bhStok" id="bhStokL">Stok fisik (opname)</label>
+  <input class="bplain" id="bhStok" type="number" min="0" step="0.1" inputmode="decimal" placeholder="kosong = tidak diubah">
+  <div class="hint" id="bhSel"></div>
+  <div class="info4" id="bhInfo"></div>
+  <div class="hint" id="bhNote"></div>
+  <button type="button" class="secondary" id="bhItemHist">🕘 Riwayat bahan ini</button>
+  <div class="sticky-foot"><button type="button" class="primary" id="bhSaveItem">Simpan</button></div>
+</div></div>
+<div class="modal-overlay hidden" id="bhStokM"><div class="modal-sheet bh">
+  <div class="sheet-head"><div><h3>Tambah stok</h3><div class="sub">Isi per bahan yang dibeli. Foto struk menyusul.</div></div><button type="button" class="x" id="bhStokX" aria-label="Tutup">✕</button></div>
+  <div id="bhLines"></div>
+  <button type="button" class="secondary" id="bhAddLn">+ Tambah baris</button>
+  <div class="sticky-foot"><button type="button" class="primary" id="bhSaveStok"></button></div>
+</div></div>
+<div class="modal-overlay hidden" id="bhHistM"><div class="modal-sheet bh">
+  <div class="sheet-head"><h3>Riwayat</h3><button type="button" class="x" id="bhHistX" aria-label="Tutup">✕</button></div>
+  <select class="bfi" id="bhHF" aria-label="Filter bahan"></select>
+  <div id="bhHist"></div><div id="bhMore" style="margin-top:12px"></div><div style="height:18px"></div>
+</div></div>
+<div class="modal-overlay hidden" id="bhDiscM"><div class="modal-sheet bh">
+  <div class="sheet-head"><h3>Buang perubahan?</h3></div><div style="font-size:14px;color:var(--ink-soft)">Perubahan yang belum disimpan akan hilang.</div>
+  <div class="sticky-foot"><button type="button" class="primary" id="bhBuang" style="background:var(--chili)">Buang perubahan</button><button type="button" class="secondary" id="bhLanjut">Lanjut edit</button></div>
 </div></div>
 <div class="modal-overlay hidden" id="resepConfM"><div class="modal-sheet rs">
   <div class="sheet-head"><h3 style="margin:0">Simpan produksi?</h3><button type="button" class="x" id="btnConfX" aria-label="Tutup">✕</button></div>
@@ -5671,6 +5777,266 @@ window.rsState = () => S; // dipakai tes headless
 window.rsInvalidateIndex = () => { idxCache = null; };
 })();
 
+
+// ===== Sheet Bahan (Tahap 2, 13 Okt 2026) — acuan: mockup-bahan.html =====
+// Stok mengikuti sistem (produksi + Tambah stok). Opname cuma dipakai sekali per bahan sebagai stok awal; kolomnya boleh dikosongkan.
+// Bahan "dilacak" = opname_at terisi di server. Belum dilacak: stok null, + Stok hanya memperbarui harga.
+(function(){
+'use strict';
+const $ = id => document.getElementById(id);
+const BLN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+const role = () => staffSession ? ((staffSession.is_owner === true || staffSession.role === 'owner') ? 'owner' : staffSession.role) : null;
+const isOwner = () => role() === 'owner';
+const canSee = () => role() === 'owner' || role() === 'chef';
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fc = dg => (dg/10).toLocaleString('id-ID', {maximumFractionDigits:1}) + ' gr';
+const f  = dg => (dg/10).toLocaleString('id-ID', {minimumFractionDigits:1, maximumFractionDigits:1}) + ' gr';
+const rp = n => 'Rp ' + Math.round(n).toLocaleString('id-ID');
+function tgl(iso){ if(!iso) return '–'; const p = new Intl.DateTimeFormat('en-GB', {timeZone:'Asia/Jakarta', day:'numeric', month:'numeric', year:'2-digit'}).formatToParts(new Date(iso)); const g = t => p.find(x => x.type === t).value; return g('day') + ' ' + BLN[+g('month') - 1] + " '" + g('year'); }
+const dayKey = iso => new Date(iso).toLocaleDateString('sv-SE', {timeZone:'Asia/Jakarta'});
+const jam = iso => new Date(iso).toLocaleTimeString('id-ID', {timeZone:'Asia/Jakarta', hour:'2-digit', minute:'2-digit', hour12:false});
+function dayLbl(iso){ const k = dayKey(iso), n = Date.now(); return k === dayKey(new Date(n).toISOString()) ? 'Hari ini' : k === dayKey(new Date(n - 864e5).toISOString()) ? 'Kemarin' : tgl(iso); }
+
+const openM = (id, undo) => { $(id).classList.remove('hidden'); pushLayar(undo || (() => closeM(id))); };
+const closeM = id => $(id).classList.add('hidden');
+const dirty = {};
+let pendingDiscard = false;
+function guarded(id){ return function undo(){ if(dirty[id]){ pushLayar(undo); $('bhDiscM').dataset.t = id; openM('bhDiscM', discUndo); return; } closeM(id); }; }
+function discUndo(){ closeM('bhDiscM'); if(pendingDiscard){ pendingDiscard = false; setTimeout(kembaliLayar, 0); } }
+
+let B = [], loaded = 0, busy = false, reorder = false, reSnap = '', cur = null, gpOpen = false, cidBahan = '', cidOp = '';
+const BH = () => B.filter(b => !b.sep);
+const byId = id => B.find(b => !b.sep && String(b.id) === String(id));
+function fromServer(list){
+  const out = [];
+  list.forEach(x => {
+    out.push({id:x.id, nama:x.nama, butir:x.berat_per_butir_dg, harga:x.harga_per_kg || 0, stok:x.opname_at ? x.stok_dg : null, need:x.need_dg || null, prod:x.produksi_at || null});
+    if(x.pemisah_setelah) out.push({sep:1, id:'s' + x.id});
+  });
+  return out;
+}
+async function load(force){ if(!force && Date.now() - loaded < 15000) return; const l = await apiGet('get_bahan', {}); B = fromServer(l || []); loaded = Date.now(); }
+function status(b){
+  if(b.stok === null) return {t:'Belum di-opname', c:'bp-mut'};
+  if(b.stok <= 0 || (b.need && b.stok < b.need)) return {t:'Habis', c:'bp-red'};
+  if(b.need && b.stok < b.need * 2) return {t:'Mau habis', c:'bp-gold'};
+  return null;
+}
+function applyRole(){ document.querySelectorAll('.modal-sheet.bh').forEach(e => e.classList.toggle('bh-staff', !isOwner())); }
+function chip(){
+  const n = BH().filter(b => { const s = status(b); return s && s.c !== 'bp-mut'; }).length, c = $('bhChip');
+  if(c){ c.textContent = n ? 'kurang ' + n : ''; c.style.display = n ? 'inline-block' : 'none'; }
+}
+
+// ---------- daftar ----------
+function rowHtml(b, cls){
+  const s = status(b), bt = b.butir && b.stok != null ? '≈ ' + (Math.round(b.stok / b.butir * 2) / 2).toLocaleString('id-ID') + ' butir' : '';
+  return `<div class="brow${cls||''}" data-k="${b.id}" ${reorder ? '' : `data-edit="${b.id}" tabindex="0" role="button" style="cursor:pointer"`}>
+    ${reorder ? `<button type="button" class="grip" aria-label="Geser ${esc(b.nama)}">≡</button>` : ''}
+    <div style="flex:1;min-width:0"><div class="nm">${esc(b.nama)}</div><div class="sub">${esc(tgl(b.prod))}${isOwner() ? ' · ' + rp(b.harga) + '/kg' : ''}</div>${s ? `<span class="bp ${s.c}">${s.t}</span>` : ''}</div>
+    <div style="text-align:right"><div class="st">${b.stok === null ? '–' : f(b.stok)}</div><div class="sub">${bt}</div></div></div>`;
+}
+function renderList(){
+  chip();
+  const q = reorder ? '' : $('bhQ').value.trim().toLowerCase(), L = q ? BH().filter(b => b.nama.toLowerCase().includes(q)) : B;
+  if(!L.length){ $('bhList').innerHTML = '<div class="hint" style="padding:12px 0">' + (q ? 'Tidak ada bahan yang cocok.' : 'Belum ada bahan. Tambah lewat ☰ → + Bahan.') + '</div>'; return; }
+  if(reorder){
+    $('bhList').innerHTML = L.map((b, i) => b.sep
+      ? `<div class="brow sepr" data-k="${b.id}"><button type="button" class="grip" aria-label="Geser garis">≡</button><div style="flex:1;border-top:2px solid #cfc7b8"></div><span class="sub" style="margin-left:8px">garis</span><button type="button" class="brm" data-rm="${b.id}" aria-label="Hapus garis">✕</button></div>`
+      : rowHtml(b, L[i+1] && L[i+1].sep ? ' nob' : '')).join('');
+    return;
+  }
+  const R = []; let top = false;
+  L.forEach(b => { if(b.sep){ if(R.length) R[R.length-1].sa = 1; else top = true; return; } R.push({b}); });
+  if(top && R.length) R[0].sb = 1;
+  $('bhList').innerHTML = R.map(r => rowHtml(r.b, (r.sa ? ' sepa' : '') + (r.sb ? ' sepb' : ''))).join('');
+}
+function setReorder(on){
+  reorder = on; const bb = $('bhBurger'); bb.textContent = on ? '✓' : '☰'; bb.classList.toggle('done', on); bb.setAttribute('aria-label', on ? 'Selesai atur posisi' : 'Menu bahan');
+  $('bhQ').style.display = on ? 'none' : ''; $('bhRmBar').style.display = on ? 'flex' : 'none'; $('bhHam').classList.remove('on'); renderList();
+}
+// urutan disimpan sekali saat ✓ / sheet ditutup. Garis di paling atas dan garis berurutan dibuang (model server: garis = "di bawah bahan ini").
+function normOrder(){
+  const items = [];
+  B.forEach(x => { if(x.sep){ if(items.length) items[items.length-1].sep = 1; } else items.push({id:x.id, sep:0}); });
+  return items;
+}
+async function finishReorder(){
+  const items = normOrder(), snap = JSON.stringify(items);
+  setReorder(false);
+  if(snap === reSnap) return;
+  try{ await apiPost('save_urutan_bahan', {urutan: items.map(i => ({bahan_id:i.id, pemisah_setelah:i.sep}))}); await load(true); }
+  catch(e){ showToast('Gagal simpan urutan: ' + e.message); try{ await load(true); }catch(_){} }
+  renderList();
+}
+function bahanUndo(){ if(reorder){ finishReorder(); pushLayar(bahanUndo); return; } closeM('bhM'); }
+const LST = $('bhList'); let drag = null;
+function commitOrder(){ const ks = [...LST.querySelectorAll('[data-k]')].map(r => r.dataset.k); B = ks.map(k => B.find(x => String(x.id) === k)); }
+LST.addEventListener('keydown', e => {
+  const g = e.target.closest('.grip');
+  if(g && reorder && (e.key === 'ArrowUp' || e.key === 'ArrowDown')){ e.preventDefault();
+    const r = g.closest('[data-k]'), sb = e.key === 'ArrowUp' ? r.previousElementSibling : r.nextElementSibling;
+    if(!sb) return; e.key === 'ArrowUp' ? LST.insertBefore(r, sb) : LST.insertBefore(sb, r); commitOrder(); g.focus(); return; }
+  if(e.key === 'Enter' && e.target.dataset.edit) openItem(e.target.dataset.edit);
+});
+LST.addEventListener('pointerdown', e => { const g = e.target.closest('.grip'); if(!g || !reorder) return; e.preventDefault(); drag = g.closest('[data-k]'); drag.classList.add('dragging'); LST.setPointerCapture(e.pointerId); });
+LST.addEventListener('pointermove', e => { if(!drag) return; let nx = null;
+  for(const r of LST.querySelectorAll('[data-k]')){ if(r === drag) continue; const b = r.getBoundingClientRect(); if(e.clientY < b.top + b.height/2){ nx = r; break; } }
+  LST.insertBefore(drag, nx); });
+const endDrag = () => { if(!drag) return; drag.classList.remove('dragging'); drag = null; commitOrder(); };
+LST.addEventListener('pointerup', endDrag); LST.addEventListener('pointercancel', endDrag);
+LST.addEventListener('click', e => {
+  const rm = e.target.closest('[data-rm]'); if(rm){ B = B.filter(x => String(x.id) !== rm.dataset.rm); renderList(); return; }
+  const ed = e.target.closest('[data-edit]'); if(ed && !reorder) openItem(ed.dataset.edit);
+});
+
+// ---------- buka sheet ----------
+async function openBahan(){
+  if(busy) return; busy = true;
+  try{ await load(true); }catch(e){ showToast('Gagal memuat bahan: ' + e.message); busy = false; return; }
+  busy = false; applyRole(); $('bhQ').value = ''; reorder = false; setReorder(false); openM('bhM', bahanUndo);
+}
+function refreshChip(){ if(!canSee()) return; load(false).then(() => { chip(); }).catch(() => {}); }
+
+// ---------- sheet item (nama/harga/berat + stok awal/opname) ----------
+const gauge = (c, a) => `<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 17a8.5 8.5 0 1 1 17 0" fill="none" stroke="#cfc7b8" stroke-width="2" stroke-linecap="round"/><g transform="rotate(${a} 12 17)"><line x1="12" y1="17" x2="12" y2="8" stroke="${c}" stroke-width="2.4" stroke-linecap="round"/></g><circle cx="12" cy="17" r="2" fill="${c}"/></svg>`;
+const scale = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2F5D50" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Berat tersisa"><path d="M12 4v16M7 20h10M5 7h14M5 7l-3 7a3.5 3.5 0 0 0 6 0zM19 7l-3 7a3.5 3.5 0 0 0 6 0z"/></svg>';
+const board = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2F5D50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="12" height="16" rx="2"/><path d="M7 4.5V3.5h5v1M6.5 10h6M6.5 13.5h3"/><path d="M20.5 8.5l-6 6-2.5.7.7-2.5 6-6z"/></svg>';
+const cell = (ic, v, t) => `<div class="i4" title="${t}" role="img" aria-label="${t}: ${v}">${ic}<span>${v}</span></div>`;
+function setGp(on){ gpOpen = on; $('bhButirBox').style.display = on ? 'block' : 'none'; $('bhGp').classList.toggle('on', on || !!$('bhButir').value); $('bhGp').setAttribute('aria-expanded', on); }
+function openItem(id){
+  cur = id ? String(id) : null; const b = cur ? byId(cur) : null, n = b && b.need;
+  dirty.bhItemM = false; cidBahan = crypto.randomUUID(); cidOp = crypto.randomUUID(); applyRole();
+  $('bhTitle').textContent = b ? b.nama : 'Bahan baru';
+  $('bhStokL').textContent = b ? (b.stok === null ? 'Stok awal' : 'Stok fisik (opname)') : 'Stok awal (opsional)';
+  $('bhStok').value = ''; $('bhSel').textContent = ''; $('bhSel').className = 'hint';
+  $('bhNama').value = b ? b.nama : ''; $('bhHarga').value = b ? b.harga : ''; $('bhBerat').value = 1; $('bhSat').value = 'kg';
+  $('bhButir').value = b && b.butir ? b.butir / 10 : ''; setGp(false);
+  $('bhInfo').style.display = b ? 'grid' : 'none';
+  $('bhInfo').innerHTML = b ? [
+    cell(scale, b.stok === null ? '–' : fc(b.stok), 'Berat tersisa'),
+    cell(board, tgl(b.prod), 'Terakhir dipakai produksi'),
+    cell(gauge('#B9852D', 0), n ? fc(n * 2) : '–', 'Mau habis di bawah'),
+    cell(gauge('#C1443C', -65), n ? fc(n) : '–', 'Habis di bawah')].join('') : '';
+  $('bhNote').textContent = !b ? 'Ambang peringatan terisi otomatis begitu bahan dipakai di resep.' : !n ? 'Belum dipakai di resep, jadi tanpa peringatan.' : b.stok === null ? 'Isi stok awal sekali saja untuk mulai dilacak. Setelah itu stok berubah otomatis lewat produksi dan + Stok.' : '';
+  $('bhItemHist').style.display = b ? 'block' : 'none';
+  $('bhSaveItem').disabled = false; $('bhSaveItem').textContent = 'Simpan';
+  openM('bhItemM', guarded('bhItemM'));
+}
+$('bhStok').addEventListener('input', e => {
+  const b = cur ? byId(cur) : null, v = e.target.value, el = $('bhSel');
+  if(v === '' || !b || b.stok === null){ el.textContent = v && b ? 'Jadi stok awal' : ''; el.className = 'hint'; return; }
+  const d = Math.round(parseFloat(v) * 10) - b.stok;
+  el.textContent = d === 0 ? 'Sama dengan sistem' : (d > 0 ? '+' : '−') + fc(Math.abs(d)) + ' dari sistem'; el.className = 'hint ' + (d > 0 ? 'up' : d < 0 ? 'dn' : '');
+});
+$('bhItemM').addEventListener('input', () => { dirty.bhItemM = true; });
+$('bhGp').onclick = () => { setGp(!gpOpen); if(gpOpen) $('bhButir').focus(); };
+$('bhButir').addEventListener('input', () => $('bhGp').classList.toggle('on', gpOpen || !!$('bhButir').value));
+$('bhSaveItem').onclick = async () => {
+  const own = isOwner(), v = $('bhStok').value, nama = $('bhNama').value.trim(), btn = $('bhSaveItem');
+  if(own && !nama){ showToast('Nama bahan wajib diisi'); return; }
+  const wasHabis = cur && byId(cur) && (status(byId(cur)) || {}).t === 'Habis';
+  btn.disabled = true; btn.textContent = 'Menyimpan…';
+  try{
+    let id = cur;
+    if(own){
+      const berat = +$('bhBerat').value || 1, sat = $('bhSat').value, butir = $('bhButir').value ? Math.round(parseFloat($('bhButir').value) * 10) : null;
+      const payload = {nama, harga_per_kg: Math.round((+$('bhHarga').value || 0) / (berat * (sat === 'kg' ? 1 : .001))), berat_per_butir_dg: butir};
+      if(id) payload.id = +id; else payload.client_bahan_id = cidBahan;
+      const r = await apiPost('save_bahan', payload);
+      if(!id){ id = String(r.id || r.bahan_id); cur = id; }
+    }
+    if(v !== ''){ await apiPost('add_opname', {client_opname_id: cidOp, bahan_id: +id, fisik_dg: Math.max(0, Math.round(parseFloat(v) * 10))}); }
+    await load(true); renderList(); dirty.bhItemM = false;
+    const b = byId(id), s = b && status(b);
+    showToast(s && s.t === 'Habis' && !wasHabis ? b.nama + ' habis' : 'Tersimpan');
+    kembaliLayar();
+  }catch(e){ showToast(e.message || 'Gagal menyimpan'); btn.disabled = false; btn.textContent = 'Simpan'; }
+};
+
+// ---------- + Stok (manual) ----------
+let L = [], cidStok = '', stokSaving = false;
+function openStok(){
+  L = [{bid:'', qty:1, isi:1000, tot:0}]; cidStok = crypto.randomUUID(); dirty.bhStokM = false; applyRole(); renderL(); openM('bhStokM', guarded('bhStokM'));
+}
+function pv(i){
+  const l = L[i], b = l.bid && byId(l.bid), gr = l.qty * l.isi, el = $('bhlp' + i); if(!el) return;
+  el.textContent = !b ? 'Pilih bahan' : gr > 0 ? `+${f(gr * 10)}${l.tot > 0 ? ' · ' + rp(l.tot / (gr / 1000)) + '/kg' : ''}${b.stok === null ? ' · belum ada stok awal, hanya harga diperbarui' : ''}` : 'Isi jumlah dan isi per satuan';
+}
+function cnt(){ const n = L.filter(l => l.bid && l.qty * l.isi > 0).length; $('bhSaveStok').textContent = `Tambahkan ke stok (${n})`; $('bhSaveStok').disabled = !n || stokSaving; }
+function renderL(){
+  $('bhLines').innerHTML = L.map((l, i) => `<div class="lnx" data-i="${i}">
+   <div style="display:flex;gap:8px;align-items:center"><select class="bfi" data-f="bid" aria-label="Bahan"><option value="">Pilih bahan…</option>${BH().map(b => `<option value="${b.id}" ${String(b.id) === String(l.bid) ? 'selected' : ''}>${esc(b.nama)}</option>`).join('')}</select>${L.length > 1 ? `<button type="button" class="brm" data-del="${i}" aria-label="Hapus baris">✕</button>` : ''}</div>
+   <div class="three" style="margin-top:8px"><div><div class="numlbl">Jumlah</div><input class="bplain" type="number" min="0" step="any" data-f="qty" value="${l.qty}"></div>
+   <div><div class="numlbl">Isi (gr)</div><input class="bplain" type="number" min="0" step="any" data-f="isi" value="${l.isi}"></div>
+   <div><div class="numlbl">Total (Rp)</div><input class="bplain" type="number" min="0" data-f="tot" value="${l.tot}"></div></div>
+   <div class="hint" id="bhlp${i}"></div></div>`).join('');
+  L.forEach((_, i) => pv(i)); cnt();
+}
+$('bhLines').addEventListener('input', e => {
+  const ln = e.target.closest('.lnx'), k = e.target.dataset.f; if(!ln || !k) return;
+  const l = L[ln.dataset.i]; dirty.bhStokM = true; l[k] = k === 'bid' ? e.target.value : (+e.target.value || 0);
+  pv(ln.dataset.i); cnt();
+});
+$('bhLines').addEventListener('click', e => { const d = e.target.closest('[data-del]'); if(!d) return; L.splice(+d.dataset.del, 1); renderL(); });
+$('bhAddLn').onclick = () => { L.push({bid:'', qty:1, isi:1000, tot:0}); dirty.bhStokM = true; renderL(); };
+$('bhSaveStok').onclick = async () => {
+  if(stokSaving) return;
+  const baris = L.filter(l => l.bid && l.qty * l.isi > 0).map(l => ({bahan_id:+l.bid, qty_beli:l.qty, isi_gr:l.isi, total_harga:Math.round(l.tot)}));
+  if(!baris.length) return;
+  const before = new Set(BH().filter(b => (status(b) || {}).t === 'Habis').map(b => b.id));
+  stokSaving = true; $('bhSaveStok').disabled = true; $('bhSaveStok').textContent = 'Menyimpan…';
+  try{
+    await apiPost('add_stok', {client_beli_id: cidStok, baris});
+    await load(true); renderList(); dirty.bhStokM = false; showToast(baris.length + ' bahan ditambahkan'); stokSaving = false; kembaliLayar();
+  }catch(e){ stokSaving = false; showToast(e.message || 'Gagal menyimpan'); cnt(); }
+};
+
+// ---------- Riwayat ----------
+const PL = {produksi:['Produksi','bp-jade'], stok:['Tambah stok','bp-gold'], opname:['Opname','bp-mut']};
+const dl = d => d === null || d === undefined ? 'stok awal' : d === 0 ? 'tetap' : (d > 0 ? '+' : '−') + fc(Math.abs(d));
+let hCursor = null, hLast = '', hTok = 0;
+function evHtml(e){
+  const nm = id => { const b = byId(id); return b ? esc(b.nama) : '(bahan dihapus)'; }, pl = PL[e.jenis] || [e.jenis, 'bp-mut'];
+  return `<div class="evt"><div class="eh"><span class="bp ${pl[1]}" style="margin:0">${pl[0]}</span><b>${esc(e.judul || '')}</b><span class="ts">${jam(e.waktu)}</span></div>${e.baris.map(r => `<div class="er2"><span>${nm(r.bahan_id)}</span><span class="m ${r.delta_dg > 0 ? 'up' : r.delta_dg < 0 ? 'dn' : 'mut'}">${dl(r.delta_dg)}</span><span class="m ${r.sisa_dg === null ? 'mut' : ''}">${r.sisa_dg === null ? 'belum dilacak' : '→ ' + fc(r.sisa_dg)}</span></div>`).join('')}</div>`;
+}
+async function histLoad(more){
+  const tok = ++hTok, fil = $('bhHF').value;
+  if(!more){ hCursor = null; hLast = ''; $('bhHist').innerHTML = ''; }
+  $('bhMore').innerHTML = '<div class="hint" style="text-align:center">Memuat…</div>';
+  try{
+    const r = await apiGet('get_riwayat_bahan', {bahan_id: fil, cursor: hCursor || '', limit: 20});
+    if(tok !== hTok) return;
+    let h = ''; (r.kejadian || []).forEach(e => { const k = dayKey(e.waktu); if(k !== hLast){ h += `<div class="dayh">${esc(dayLbl(e.waktu))}</div>`; hLast = k; } h += evHtml(e); });
+    $('bhHist').insertAdjacentHTML('beforeend', h); hCursor = r.next_cursor || null;
+    const empty = !$('bhHist').children.length;
+    $('bhMore').innerHTML = empty ? '<div class="hint">Belum ada pergerakan.</div>' : hCursor ? '<button type="button" class="secondary" id="bhBtnMore">Muat lebih lama</button>' : '<div class="hint" style="text-align:center">Sudah paling awal</div>';
+  }catch(e){ if(tok === hTok) $('bhMore').innerHTML = '<div class="hint dn">Gagal memuat: ' + esc(e.message) + '</div><button type="button" class="secondary" id="bhBtnMore">Coba lagi</button>'; }
+}
+function histOpen(fil){
+  $('bhHF').innerHTML = '<option value="">Semua bahan</option>' + BH().map(b => `<option value="${b.id}">${esc(b.nama)}</option>`).join('');
+  $('bhHF').value = fil ? String(fil) : ''; applyRole(); openM('bhHistM'); histLoad(false);
+}
+$('bhHF').onchange = () => histLoad(false);
+$('bhMore').addEventListener('click', e => { if(e.target.closest('#bhBtnMore')) histLoad(true); });
+
+// ---------- pasang ----------
+$('btnBahan').onclick = openBahan;
+$('bhX').onclick = () => kembaliLayar(); $('bhItemX').onclick = () => kembaliLayar(); $('bhStokX').onclick = () => kembaliLayar(); $('bhHistX').onclick = () => kembaliLayar();
+$('bhLanjut').onclick = () => kembaliLayar();
+$('bhBuang').onclick = () => { dirty[$('bhDiscM').dataset.t] = false; pendingDiscard = true; kembaliLayar(); };
+$('bhQ').addEventListener('input', renderList);
+$('bhBurger').onclick = () => { if(reorder){ finishReorder(); return; } const h = $('bhHam'); h.classList.toggle('on'); $('bhBurger').setAttribute('aria-expanded', h.classList.contains('on')); };
+document.addEventListener('click', e => { if(!e.target.closest('#bhBurger') && !e.target.closest('#bhHam')) $('bhHam').classList.remove('on'); });
+$('bhGoNew').onclick = () => { $('bhHam').classList.remove('on'); openItem(null); };
+$('bhGoStok').onclick = () => { $('bhHam').classList.remove('on'); openStok(); };
+$('bhGoReord').onclick = () => { reSnap = JSON.stringify(normOrder()); setReorder(true); };
+$('bhGoHist').onclick = () => { $('bhHam').classList.remove('on'); histOpen(''); };
+$('bhItemHist').onclick = () => histOpen(cur);
+$('bhAddSep').onclick = () => { const id = 's' + Date.now(); B.splice(Math.min(1, B.length), 0, {sep:1, id}); renderList(); const el = LST.querySelector(`[data-k="${id}"]`); if(el && el.scrollIntoView) el.scrollIntoView({block:'nearest'}); };
+$('btnMenuHam').addEventListener('click', () => { const b = $('btnBahan'); b.style.display = canSee() ? '' : 'none'; refreshChip(); });
+window.bhState = () => ({B, reorder}); // dipakai tes headless
+})();
 </script>
 </body>
 </html>
