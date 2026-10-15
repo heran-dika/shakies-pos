@@ -1176,7 +1176,7 @@
   </div>
   <div id="editR" style="display:none"></div>
   <div class="sticky-foot" id="footV"><button type="button" class="primary" id="btnProduksi">Selesai Produksi</button></div>
-  <div class="sticky-foot" id="footE" style="display:none"><button type="button" class="primary" id="btnRsSave">Simpan resep</button><button type="button" class="secondary" id="btnRsCancel">Batal</button></div>
+  <div class="sticky-foot" id="footE" style="display:none"><button type="button" class="primary" id="btnRsSave">Simpan resep</button><div style="display:flex;gap:8px;margin-top:8px"><button type="button" class="secondary" id="btnRsCancel" style="flex:1;margin:0">Batal</button><button type="button" class="secondary" id="btnRsOcr" aria-label="Isi bahan dari foto tulisan tangan" title="Isi bahan dari foto tulisan tangan" style="flex:0 0 48px;width:48px;margin:0;padding:0;font-size:20px">📷</button></div><input type="file" id="rsOcrFile" accept="image/*" hidden></div>
 </div></div>
 <div class="modal-overlay hidden" id="resepDiscM"><div class="modal-sheet rs">
   <div class="sheet-head"><h3 style="margin:0">Buang perubahan?</h3></div><div style="font-size:14px;color:var(--ink-soft)">Perubahan resep yang belum disimpan akan hilang.</div>
@@ -5634,10 +5634,13 @@ const close = id => $(id).classList.add('hidden');
 const snapNow = () => JSON.stringify([S.edit, MB, COST]);
 const dirty = () => S.edit && JSON.stringify([S.edit, MB, COST]) !== S.snap;
 // Back/✕: editor -> tampilan -> tutup. Dipanggil lewat popstate (kembaliLayar), jadi kalau sheet MASIH terbuka layar-nya di-push ulang.
+// Undo dialog "Buang perubahan?". Kalau Buang di resep BARU, sheet resep ikut ditutup (satu back lagi, dipicu dari sini supaya layarStack & history tetap sinkron).
+function discUndo(){ close('resepDiscM'); if(S && S.exitAfterDisc){ S.exitAfterDisc = false; kembaliLayar(); } }
 function rsBack(){
   if(rsLoad){ rsLoad = rsLoad === 1 ? 2 : 0; return; } // Back saat memuat = batal buka; 2 = sisa dari pembukaan gagal/batal
   if(S && S.edit){
-    if(dirty()){ pushLayar(rsBack); open('resepDiscM', ()=>close('resepDiscM')); return; }
+    if(dirty()){ pushLayar(rsBack); open('resepDiscM', discUndo); return; }
+    if(!REC.resep_id){ S.edit = null; S.bk = null; close('resepM'); return; } // 15 Okt 2026: resep BARU belum pernah disimpan -> Back dari editor = tutup sheet, balik ke Edit Menu Item (bukan tampilan resep kosong)
     leaveEdit(false); pushLayar(rsBack); return;
   }
   close('resepM');
@@ -5868,12 +5871,40 @@ function animate(tg){
 $('btnRsEdit').onclick = () => { S.edit = clone(REC); S.bk = { MB:clone(MB), COST:clone(COST) }; S.snap = snapNow(); drawResep(); };
 $('btnRsCancel').onclick = () => kembaliLayar();
 $('btnRsSave').onclick = saveResep;
+// ---------- OCR tulisan tangan -> baris bahan (15 Okt 2026) ----------
+// Foto -> resize di HP (resizeFoto dari sheet Bahan) -> Worker 'baca_resep_tulisan' -> {bahan:[{nama, gram}]}. Hasil MASUK editor sebagai baris biasa (belum tersimpan) supaya bisa dicek/diedit dulu.
+$('btnRsOcr').onclick = () => { if(S && S.edit) $('rsOcrFile').click(); };
+$('rsOcrFile').onchange = async e => {
+  const fl = e.target.files[0]; e.target.value = ''; if(!fl || !S || !S.edit) return;
+  const btn = $('btnRsOcr'); btn.disabled = true; btn.textContent = '…';
+  try{
+    const res = await apiPost('baca_resep_tulisan', { image_base64: await window.rsResizeFoto(fl), mime:'image/jpeg' });
+    const list = ((res && res.bahan) || []).filter(x => x && String(x.nama||'').trim() && +x.gram > 0);
+    if(!S || !S.edit) return; // user sudah keluar dari editor selama menunggu
+    if(!list.length){ showToast('Nggak ada bahan yang kebaca. Coba foto lebih dekat & terang.'); return; }
+    const E = S.edit, norm = t => String(t).toLowerCase().replace(/\s+/g,' ').trim();
+    // baris starter kosong (bahan baru tanpa nama) diganti hasil OCR
+    if(E.rows.length === 1 && M(E.rows[0].b).isNew && !M(E.rows[0].b).n.trim()){ delete MB[E.rows[0].b]; E.rows = []; E.anc.i = 0; }
+    let tambah = 0, lewat = 0;
+    list.forEach(x => {
+      const nm = String(x.nama).trim(), ada = Object.values(MB).find(m => !m.isNew && norm(m.n) === norm(nm)) || Object.values(MB).find(m => m.isNew && norm(m.n) === norm(nm));
+      const bid = ada ? (ada.isNew ? ada.tid : ada.id) : null;
+      if(bid != null && E.rows.some(r => r.b === bid)){ lewat++; return; }
+      if(bid != null) E.rows.push({ b:bid, g:+x.gram });
+      else { const tid = --tempId; MB[tid] = { id:null, tid, n:nm, p:0, pcs:null, amb:null, dirty:true, isNew:true }; E.rows.push({ b:tid, g:+x.gram }); }
+      tambah++;
+    });
+    if(E.rows.length === tambah) resetAnc(E); // semua baris dari OCR -> kisaran jangkar ikut baris pertama
+    drawEditor(); showToast(tambah + ' bahan masuk' + (lewat ? ', ' + lewat + ' dilewati (udah ada)' : '') + '. Cek dulu sebelum Simpan.');
+  }catch(err){ showToast('Gagal baca tulisan: ' + (err.message || '')); }
+  finally{ btn.disabled = false; btn.textContent = '📷'; }
+};
 $('btnRsClose').onclick = () => kembaliLayar();
 $('btnProduksi').onclick = askProduksi;
 $('btnSimpan').onclick = doProduksi;
 $('btnConfCancel').onclick = () => kembaliLayar();
 $('btnConfX').onclick = () => kembaliLayar();
-$('btnBuang').onclick = () => { leaveEdit(true); close('resepDiscM'); kembaliLayar(); }; // Buang: tutup dialog (pop layarnya) lalu keluar editor
+$('btnBuang').onclick = () => { if(!REC.resep_id){ S.exitAfterDisc = true; S.edit = null; S.bk = null; } else leaveEdit(true); close('resepDiscM'); kembaliLayar(); }; // Buang: tutup dialog (pop layarnya) lalu keluar editor
 $('btnLanjut').onclick = () => kembaliLayar();
 window.rsSetupEditButton = setupEditButton;
 window.rsState = () => S; // dipakai tes headless
@@ -6179,6 +6210,7 @@ async function resizeFoto(file){ // sisi panjang max 1280px, JPEG 0,8 -> base64 
   const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.8));
   return await new Promise(res => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(',')[1]); fr.readAsDataURL(blob); });
 }
+window.rsResizeFoto = resizeFoto; // dipakai OCR tulisan tangan di sheet Resep
 async function terimaFoto(files){
   for(const fl of files){
     try{ await qAdd({cid: crypto.randomUUID(), b64: await resizeFoto(fl), waktu: Date.now(), gagal: 0, err: ''}); }
