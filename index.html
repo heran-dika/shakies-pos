@@ -26,6 +26,7 @@
     --header-h:56px; /* FIX 15 Sep 2026: fallback, nilai asli di-set JS (syncHeaderHeightVar) sesuai tinggi header asli device (beda-beda krn safe-area-inset notch) */
   }
   /* FIX 15 Sep 2026: search box "Cari menu"/"Cari nama menu" nempel di bawah header pas discroll, gak ilang ke atas ditengah list */
+  #orderSearchField.is-stuck #waParseBtn{display:none;} /* 15 Okt 2026: pas search bar Order lagi nempel di bawah header, tombol Auto Fill (paste) nggak ikut nempel — cuma search bar-nya */
   .field.sticky-menu-search{ position:sticky; top:var(--header-h); z-index:6; background:var(--bg); padding-top:6px; padding-bottom:6px; } /* FIX 16 Sep 2026: dinaikin specificity-nya (.field.sticky-menu-search) krn sebelumnya keimpas .search-clear-field{position:relative;} yg letaknya lebih bawah di stylesheet — sticky-nya gak pernah kepake meski class-nya udah kepasang di HTML */
   /* FIX 16 Sep 2026 (v5): SEMUA tombol app-wide — matiin block/select bawaan pas ditekan lama,
      ganti sama feedback highlight yang lebih halus (filter brightness). Rule lebih spesifik
@@ -643,7 +644,8 @@
           <button type="button" class="today-quick-btn" id="todayQuickBtn" onclick="setDeliveryDateToday()" aria-label="Set tanggal ke hari ini"></button>
         </div>
       </div>
-      <div class="field sticky-menu-search">
+      <div id="orderSearchSentinel" style="height:1px;margin-bottom:-1px;pointer-events:none;"></div>
+      <div class="field sticky-menu-search" id="orderSearchField">
         <div style="display:flex;gap:8px;align-items:center;">
           <div class="search-clear-field" style="flex:1;min-width:0;">
             <input type="text" id="orderMenuSearch" placeholder="Cari menu..." oninput="renderMenuPicker(); toggleSearchClear('orderMenuSearch')">
@@ -5491,9 +5493,29 @@ bindDateDisplay('riwayatDateTo', 'riwayatDateToDisplay', { placeholder: 'Sampai 
 // ==== SERVICE WORKER (network-first, sw.js) ====
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('./sw.js').catch(()=>{ /* non-fatal — app tetep jalan tanpa SW */ });
+    // 15 Okt 2026: updateViaCache:'none' = sw.js SELALU dicek ke server (nggak dari cache HTTP); reg.update() tiap app balik ke foreground.
+    navigator.serviceWorker.register('./sw.js', { updateViaCache:'none' }).then(reg=>{
+      const tawarkan = w => { if(!w || !navigator.serviceWorker.controller || document.getElementById('updBar')) return;
+        const b = document.createElement('div'); b.id = 'updBar';
+        b.style.cssText = 'position:fixed;left:12px;right:12px;bottom:calc(86px + env(safe-area-inset-bottom));z-index:99;max-width:456px;margin:0 auto;background:var(--jade-dark,#1f5c4a);color:#fff;border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px;font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,.25)';
+        b.innerHTML = '<span style="flex:1">Versi baru siap.</span><button type="button" style="background:#fff;color:#1f5c4a;border:none;border-radius:8px;padding:8px 12px;font-weight:700">Muat ulang</button>';
+        b.querySelector('button').onclick = () => location.reload(); // sw.js udah skipWaiting+claim sendiri; tinggal muat ulang halaman (sengaja TIDAK auto-reload supaya form order yang lagi diisi nggak hilang)
+        document.body.appendChild(b); };
+      if(reg.waiting) tawarkan(reg.waiting);
+      reg.addEventListener('updatefound', ()=>{ const n = reg.installing; if(n) n.addEventListener('statechange', ()=>{ if(n.state === 'installed') tawarkan(reg.waiting || n); }); });
+      document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'visible') reg.update().catch(()=>{}); });
+    }).catch(()=>{ /* non-fatal — app tetep jalan tanpa SW */ });
   });
 }
+
+// 15 Okt 2026: search bar tab Order — kasih class .is-stuck pas lagi nempel di bawah header (tombol paste disembunyiin lewat CSS)
+(function(){
+  const sen = document.getElementById('orderSearchSentinel'), fld = document.getElementById('orderSearchField'); if(!sen || !fld) return;
+  let raf = 0;
+  const cek = () => { raf = 0; const h = (document.querySelector('header')||{}).offsetHeight || 56; fld.classList.toggle('is-stuck', sen.getBoundingClientRect().top <= h + 1); };
+  window.addEventListener('scroll', ()=>{ if(!raf) raf = requestAnimationFrame(cek); }, { passive:true });
+  window.addEventListener('resize', cek);
+})();
 
 // ==== BARU 12 Okt 2026 — B2: sheet Resep + Selesai Produksi (port dari mockup-resep-produksi.html) ====
 // Backend: get_resep_index / get_resep / get_bahan / save_resep / save_bahan / save_tarif / add_produksi (resep.js di worker).
