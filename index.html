@@ -456,7 +456,7 @@
 .rs .sticky-foot{position:sticky;bottom:0;background:var(--surface);padding:12px 0 calc(14px + env(safe-area-inset-bottom));margin-top:14px;border-top:1px solid var(--border)}
 .rs button.primary{width:100%;border:none;background:var(--jade);color:#fff;border-radius:var(--radius-sm);padding:14px;font-size:15px;font-weight:700}
 .rs button.primary:disabled{opacity:.6}
-.rs button.secondary{width:100%;border:1.5px solid var(--border);background:#fff;color:var(--ink);border-radius:var(--radius-sm);padding:12px;font-size:14px;font-weight:600;margin-top:8px}
+.rs button.secondary{width:100%;border:2px solid var(--jade);background:transparent;color:var(--jade-dark);border-radius:var(--radius-sm);padding:12px;font-size:14px;font-weight:700;margin-top:8px}
 .rs .sum{font-size:14px;line-height:1.6}
 .rs .sum .row{display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:13px}
 .rs .tbl{border:1px solid var(--border);border-radius:var(--radius-sm);margin-top:6px;overflow:hidden}
@@ -499,6 +499,7 @@
 .rs .sepE span{display:flex;align-items:center;gap:8px}
 .rs .sepE span::before,.rs .sepE span::after{content:'';flex:1;border-top:1.5px solid #cfc7b8}
 .rs .sep{border-top:1.5px solid #cfc7b8;margin:2px 12px}
+.rs .tr.sepa{border-bottom:1.5px solid #cfc7b8} /* 15 Okt 2026: pembatas = garis putus2 baris itu sendiri dijadiin solid, pas di posisi & lebar yg sama */
 .rs .dragging{opacity:.92;box-shadow:0 6px 18px rgba(0,0,0,.22);background:#fff;position:relative;z-index:5}
 .rs .dropb{box-shadow:0 -2px 0 var(--jade)}
 .rs .dropa{box-shadow:0 2px 0 var(--jade)}
@@ -534,13 +535,13 @@
 .bh .sticky-foot{position:sticky;bottom:0;background:var(--surface);padding:12px 0 calc(14px + env(safe-area-inset-bottom));margin-top:14px;border-top:1px solid var(--border)}
 .bh button.primary{width:100%;border:none;background:var(--jade);color:#fff;border-radius:var(--radius-sm);padding:14px;font-size:15px;font-weight:700}
 .bh button.primary:disabled{opacity:.6}
-.bh button.secondary{width:100%;border:1.5px solid var(--border);background:#fff;color:var(--ink);border-radius:var(--radius-sm);padding:12px;font-size:14px;font-weight:600;margin-top:8px}
+.bh button.secondary{width:100%;border:2px solid var(--jade);background:transparent;color:var(--jade-dark);border-radius:var(--radius-sm);padding:12px;font-size:14px;font-weight:700;margin-top:8px}
 .bh .bfi,.bh .bplain{width:100%;padding:11px 13px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font:inherit;font-size:15px;background:#fff;color:var(--ink)}
 .bh .bplain{text-align:right;font-family:'IBM Plex Mono',monospace;font-size:16px}
 .bh .bp{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;margin-top:3px}
 .bh .bp-gold{background:var(--gold-tint);color:var(--gold)}.bh .bp-red{background:var(--chili-tint);color:var(--chili)}.bh .bp-mut{background:#f6f4f0;color:var(--ink-soft)}.bh .bp-jade{background:var(--jade-tint);color:var(--jade-dark)}
 .bh .bbar{display:flex;gap:8px;align-items:center;position:relative}
-.bh .bib{width:38px;height:38px;flex-shrink:0;border-radius:10px;border:1.5px solid var(--border);background:#fff;color:var(--ink);display:flex;align-items:center;justify-content:center;font-size:19px}
+.bh .bib{width:38px;height:38px;flex-shrink:0;border-radius:10px;border:2px solid var(--jade);background:transparent;color:var(--jade-dark);display:flex;align-items:center;justify-content:center;font-size:19px}
 .bh .bib.done{background:var(--jade);border-color:var(--jade);color:#fff;font-weight:700}
 .bh .bham{display:none;flex-direction:column;position:absolute;right:0;top:44px;z-index:25;background:#fff;border:1px solid var(--border);border-radius:12px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);min-width:170px}
 .bh .bham.on{display:flex}.bh .bham .chili-sm{text-align:left;margin:2px 0;width:100%}
@@ -556,8 +557,8 @@
 .bh .brm{border:none;background:none;color:var(--chili);font-size:16px;padding:8px 0 8px 8px}
 .bh .hrow{display:grid;grid-template-columns:1fr 62px 66px 54px;gap:8px;align-items:center}
 .bh .hrow .bplain,.bh .hrow select{padding:11px 8px;font-size:15px}
-.bh .gp{display:flex;flex-direction:column;align-items:center;justify-content:center;height:46px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:#fff;line-height:1;padding:0}
-.bh .gp small{font-size:10px;color:var(--ink-soft);font-weight:700}.bh .gp i{font-style:normal;font-size:18px;color:var(--ink)}
+.bh .gp{display:flex;flex-direction:column;align-items:center;justify-content:center;height:46px;border:2px solid var(--jade);border-radius:var(--radius-sm);background:transparent;line-height:1;padding:0}
+.bh .gp small{font-size:10px;color:var(--jade-dark);font-weight:700}.bh .gp i{font-style:normal;font-size:18px;color:var(--jade-dark)}
 .bh .gp.on{background:var(--jade-tint);border-color:var(--jade)}.bh .gp.on small{color:var(--jade-dark)}
 .bh .info4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:16px}
 .bh .i4{display:flex;flex-direction:column;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:13px;text-align:center;line-height:1.2}
@@ -591,6 +592,12 @@
 .bh .warn{background:var(--gold-tint);border:1px solid var(--gold);border-radius:var(--radius-sm);padding:9px 12px;font-size:12.5px;margin-top:10px;color:var(--ink)}
 .bh .warn.plain{background:#fff;border-color:var(--border)}
 .bh .lnx.off{opacity:.55}
+.bh .olh-head{display:flex;align-items:center;justify-content:space-between;margin-top:14px}
+.bh .kmp{display:grid;grid-template-columns:1fr 84px 30px;gap:8px;align-items:center;margin-top:8px}
+.bh .kmp select{font-size:14px;padding:9px 10px}.bh .kmp .bplain{font-size:14px;padding:9px 8px}
+.bh .kmp .brm{padding:8px 0;text-align:center}
+.bh #bhKompHasil:placeholder-shown{text-align:left;font-family:'DM Sans',sans-serif;font-size:13px}
+.bh #bhKompHasil::placeholder{color:#9a958a;font-family:'DM Sans',sans-serif;font-size:13px}
 .bh .lh{display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:14px;flex-wrap:wrap}.bh .lh input{accent-color:var(--jade);width:18px;height:18px;margin:0}
 </style>
 </head>
@@ -1214,13 +1221,14 @@
       <input class="bplain" id="bhButir" type="number" min="0" step="0.1" inputmode="decimal"></div>
   </div>
   <div class="owner-only" id="bhOlahan">
-    <label class="lb">Olahan (opsional)</label>
+    <div class="olh-head"><label class="lb" style="margin:0">Olahan (opsional)</label><button type="button" class="field-toggle-pill" id="bhOlhPill" aria-expanded="false">buka</button></div>
+    <div id="bhOlhBody" style="display:none">
     <div class="hint">Isi kalau bahan ini dibuat dari bahan lain (levain, yudane). Kosong = bahan biasa. Harga per kg dihitung otomatis dari bahan baku.</div>
     <div id="bhKomp"></div>
     <button type="button" class="secondary" id="bhKompAdd">+ Bahan baku</button>
-    <label class="lb" for="bhKompHasil">Hasil jadi per set (gr), kosong = jumlah bahan baku</label>
-    <input class="bplain" id="bhKompHasil" type="number" min="0" step="any" inputmode="decimal">
+    <input class="bplain" id="bhKompHasil" type="number" min="0" step="any" inputmode="decimal" placeholder="Hasil per set (gr), kosong = jumlah bahan baku" aria-label="Hasil jadi per set (gram), kosong = jumlah bahan baku" style="margin-top:8px">
     <div class="hint" id="bhKompHint"></div>
+    </div>
   </div>
   <label class="lb" for="bhStok" id="bhStokL">Stok fisik (opname)</label>
   <input class="bplain" id="bhStok" type="number" min="0" step="0.1" inputmode="decimal" placeholder="kosong = tidak diubah">
@@ -5702,10 +5710,10 @@ function drawResep(){
   $('jLbl').textContent = ancM(REC).n + ' (jangkar)'; $('jVal').textContent = dF(S.jangkar/f) + ' ' + u;
   $('jm').classList.toggle('dis', S.jangkar <= A.min*f); $('jp').classList.toggle('dis', S.jangkar >= A.max*f);
   $('jHint').textContent = `Kisaran ${dF(A.min)}–${dF(A.max)} ${u} · tiap tekan ±${dF(A.step)} ${u} · tahan buat cepat`;
-  const sep = ix => REC.pemisah.includes(ix+1) && ix < REC.rows.length-1 ? '<div class="sep"></div>' : '';
+  const sepOn = ix => REC.pemisah.includes(ix+1) && ix < REC.rows.length-1;
   $('tbl').innerHTML = `<div class="tr th"><span>Bahan</span><span>Gramasi</span><span class="owner-only">Harga</span></div>` +
     REC.rows.map((x,ix) => { const pc = pcsTxt(x.b, x.g*kk), m = M(x.b);
-      return `<div class="tr"><span>${escapeHtml(m.n)}${pc?`<em>${pc}</em>`:''}</span><span>${f1(x.g*kk)}</span><span class="owner-only">${m.p?rupiah(x.g*kk*m.p):'—'}</span></div>` + sep(ix); }).join('') +
+      return `<div class="tr${sepOn(ix)?' sepa':''}"><span>${escapeHtml(m.n)}${pc?`<em>${pc}</em>`:''}</span><span>${f1(x.g*kk)}</span><span class="owner-only">${m.p?rupiah(x.g*kk*m.p):'—'}</span></div>` ; }).join('') +
     `<div class="tr tot"><span>Total adonan</span><span>${f1(tot)}</span><span class="owner-only">${own?rupiah(biaya(REC.rows)*kk):''}</span></div>` +
     REC.proof.map(x=>`<div class="ovr"><span>${escapeHtml(x.n)}</span><span>⏱ <b>${x.mnt} mnt</b></span></div>`).join('') +
     REC.oven.map(x=>`<div class="ovr"><span>🔥 Atas <b>${x.atas}°C</b> · Bawah <b>${x.bawah}°C</b></span><span>⏱ <b>${Math.round(x.mnt*kk)} mnt</b></span></div>`).join('');
@@ -6035,11 +6043,18 @@ function chip(){
 }
 
 // ---------- daftar ----------
+// 15 Okt 2026: ingat input harga terakhir (harga · berat · satuan) per bahan, di perangkat ini. Server cuma nyimpen harga_per_kg,
+// jadi tanpa ini form edit selalu tampil "per 1 kg" dan angka struk (mis. 10 kg = Rp 861.470) hilang.
+const PKG_KEY = 'shakies_bhpkg_v1'; let _pkg = null;
+const pkgAll = () => { if(_pkg) return _pkg; try{ _pkg = JSON.parse(localStorage.getItem(PKG_KEY) || '{}') || {}; }catch(e){ _pkg = {}; } return _pkg; };
+const pkgSave = (id, p) => { try{ pkgAll()[String(id)] = p; localStorage.setItem(PKG_KEY, JSON.stringify(_pkg)); }catch(e){} };
+const pkgOf = b => { const p = pkgAll()[String(b.id)]; return p && p.h > 0 && p.b > 0 && (p.s === 'kg' || p.s === 'gr') && Math.abs((+p.pk || 0) - (b.harga || 0)) <= 1 ? p : null; }; // harga di server sudah berubah (struk/stok) -> input lama basi, abaikan
+const hargaTxt = b => { const p = pkgOf(b); return p && p.s === 'gr' ? 'Rp ' + (b.harga / 1000).toLocaleString('id-ID', {maximumFractionDigits:2}) + '/gr' : rp(b.harga) + '/kg'; };
 function rowHtml(b, cls){
   const s = status(b), bt = b.butir && b.stok != null ? '≈ ' + (Math.round(b.stok / b.butir * 2) / 2).toLocaleString('id-ID') + ' butir' : '';
   return `<div class="brow${cls||''}" data-k="${b.id}" ${reorder ? '' : `data-edit="${b.id}" tabindex="0" role="button" style="cursor:pointer"`}>
     ${reorder ? `<button type="button" class="grip" aria-label="Geser ${esc(b.nama)}">≡</button>` : ''}
-    <div style="flex:1;min-width:0"><div class="nm">${esc(b.nama)}${b.olh ? ' <span class="bp bp-jade" style="margin:0 0 0 4px">olahan</span>' : ''}</div><div class="sub">${esc(tgl(b.prod))}${isOwner() ? ' · ' + rp(b.harga) + '/kg' : ''}</div>${s ? `<span class="bp ${s.c}">${s.t}</span>` : ''}</div>
+    <div style="flex:1;min-width:0"><div class="nm">${esc(b.nama)}${b.olh ? ' <span class="bp bp-jade" style="margin:0 0 0 4px">olahan</span>' : ''}</div><div class="sub">${esc(tgl(b.prod))}${isOwner() ? ' · ' + hargaTxt(b) : ''}</div>${s ? `<span class="bp ${s.c}">${s.t}</span>` : ''}</div>
     <div style="text-align:right"><div class="st">${b.stok === null ? '–' : f(b.stok)}</div><div class="sub">${bt}</div></div></div>`;
 }
 function renderList(){
@@ -6151,6 +6166,9 @@ function paintInfo(b){
 }
 // ---------- olahan: komposisi (owner) ----------
 let KL = [];
+let olhOpen = false;
+function setOlh(o){ olhOpen = !!o; $('bhOlhBody').style.display = olhOpen ? '' : 'none'; const pl = $('bhOlhPill'); pl.textContent = olhOpen ? 'tutup' : 'buka'; pl.setAttribute('aria-expanded', String(olhOpen)); }
+$('bhOlhPill').onclick = () => setOlh(!olhOpen);
 const olahIds = () => new Set(BH().filter(x => x.olh).map(x => String(x.id)));
 function kompHint(){
   const sum = KL.reduce((s, l) => s + (+l.g || 0), 0), hs = parseFloat($('bhKompHasil').value);
@@ -6158,10 +6176,10 @@ function kompHint(){
 }
 function renderKL(){
   const olh = olahIds();
-  $('bhKomp').innerHTML = KL.map((l, i) => `<div class="lnx" data-i="${i}"><div style="display:flex;gap:8px;align-items:center"><select class="bfi" data-f="bid" aria-label="Bahan baku"><option value="">Pilih bahan baku…</option>${BH().filter(b => String(b.id) !== String(cur) && !olh.has(String(b.id)) && (String(b.id) === String(l.bid) || !KL.some(x => String(x.bid) === String(b.id)))).map(b => `<option value="${b.id}" ${String(b.id) === String(l.bid) ? 'selected' : ''}>${esc(b.nama)}</option>`).join('')}</select><button type="button" class="brm" data-del="${i}" aria-label="Hapus">✕</button></div><div class="numlbl" style="margin-top:8px">Gram per set</div><input class="bplain" type="number" min="0" step="any" data-f="g" value="${l.g}"></div>`).join('');
+  $('bhKomp').innerHTML = KL.map((l, i) => `<div class="kmp" data-i="${i}"><select class="bfi" data-f="bid" aria-label="Bahan baku"><option value="">Pilih bahan baku…</option>${BH().filter(b => String(b.id) !== String(cur) && !olh.has(String(b.id)) && (String(b.id) === String(l.bid) || !KL.some(x => String(x.bid) === String(b.id)))).map(b => `<option value="${b.id}" ${String(b.id) === String(l.bid) ? 'selected' : ''}>${esc(b.nama)}</option>`).join('')}</select><input class="bplain" type="number" min="0" step="any" inputmode="decimal" data-f="g" placeholder="gr" aria-label="Gram per set" value="${l.g || ''}"><button type="button" class="brm" data-del="${i}" aria-label="Hapus">✕</button></div>`).join('');
   kompHint();
 }
-$('bhKomp').addEventListener('input', e => { const ln = e.target.closest('.lnx'), k = e.target.dataset.f; if(!ln || !k) return; KL[ln.dataset.i][k] = k === 'g' ? (+e.target.value || 0) : e.target.value; kompHint(); });
+$('bhKomp').addEventListener('input', e => { const ln = e.target.closest('.kmp'), k = e.target.dataset.f; if(!ln || !k) return; KL[ln.dataset.i][k] = k === 'g' ? (+e.target.value || 0) : e.target.value; kompHint(); });
 $('bhKomp').addEventListener('click', e => { const d = e.target.closest('[data-del]'); if(!d) return; KL.splice(+d.dataset.del, 1); dirty.bhItemM = true; renderKL(); });
 $('bhKompAdd').onclick = () => { KL.push({bid:'', g:0}); dirty.bhItemM = true; renderKL(); };
 $('bhKompHasil').addEventListener('input', kompHint);
@@ -6171,7 +6189,7 @@ function openItem(id){
   $('bhTitle').textContent = b ? b.nama : 'Bahan baru';
   $('bhStokL').textContent = b ? (b.stok === null ? 'Stok awal' : 'Stok fisik (opname)') : 'Stok awal (opsional)';
   $('bhStok').value = ''; $('bhSel').textContent = ''; $('bhSel').className = 'hint';
-  $('bhNama').value = b ? b.nama : ''; $('bhHarga').value = b ? b.harga : ''; $('bhBerat').value = 1; $('bhSat').value = 'kg';
+  $('bhNama').value = b ? b.nama : ''; const pk = b ? pkgOf(b) : null; $('bhHarga').value = pk ? pk.h : (b ? b.harga : ''); $('bhBerat').value = pk ? pk.b : 1; $('bhSat').value = pk ? pk.s : 'kg';
   $('bhButir').value = b && b.butir ? b.butir / 10 : ''; setGp(false);
   paintInfo(b);
   $('bhNote').textContent = !b ? 'Ambang peringatan terisi otomatis begitu bahan dipakai di resep.' : !n ? 'Belum dipakai di resep, jadi tanpa peringatan.' : b.stok === null ? 'Isi stok awal sekali saja untuk mulai dilacak. Setelah itu stok berubah otomatis lewat produksi dan + Stok.' : '';
@@ -6179,7 +6197,7 @@ function openItem(id){
   $('bhBuat').style.display = b && b.olh ? 'block' : 'none';
   KL = b && b.olh ? b.olh.komp.map(k => ({bid:String(k.bahan_id), g:k.qty_dg / 10})) : [];
   $('bhKompHasil').value = b && b.olh && b.olh.hasil_dg ? b.olh.hasil_dg / 10 : '';
-  renderKL();
+  renderKL(); setOlh(KL.length > 0);
   $('bhSaveItem').disabled = false; $('bhSaveItem').textContent = 'Simpan';
   openM('bhItemM', guarded('bhItemM'));
 }
@@ -6205,6 +6223,7 @@ $('bhSaveItem').onclick = async () => {
       if(id) payload.id = +id; else payload.client_bahan_id = cidBahan;
       const r = await apiPost('save_bahan', payload);
       if(!id){ id = String(r.id || r.bahan_id); cur = id; }
+      pkgSave(id, {h:+$('bhHarga').value || 0, b:berat, s:sat, pk:payload.harga_per_kg});
       const kl = KL.filter(l => l.bid && l.g > 0), hs = parseFloat($('bhKompHasil').value);
       if(kl.length || hadOlh) await apiPost('save_olahan', {olahan_id: +id, komposisi: kl.map(l => ({bahan_id: +l.bid, qty_dg: Math.round(l.g * 10)})), hasil_dg: hs > 0 && kl.length ? Math.round(hs * 10) : null});
     }
