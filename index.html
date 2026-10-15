@@ -584,6 +584,13 @@
 #bhTarifM{z-index:56}
 .bh .bsec{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-soft);margin:14px 0 2px}
 #btnBahan .bp{margin:0 0 0 4px}
+#bhStrukM{z-index:57}#bhRejM{z-index:59}
+.bh .pend{border:1.5px solid var(--jade);background:var(--jade-tint);border-radius:var(--radius-sm);padding:10px 12px;margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer}
+.bh .pend b{font-size:14px}
+.bh .warn{background:var(--gold-tint);border:1px solid var(--gold);border-radius:var(--radius-sm);padding:9px 12px;font-size:12.5px;margin-top:10px;color:var(--ink)}
+.bh .warn.plain{background:#fff;border-color:var(--border)}
+.bh .lnx.off{opacity:.55}
+.bh .lh{display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:14px;flex-wrap:wrap}.bh .lh input{accent-color:var(--jade);width:18px;height:18px;margin:0}
 </style>
 </head>
 <body>
@@ -1218,10 +1225,26 @@
   <div class="sticky-foot"><button type="button" class="primary" id="bhTarifSave">Simpan</button></div>
 </div></div>
 <div class="modal-overlay hidden" id="bhStokM"><div class="modal-sheet bh">
-  <div class="sheet-head"><div><h3>Tambah stok</h3><div class="sub">Isi per bahan yang dibeli. Foto struk menyusul.</div></div><button type="button" class="x" id="bhStokX" aria-label="Tutup">✕</button></div>
+  <div class="sheet-head"><div><h3>Tambah stok</h3><div class="sub">Foto struk atau isi manual per bahan.</div></div><button type="button" class="x" id="bhStokX" aria-label="Tutup">✕</button></div>
+  <div style="display:flex;gap:8px"><button type="button" class="secondary" id="bhFoto" style="margin:0">📷 Foto struk</button><button type="button" class="secondary" id="bhGaleri" style="margin:0">🖼️ Galeri</button></div>
+  <input type="file" id="bhFileCam" accept="image/*" capture="environment" hidden>
+  <input type="file" id="bhFileGal" accept="image/*" multiple hidden>
+  <div id="bhQueue"></div>
+  <div id="bhPend"></div>
+  <div class="bsec">Isi manual</div>
   <div id="bhLines"></div>
   <button type="button" class="secondary" id="bhAddLn">+ Tambah baris</button>
   <div class="sticky-foot"><button type="button" class="primary" id="bhSaveStok"></button></div>
+</div></div>
+<div class="modal-overlay hidden" id="bhStrukM"><div class="modal-sheet bh">
+  <div class="sheet-head"><div><h3>Review struk</h3><div class="sub">Stok baru bertambah setelah Approve.</div></div><button type="button" class="x" id="bhStrukX" aria-label="Tutup">✕</button></div>
+  <div id="bhStrukHead"></div>
+  <div id="bhStrukLines"></div>
+  <div class="sticky-foot"><button type="button" class="primary" id="bhStrukApprove"></button><button type="button" class="secondary" id="bhStrukReject" style="color:var(--chili)">Reject struk</button></div>
+</div></div>
+<div class="modal-overlay hidden" id="bhRejM"><div class="modal-sheet bh">
+  <div class="sheet-head"><h3>Hapus struk ini?</h3></div><div style="font-size:14px;color:var(--ink-soft)">Struk dan hasil bacaannya dihapus. Stok tidak berubah.</div>
+  <div class="sticky-foot"><button type="button" class="primary" id="bhRejYes" style="background:var(--chili)">Hapus struk</button><button type="button" class="secondary" id="bhRejNo">Batal</button></div>
 </div></div>
 <div class="modal-overlay hidden" id="bhHistM"><div class="modal-sheet bh">
   <div class="sheet-head"><h3>Riwayat</h3><button type="button" class="x" id="bhHistX" aria-label="Tutup">✕</button></div>
@@ -6100,7 +6123,7 @@ $('bhSaveItem').onclick = async () => {
 // ---------- + Stok (manual) ----------
 let L = [], cidStok = '', stokSaving = false;
 function openStok(){
-  L = [{bid:'', qty:1, isi:1000, tot:0}]; cidStok = crypto.randomUUID(); dirty.bhStokM = false; applyRole(); renderL(); openM('bhStokM', guarded('bhStokM'));
+  L = [{bid:'', qty:1, isi:1000, tot:0}]; cidStok = crypto.randomUUID(); dirty.bhStokM = false; applyRole(); renderL(); openM('bhStokM', guarded('bhStokM')); stokOpened();
 }
 function pv(i){
   const l = L[i], b = l.bid && byId(l.bid), gr = l.qty * l.isi, el = $('bhlp' + i); if(!el) return;
@@ -6134,6 +6157,125 @@ $('bhSaveStok').onclick = async () => {
     await load(true); clearResepItemsCache(); renderList(); dirty.bhStokM = false; showToast(baris.length + ' bahan ditambahkan'); stokSaving = false; kembaliLayar();
   }catch(e){ stokSaving = false; showToast(e.message || 'Gagal menyimpan'); cnt(); }
 };
+
+// ---------- Foto struk (tahap 2b, 14 Okt 2026) ----------
+// Foto -> resize di HP -> antrean IndexedDB -> baca_struk (Worker + Gemini) -> Pending Review di server -> cek -> Approve / Reject.
+// Stok TIDAK berubah sebelum Approve. Antrean dicoba lagi saat sheet + Stok / Bahan dibuka atau tombol "Coba lagi".
+const IDB_NAME = 'shakies-struk', IDB_STORE = 'antrean';
+const idbOpen = () => new Promise((res, rej) => { const r = indexedDB.open(IDB_NAME, 1); r.onupgradeneeded = () => r.result.createObjectStore(IDB_STORE, {keyPath:'id', autoIncrement:true}); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+const idbDo = (mode, fn) => idbOpen().then(db => new Promise((res, rej) => { const tx = db.transaction(IDB_STORE, mode), rq = fn(tx.objectStore(IDB_STORE)); tx.oncomplete = () => { db.close(); res(rq && rq.result); }; tx.onerror = () => rej(tx.error); }));
+const qAll = () => idbDo('readonly', st => st.getAll()).then(x => x || []);
+const qAdd = o => idbDo('readwrite', st => st.add(o));
+const qPut = o => idbDo('readwrite', st => st.put(o));
+const qDel = id => idbDo('readwrite', st => st.delete(id));
+async function resizeFoto(file){ // sisi panjang max 1280px, JPEG 0,8 -> base64 (CPU Worker + batas ukuran request)
+  let bmp;
+  try{ bmp = await createImageBitmap(file); }
+  catch(e){ bmp = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error('format foto nggak didukung')); im.src = URL.createObjectURL(file); }); }
+  const k = Math.min(1, 1280 / Math.max(bmp.width, bmp.height)), c = document.createElement('canvas');
+  c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+  c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+  if(bmp.close) bmp.close();
+  const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.8));
+  return await new Promise(res => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(',')[1]); fr.readAsDataURL(blob); });
+}
+async function terimaFoto(files){
+  for(const fl of files){
+    try{ await qAdd({cid: crypto.randomUUID(), b64: await resizeFoto(fl), waktu: Date.now(), gagal: 0, err: ''}); }
+    catch(e){ showToast('Foto gagal dibaca: ' + (e.message || '')); }
+  }
+  kickQueue();
+}
+let qBusy = false;
+function renderQueue(items, busy){
+  const el = $('bhQueue'); if(!items.length){ el.innerHTML = ''; return; }
+  const err = items.find(i => i.err);
+  el.innerHTML = `<div class="warn">${busy ? 'Memproses ' + items.length + ' foto…' : items.length + ' foto belum terproses'}${!busy && err ? '<br><span class="sub">' + esc(err.err) + '</span>' : ''}${busy ? '' : '<div style="display:flex;gap:8px;margin-top:8px"><button type="button" class="secondary" id="bhQRetry" style="margin:0">Coba lagi</button><button type="button" class="secondary" id="bhQClear" style="margin:0">Hapus antrean</button></div>'}</div>`;
+}
+async function kickQueue(){
+  if(qBusy || !isOwner() || !('indexedDB' in window)) return; qBusy = true;
+  try{
+    const items = await qAll(); if(items.length) renderQueue(items, true);
+    for(const it of items){
+      try{ await apiPost('baca_struk', {client_struk_id: it.cid, image_base64: it.b64, mime: 'image/jpeg'}); await qDel(it.id); }
+      catch(e){ await qPut(Object.assign({}, it, {gagal: (it.gagal || 0) + 1, err: e.message || 'gagal'})); }
+      renderQueue(await qAll(), true);
+    }
+  }catch(e){}
+  qBusy = false; try{ renderQueue(await qAll(), false); }catch(e){} refreshPend();
+}
+$('bhQueue').addEventListener('click', async e => {
+  if(e.target.closest('#bhQRetry')) kickQueue();
+  if(e.target.closest('#bhQClear')){ for(const it of await qAll()) await qDel(it.id); renderQueue([], false); }
+});
+let PEND = [];
+async function refreshPend(){
+  if(!isOwner()) return;
+  try{ const r = await apiGet('get_struk_pending', {}, {silent:true}); PEND = r.struk || []; }catch(e){ return; }
+  $('bhPend').innerHTML = PEND.length ? `<div class="bsec">Menunggu review (${PEND.length})</div>` + PEND.map(s => `<div class="pend" data-struk="${s.id}" tabindex="0" role="button"><div><b>${esc(s.toko || 'Struk')}</b><div class="sub">${esc(tgl(s.tanggal))} · ${s.n_item} item</div></div><div style="font-family:'IBM Plex Mono',monospace;font-weight:600">${s.total_struk ? rp(s.total_struk) : '–'}</div></div>`).join('') : '';
+}
+function stokOpened(){ kickQueue(); refreshPend(); }
+$('bhPend').addEventListener('click', e => { const p = e.target.closest('[data-struk]'); if(p) openStruk(p.dataset.struk); });
+$('bhFoto').onclick = () => $('bhFileCam').click();
+$('bhGaleri').onclick = () => $('bhFileGal').click();
+$('bhFileCam').onchange = e => { terimaFoto([...e.target.files]); e.target.value = ''; };
+$('bhFileGal').onchange = e => { terimaFoto([...e.target.files]); e.target.value = ''; };
+$('btnBahan').addEventListener('click', () => { if(isOwner()) kickQueue(); });
+
+// review satu struk
+let SD = null, SL = [], strukSaving = false, rejDone = false;
+let strukLoad = 0; // 0 idle · 1 memuat (layar sudah di-push) · 2 dibatalkan (Back pas memuat / gagal)
+function strukUndo(){ if(strukLoad){ strukLoad = strukLoad === 1 ? 2 : 0; return; } guarded('bhStrukM')(); }
+async function openStruk(id){
+  if(strukLoad) return; strukLoad = 1; pushLayar(strukUndo); // layar di-push SINKRON saat tap (history.pushState butuh user activation), sheet muncul setelah data siap
+  let d; try{ d = await apiGet('get_struk_pending', {id: String(id)}); }catch(e){ showToast(e.message); refreshPend(); strukLoad = 2; kembaliLayar(); return; }
+  if(strukLoad === 2){ strukLoad = 0; return; }
+  if(d.struk.status !== 'pending'){ showToast('Struk ini sudah di-approve.'); refreshPend(); strukLoad = 2; kembaliLayar(); return; }
+  strukLoad = 0; SD = d; SL = d.items.map(i => ({iid: i.id, txt: i.teks_struk, bid: i.bahan_id ? String(i.bahan_id) : '', qty: i.qty || 1, isi: i.isi_gr || 0, tot: i.harga_total || 0, on: !!i.bahan_id && i.isi_gr > 0}));
+  dirty.bhStrukM = false; strukSaving = false; applyRole(); renderStruk(); $('bhStrukM').classList.remove('hidden');
+}
+function spv(i){
+  const l = SL[i], b = l.bid && byId(l.bid), gr = l.qty * l.isi, el = $('bhsp' + i); if(!el) return;
+  el.textContent = !b ? 'Pilih bahan supaya ikut masuk stok' : gr > 0 ? `+${f(gr * 10)}${l.tot > 0 ? ' · ' + rp(l.tot / (gr / 1000)) + '/kg' : ''}${b.stok === null ? ' · belum ada stok awal, hanya harga diperbarui' : ''}` : 'Isi gram per satuan dulu';
+}
+function scnt(){ const n = SL.filter(l => l.on && l.bid && l.qty * l.isi > 0).length; $('bhStrukApprove').textContent = `Approve (${n})`; $('bhStrukApprove').disabled = !n || strukSaving; }
+function renderStruk(){
+  const s = SD.struk;
+  $('bhStrukHead').innerHTML = `<div class="warn plain"><b>${esc(s.toko || 'Struk')}</b> · ${esc(tgl(s.tanggal))} · ${esc(s.jam || '')}${s.jam_perkiraan ? ' <span class="bp bp-gold" style="margin:0">jam perkiraan</span>' : ''}<br><span class="sub">${s.id_transaksi ? 'ID ' + esc(s.id_transaksi) + ' · ' : ''}Total ${s.total_struk ? rp(s.total_struk) : '–'}${s.selisih ? ' · diskon/pajak ' + rp(Math.abs(s.selisih)) + (s.selisih < 0 ? ' (potongan)' : ' (tambahan)') + ' disebar ke item' : ''}</span></div>`
+    + (SD.duplikat.length ? `<div class="warn">⚠ Mirip struk yang sudah ada: ${SD.duplikat.map(x => '#' + x.id + ' (' + (x.status === 'final' ? 'sudah di-approve' : 'masih pending') + ', ' + esc(tgl(x.tanggal)) + ')').join(', ')}. Cek dulu sebelum Approve.</div>` : '');
+  $('bhStrukLines').innerHTML = SL.map((l, i) => `<div class="lnx ${l.on ? '' : 'off'}" data-i="${i}">
+   <div class="lh"><input type="checkbox" data-f="on" ${l.on ? 'checked' : ''} aria-label="Ikut ditambahkan"><b>Di struk: ${esc(l.txt)}</b>${l.bid ? '<span class="bp bp-jade" style="margin:0">Cocok</span>' : '<span class="bp bp-gold" style="margin:0">Belum cocok</span>'}</div>
+   <select class="bfi" data-f="bid" aria-label="Bahan"><option value="">Pilih bahan…</option>${BH().map(b => `<option value="${b.id}" ${String(b.id) === l.bid ? 'selected' : ''}>${esc(b.nama)}</option>`).join('')}</select>
+   <div class="three" style="margin-top:8px"><div><div class="numlbl">Jumlah</div><input class="bplain" type="number" min="0" step="any" data-f="qty" value="${l.qty}"></div>
+   <div><div class="numlbl">Isi (gr)</div><input class="bplain" type="number" min="0" step="any" data-f="isi" value="${l.isi}"></div>
+   <div><div class="numlbl">Total (Rp)</div><input class="bplain" type="number" min="0" data-f="tot" value="${l.tot}"></div></div>
+   <div class="hint" id="bhsp${i}"></div></div>`).join('');
+  SL.forEach((_, i) => spv(i)); scnt();
+}
+$('bhStrukLines').addEventListener('input', e => {
+  const ln = e.target.closest('.lnx'), k = e.target.dataset.f; if(!ln || !k) return;
+  const l = SL[ln.dataset.i]; dirty.bhStrukM = true;
+  if(k === 'on') l.on = e.target.checked; else if(k === 'bid'){ l.bid = e.target.value; if(l.bid && l.isi > 0) l.on = true; } else l[k] = +e.target.value || 0;
+  if(k === 'on' || k === 'bid') renderStruk(); else { spv(ln.dataset.i); scnt(); }
+});
+$('bhStrukApprove').onclick = async () => {
+  if(strukSaving) return;
+  const items = SL.filter(l => l.on && l.bid && l.qty * l.isi > 0).map(l => ({item_id: l.iid, bahan_id: +l.bid, qty_beli: l.qty, isi_gr: l.isi, total_harga: Math.round(l.tot)}));
+  if(!items.length) return;
+  strukSaving = true; $('bhStrukApprove').disabled = true; $('bhStrukApprove').textContent = 'Menyimpan…';
+  try{
+    const r = await apiPost('approve_struk', {id: SD.struk.id, items});
+    await load(true); clearResepItemsCache(); renderList(); dirty.bhStrukM = false; strukSaving = false;
+    showToast(r.duplicate ? 'Struk ini sudah di-approve sebelumnya' : items.length + ' bahan ditambahkan'); kembaliLayar(); refreshPend();
+  }catch(e){ strukSaving = false; showToast(e.message || 'Gagal menyimpan'); scnt(); }
+};
+$('bhStrukReject').onclick = () => openM('bhRejM', () => { closeM('bhRejM'); if(rejDone){ rejDone = false; setTimeout(kembaliLayar, 0); } });
+$('bhRejNo').onclick = () => kembaliLayar();
+$('bhRejYes').onclick = async () => {
+  try{ await apiPost('reject_struk', {id: SD.struk.id}); }catch(e){ showToast(e.message || 'Gagal menghapus'); return; }
+  dirty.bhStrukM = false; rejDone = true; showToast('Struk dihapus'); kembaliLayar(); refreshPend();
+};
+$('bhStrukX').onclick = () => kembaliLayar();
 
 // ---------- Riwayat ----------
 const PL = {produksi:['Produksi','bp-jade'], stok:['Tambah stok','bp-gold'], opname:['Opname','bp-mut']};
