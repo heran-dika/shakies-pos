@@ -845,6 +845,11 @@
             <button type="button" class="push-switch" id="pushSwitch" role="switch" aria-checked="false" aria-label="Push Notification on/off" onclick="togglePushSwitch()" disabled><span class="push-switch-knob"></span></button>
           </div>
         </div>
+        <div id="pushPrefs" style="display:none;margin:-2px 0 10px;padding:6px 12px;border:1.5px solid var(--border);border-radius:12px;">
+          <label style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;font-size:14px;"><input type="checkbox" data-pref="order_baru" style="margin-top:3px;"><span>Order baru masuk<br><small style="color:var(--ink-soft);">Order dengan tanggal kirim hari ini</small></span></label>
+          <label style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;font-size:14px;border-top:1px dashed var(--border);"><input type="checkbox" data-pref="rekap_pagi" style="margin-top:3px;"><span>Rekap order jam 04.00<br><small style="color:var(--ink-soft);">Ringkasan order hari itu. Cuma dikirim kalau ada order.</small></span></label>
+          <label id="pushPrefHabisRow" style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;font-size:14px;border-top:1px dashed var(--border);"><input type="checkbox" data-pref="bahan_habis" style="margin-top:3px;"><span>Bahan habis<br><small style="color:var(--ink-soft);">Khusus owner</small></span></label>
+        </div>
         <button class="secondary" style="width:100%;color:var(--chili);border-color:var(--chili);" onclick="logoutStaff()">Logout</button>
       </div>
       <div id="deviceSigninView">
@@ -2672,7 +2677,7 @@ function notifyBackgroundFailure(title, body){
 const PUSH_ENDPOINT_KEY = 'push-endpoint-v1';
 function getPushEndpoint(){ try{ return localStorage.getItem(PUSH_ENDPOINT_KEY) || ''; } catch(e){ return ''; } }
 function pushSupported(){ return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
-const PUSH_INFO_TEXT = 'Notif jalan buat order dengan tanggal kirim hari ini, pas app lagi ditutup, jam 05:00–17:00 WIB.';
+const PUSH_INFO_TEXT = 'Notif jalan pas app lagi ditutup. Pilih jenis notifnya di bawah.';
 function renderPushStatus(){
   const sw = document.getElementById('pushSwitch');
   const sync = document.getElementById('pushSyncBtn');
@@ -2690,7 +2695,31 @@ function renderPushStatus(){
   if(!supported) warn = 'Browser/HP ini gak support push notification.';
   else if(denied) warn = 'Izin notifikasi diblokir — aktifin lagi di setelan HP/browser.';
   st.textContent = PUSH_INFO_TEXT + (warn ? '\n⚠️ ' + warn : '');
+  const box = document.getElementById('pushPrefs');
+  if(box){
+    box.style.display = on ? '' : 'none';
+    const hb = document.getElementById('pushPrefHabisRow');
+    if(hb) hb.style.display = (staffSession && (staffSession.is_owner === true || staffSession.role === 'owner')) ? 'flex' : 'none';
+    if(on) loadPushPrefs(); else pushPrefsLoaded = false;
+  }
 }
+// Pilihan jenis notifikasi (15 Okt 2026) — disimpan di Worker per akun (get_push_prefs / set_push_prefs).
+var pushPrefsLoaded = false; // var (bukan let): renderPushStatus() bisa kepanggil sebelum baris ini dieksekusi
+async function loadPushPrefs(){
+  if(pushPrefsLoaded || !staffSession) return;
+  pushPrefsLoaded = true;
+  try{
+    const r = await apiPost('get_push_prefs', {});
+    document.querySelectorAll('#pushPrefs input[data-pref]').forEach(i => { i.checked = !!r[i.dataset.pref]; });
+  }catch(e){ pushPrefsLoaded = false; }
+}
+async function savePushPrefs(){
+  const body = {};
+  document.querySelectorAll('#pushPrefs input[data-pref]').forEach(i => { body[i.dataset.pref] = i.checked; });
+  try{ await apiPost('set_push_prefs', body); showToast('Pengaturan notifikasi disimpan ✓'); }
+  catch(err){ showToast('Gagal simpan: ' + ((err && err.message) || '')); pushPrefsLoaded = false; loadPushPrefs(); }
+}
+document.addEventListener('change', e => { if(e.target && e.target.matches && e.target.matches('#pushPrefs input[data-pref]')) savePushPrefs(); });
 // Switch on/off: status ON/OFF selalu dibaca dari aria-checked (hasil renderPushStatus), jadi kalau
 // konfirmasi "Matikan" dibatalin, switch otomatis tetap ON tanpa perlu di-revert manual.
 function syncPushManual(){
@@ -5918,6 +5947,25 @@ function animate(tg){
 $('btnRsEdit').onclick = () => { S.edit = clone(REC); S.bk = { MB:clone(MB), COST:clone(COST) }; S.snap = snapNow(); drawResep(); };
 $('btnRsCancel').onclick = () => kembaliLayar();
 $('btnRsSave').onclick = saveResep;
+// ---------- Layar jangan mati selama sheet Resep kebuka (Screen Wake Lock, 15 Okt 2026) ----------
+// Dilepas otomatis kalau 30 menit nggak disentuh (hemat baterai); sentuh lagi = nyala lagi. Gagal/nggak support = diam saja.
+let wl = null, wlTimer = 0;
+const WL_IDLE_MS = 30 * 60 * 1000;
+const resepOpen = () => !$('resepM').classList.contains('hidden');
+function wlArm(){ clearTimeout(wlTimer); if(resepOpen()) wlTimer = setTimeout(wlOff, WL_IDLE_MS); }
+async function wlOn(){
+  try{
+    if(!resepOpen() || !('wakeLock' in navigator) || wl) return;
+    wl = await navigator.wakeLock.request('screen');
+    wl.addEventListener('release', () => { wl = null; });
+  }catch(e){ wl = null; }
+  wlArm();
+}
+function wlOff(){ clearTimeout(wlTimer); try{ if(wl) wl.release(); }catch(e){} wl = null; }
+new MutationObserver(() => { resepOpen() ? wlOn() : wlOff(); }).observe($('resepM'), { attributes:true, attributeFilter:['class'] });
+$('resepM').addEventListener('pointerdown', () => { if(!wl) wlOn(); else wlArm(); }, { passive:true });
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') wlOn(); });
+
 // ---------- OCR tulisan tangan -> baris bahan (15 Okt 2026) ----------
 // Foto -> resize di HP (resizeFoto dari sheet Bahan) -> Worker 'baca_resep_tulisan' -> {bahan:[{nama, gram}]}. Hasil MASUK editor sebagai baris biasa (belum tersimpan) supaya bisa dicek/diedit dulu.
 $('btnRsOcr').onclick = () => { if(S && S.edit) $('rsOcrFile').click(); };
