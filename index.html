@@ -572,6 +572,7 @@
 .bh .er2:last-child{border-bottom:none}.bh .er2 .m{font-family:'IBM Plex Mono',monospace;font-size:12px;text-align:right}
 .bh .m.dn{color:var(--chili)}.bh .m.up{color:var(--jade)}.bh .m.mut{color:var(--ink-soft)}
 .bh .ts{font-size:10.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace}
+.bh .hpl{display:inline-flex;gap:6px;margin-left:10px;vertical-align:middle}.bh .hpl button{border:1.5px solid var(--border);background:#fff;color:var(--ink-soft);font-size:12px;font-weight:700;padding:4px 12px;border-radius:999px}.bh .hpl button.on{background:var(--jade);border-color:var(--jade);color:#fff}
 .bh .dayh{font-size:11.5px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.4px;margin:16px 0 0}
 .bh-staff .owner-only{display:none!important}
 #bhM{z-index:55}#bhItemM,#bhStokM,#bhHistM{z-index:56}#bhBuatM{z-index:57}#bhDiscM{z-index:58}
@@ -1224,6 +1225,12 @@
       <button type="button" class="gp" id="bhGp" aria-expanded="false" aria-label="Berat per butir"><small>gr/pcs</small><i>↵</i></button></div>
     <div id="bhButirBox" style="display:none"><label class="lb" for="bhButir">Berat per butir (gr/pcs), untuk bahan butiran seperti telur</label>
       <input class="bplain" id="bhButir" type="number" min="0" step="0.1" inputmode="decimal"></div>
+    <div class="hint" id="bhHtxt"></div>
+    <label class="lb" for="bhAmb">Ambang "Mau habis" (gr), kosong = otomatis dari resep</label>
+    <input class="bplain" id="bhAmb" type="number" min="0" step="any" inputmode="decimal">
+    <label class="lb" for="bhRend">Rendemen (%), kosong = 100</label>
+    <input class="bplain" id="bhRend" type="number" min="1" max="100" step="any" inputmode="decimal" placeholder="100">
+    <div class="hint">Bagian yang terpakai dari yang dibeli. Contoh telur: 16 butir x 50 gr = 800 gr dari 1 kg, jadi 80%. Stok dan harga per kg dihitung dari gram bersih.</div>
   </div>
   <div class="owner-only" id="bhOlahan">
     <div class="olh-head"><label class="lb" style="margin:0">Olahan (opsional)</label><button type="button" class="field-toggle-pill" id="bhOlhPill" aria-expanded="false">buka</button></div>
@@ -1279,9 +1286,9 @@
   <div class="sticky-foot"><button type="button" class="primary" id="bhRejYes" style="background:var(--chili)">Hapus struk</button><button type="button" class="secondary" id="bhRejNo">Batal</button></div>
 </div></div>
 <div class="modal-overlay hidden" id="bhHistM"><div class="modal-sheet bh">
-  <div class="sheet-head"><h3>Riwayat</h3><button type="button" class="x" id="bhHistX" aria-label="Tutup">✕</button></div>
+  <div class="sheet-head"><div style="display:flex;align-items:center"><h3>Riwayat</h3><span class="hpl owner-only" id="bhHPills"><button type="button" data-v="stok" class="on">Stok</button><button type="button" data-v="harga">Harga</button></span></div><button type="button" class="x" id="bhHistX" aria-label="Tutup">✕</button></div>
   <select class="bfi" id="bhHF" aria-label="Filter bahan"></select>
-  <div id="bhHist"></div><div id="bhMore" style="margin-top:12px"></div><div style="height:18px"></div>
+  <div id="bhSum"></div><div id="bhHist"></div><div id="bhMore" style="margin-top:12px"></div><div style="height:18px"></div>
 </div></div>
 <div class="modal-overlay hidden" id="bhDiscM"><div class="modal-sheet bh">
   <div class="sheet-head"><h3>Buang perubahan?</h3></div><div style="font-size:14px;color:var(--ink-soft)">Perubahan yang belum disimpan akan hilang.</div>
@@ -1625,7 +1632,7 @@ const RESEP_CACHE_KEY = 'pos-resep-cache-v1', TARIF_CACHE_KEY = 'pos-tarif-cache
 function loadResepCache(){ try{ const p = JSON.parse(localStorage.getItem(RESEP_CACHE_KEY) || 'null'); return p && typeof p === 'object' ? p : {}; } catch(e){ return {}; } } // { index:[...], items:{ [item_id]: respons get_resep } }
 function saveResepCache(patch){ try{ localStorage.setItem(RESEP_CACHE_KEY, JSON.stringify(Object.assign(loadResepCache(), patch))); } catch(e){ /* nggak fatal */ } }
 function saveResepItemCache(itemId, r){ const items = loadResepCache().items || {}; items[itemId] = r; saveResepCache({ items }); }
-function clearResepItemsCache(){ saveResepCache({ items: {} }); } // harga bahan / biaya dasar berubah -> HPP di resep tersimpan jadi basi
+function clearResepItemsCache(){ saveResepCache({ items: {} }); if(window.rhClear) window.rhClear(); } // harga bahan / biaya dasar berubah -> HPP di resep tersimpan jadi basi
 function loadTarifCache(){ try{ const p = JSON.parse(localStorage.getItem(TARIF_CACHE_KEY) || 'null'); return p && p.t ? p.t : null; } catch(e){ return null; } }
 function saveTarifCache(t){ try{ localStorage.setItem(TARIF_CACHE_KEY, JSON.stringify({ t, cachedAt: Date.now() })); } catch(e){ /* nggak fatal */ } }
 
@@ -5922,6 +5929,7 @@ async function doProduksi(){
   } catch(e){ S.saving = false; b.disabled = false; b.textContent = 'Simpan produksi'; showToast((e.status === 'not_registered' ? 'Sesi login habis — sign in ulang, lalu coba lagi. ' : '') + e.message); }
 }
 function produced(res){
+  if(window.rhClear) window.rhClear(); // stok bahan berubah karena produksi
   // 1) ganti stok lokal dari respons SERVER dulu (supaya update_stok absolut berikutnya nggak menimpa dari angka basi)
   const stok = res.stok_akhir || {}, tg = [];
   Object.keys(stok).forEach(id => { const it = menuItems.find(m=>m.item_id===id); if(it){ tg.push({ id, row:it.row, from:it.stok||0, to:stok[id] }); it.stok = stok[id]; } });
@@ -6039,7 +6047,7 @@ const byId = id => B.find(b => !b.sep && String(b.id) === String(id));
 function fromServer(list){
   const out = [];
   list.forEach(x => {
-    out.push({id:x.id, nama:x.nama, butir:x.berat_per_butir_dg, harga:x.harga_per_kg || 0, stok:x.opname_at ? x.stok_dg : null, need:x.need_dg || null, prod:x.produksi_at || null, olh:x.olahan || null});
+    out.push({id:x.id, nama:x.nama, butir:x.berat_per_butir_dg, harga:x.harga_per_kg || 0, stok:x.opname_at ? x.stok_dg : null, need:x.need_dg || null, prod:x.produksi_at || null, olh:x.olahan || null, rend:x.rendemen_pct || 100, amb:x.ambang_habis_dg || null, ht:x.harga_terakhir || null, pk:x.harga_input || null});
     if(x.pemisah_setelah) out.push({sep:1, id:'s' + x.id});
   });
   return out;
@@ -6081,7 +6089,7 @@ function openTarif(g){
 function status(b){
   if(b.stok === null) return {t:'Belum di-opname', c:'bp-mut'};
   if(b.stok <= 0 || (b.need && b.stok < b.need)) return {t:'Habis', c:'bp-red'};
-  if(b.need && b.stok < b.need * 2) return {t:'Mau habis', c:'bp-gold'};
+  if(b.amb ? b.stok < b.amb : (b.need && b.stok < b.need * 2)) return {t:'Mau habis', c:'bp-gold'};
   return null;
 }
 function applyRole(){ document.querySelectorAll('.modal-sheet.bh').forEach(e => e.classList.toggle('bh-staff', !isOwner())); }
@@ -6093,10 +6101,8 @@ function chip(){
 // ---------- daftar ----------
 // 15 Okt 2026: ingat input harga terakhir (harga · berat · satuan) per bahan, di perangkat ini. Server cuma nyimpen harga_per_kg,
 // jadi tanpa ini form edit selalu tampil "per 1 kg" dan angka struk (mis. 10 kg = Rp 861.470) hilang.
-const PKG_KEY = 'shakies_bhpkg_v1'; let _pkg = null;
-const pkgAll = () => { if(_pkg) return _pkg; try{ _pkg = JSON.parse(localStorage.getItem(PKG_KEY) || '{}') || {}; }catch(e){ _pkg = {}; } return _pkg; };
-const pkgSave = (id, p) => { try{ pkgAll()[String(id)] = p; localStorage.setItem(PKG_KEY, JSON.stringify(_pkg)); }catch(e){} };
-const pkgOf = b => { const p = pkgAll()[String(b.id)]; return p && p.h > 0 && p.b > 0 && (p.s === 'kg' || p.s === 'gr') && Math.abs((+p.pk || 0) - (b.harga || 0)) <= 1 ? p : null; }; // harga di server sudah berubah (struk/stok) -> input lama basi, abaikan
+// Input harga terakhir (Rp, berat, satuan) datang dari server (harga_riwayat); hanya dipakai kalau harga sistem belum berubah sejak itu.
+const pkgOf = b => { const p = b.pk; return p && p.h > 0 && p.b > 0 && (p.s === 'kg' || p.s === 'gr') ? p : null; };
 const hargaTxt = b => { const p = pkgOf(b); return p && p.s === 'gr' ? 'Rp ' + (b.harga / 1000).toLocaleString('id-ID', {maximumFractionDigits:2}) + '/gr' : rp(b.harga) + '/kg'; };
 function rowHtml(b, cls){
   const s = status(b), bt = b.butir && b.stok != null ? '≈ ' + (Math.round(b.stok / b.butir * 2) / 2).toLocaleString('id-ID') + ' butir' : '';
@@ -6220,17 +6226,25 @@ $('bhOlhPill').onclick = () => setOlh(!olhOpen);
 const olahIds = () => new Set(BH().filter(x => x.olh).map(x => String(x.id)));
 function kompHint(){
   const sum = KL.reduce((s, l) => s + (+l.g || 0), 0), hs = parseFloat($('bhKompHasil').value);
-  $('bhKompHint').textContent = KL.length ? 'Jumlah bahan baku ' + (Math.round(sum * 10) / 10).toLocaleString('id-ID') + ' gr' + (hs > 0 ? ' → jadi ' + hs.toLocaleString('id-ID') + ' gr' : '') : '';
+  const st = KL.filter(l => cur && String(l.bid) === String(cur)).reduce((s, l) => s + (+l.g || 0), 0), n1 = x => (Math.round(x * 10) / 10).toLocaleString('id-ID');
+  $('bhKompHint').textContent = KL.length ? 'Jumlah bahan ' + n1(sum) + ' gr' + (st ? ' (starter ' + n1(st) + ' gr dari stok sendiri)' : '') + (hs > 0 ? ' → jadi ' + n1(hs) + ' gr' : '') + (st ? ' · hasil bersih ' + n1((hs > 0 ? hs : sum) - st) + ' gr' : '') : '';
 }
 function renderKL(){
   const olh = olahIds();
-  $('bhKomp').innerHTML = KL.map((l, i) => `<div class="kmp" data-i="${i}"><select class="bfi" data-f="bid" aria-label="Bahan baku"><option value="">Pilih bahan baku…</option>${BH().filter(b => String(b.id) !== String(cur) && !olh.has(String(b.id)) && (String(b.id) === String(l.bid) || !KL.some(x => String(x.bid) === String(b.id)))).map(b => `<option value="${b.id}" ${String(b.id) === String(l.bid) ? 'selected' : ''}>${esc(b.nama)}</option>`).join('')}</select><input class="bplain" type="number" min="0" step="any" inputmode="decimal" data-f="g" placeholder="gr" aria-label="Gram per set" value="${l.g || ''}"><button type="button" class="brm" data-del="${i}" aria-label="Hapus">✕</button></div>`).join('');
+  $('bhKomp').innerHTML = KL.map((l, i) => `<div class="kmp" data-i="${i}"><select class="bfi" data-f="bid" aria-label="Bahan baku"><option value="">Pilih bahan baku…</option>${BH().filter(b => (String(b.id) === String(cur) || !olh.has(String(b.id))) && (String(b.id) === String(l.bid) || !KL.some(x => String(x.bid) === String(b.id)))).map(b => `<option value="${b.id}" ${String(b.id) === String(l.bid) ? 'selected' : ''}>${esc(b.nama)}${String(b.id) === String(cur) ? ' (starter)' : ''}</option>`).join('')}</select><input class="bplain" type="number" min="0" step="any" inputmode="decimal" data-f="g" placeholder="gr" aria-label="Gram per set" value="${l.g || ''}"><button type="button" class="brm" data-del="${i}" aria-label="Hapus">✕</button></div>`).join('');
   kompHint();
 }
 $('bhKomp').addEventListener('input', e => { const ln = e.target.closest('.kmp'), k = e.target.dataset.f; if(!ln || !k) return; KL[ln.dataset.i][k] = k === 'g' ? (+e.target.value || 0) : e.target.value; kompHint(); });
 $('bhKomp').addEventListener('click', e => { const d = e.target.closest('[data-del]'); if(!d) return; KL.splice(+d.dataset.del, 1); dirty.bhItemM = true; renderKL(); });
 $('bhKompAdd').onclick = () => { KL.push({bid:'', g:0}); dirty.bhItemM = true; renderKL(); };
 $('bhKompHasil').addEventListener('input', kompHint);
+function hargaInfo(b){
+  const t = b.ht; if(!t || !isOwner()) return '';
+  const d = (t.harga_beli - t.harga_lama), p = t.harga_lama > 0 ? Math.abs(d) / t.harga_lama * 100 : 0, ps = x => x.toLocaleString('id-ID', {maximumFractionDigits:1});
+  let s = '💵 Beli terakhir ' + rp(t.harga_beli) + '/kg · ' + tgl(t.waktu) + (t.harga_lama > 0 && d !== 0 ? ' · ' + (d > 0 ? '▲' : '▼') + ps(p) + '%' : '');
+  if(b.harga > t.harga_beli) s += ' · harga sistem ' + ps((b.harga - t.harga_beli) / t.harga_beli * 100) + '% di atas harga beli terakhir';
+  return s;
+}
 function openItem(id){
   cur = id ? String(id) : null; const b = cur ? byId(cur) : null, n = b && b.need;
   dirty.bhItemM = false; cidBahan = crypto.randomUUID(); cidOp = crypto.randomUUID(); applyRole();
@@ -6239,6 +6253,8 @@ function openItem(id){
   $('bhStok').value = ''; $('bhSel').textContent = ''; $('bhSel').className = 'hint';
   $('bhNama').value = b ? b.nama : ''; const pk = b ? pkgOf(b) : null; $('bhHarga').value = pk ? pk.h : (b ? b.harga : ''); $('bhBerat').value = pk ? pk.b : 1; $('bhSat').value = pk ? pk.s : 'kg';
   $('bhButir').value = b && b.butir ? b.butir / 10 : ''; setGp(false);
+  $('bhAmb').value = b && b.amb ? b.amb / 10 : ''; $('bhRend').value = b && b.rend < 100 ? b.rend : '';
+  $('bhHtxt').textContent = b ? hargaInfo(b) : '';
   paintInfo(b);
   $('bhNote').textContent = !b ? 'Ambang peringatan terisi otomatis begitu bahan dipakai di resep.' : !n ? 'Belum dipakai di resep, jadi tanpa peringatan.' : b.stok === null ? 'Isi stok awal sekali saja untuk mulai dilacak. Setelah itu stok berubah otomatis lewat produksi dan + Stok.' : '';
   $('bhItemHist').style.display = b ? 'block' : 'none';
@@ -6267,11 +6283,11 @@ $('bhSaveItem').onclick = async () => {
     let id = cur;
     if(own){
       const berat = +$('bhBerat').value || 1, sat = $('bhSat').value, butir = $('bhButir').value ? Math.round(parseFloat($('bhButir').value) * 10) : null;
-      const payload = {nama, harga_per_kg: Math.round((+$('bhHarga').value || 0) / (berat * (sat === 'kg' ? 1 : .001))), berat_per_butir_dg: butir};
+      const amb = $('bhAmb').value ? Math.round(parseFloat($('bhAmb').value) * 10) : null, rend = Math.min(100, Math.max(1, Math.round(parseFloat($('bhRend').value) || 100)));
+      const payload = {nama, harga_per_kg: Math.round((+$('bhHarga').value || 0) / (berat * (sat === 'kg' ? 1 : .001))), berat_per_butir_dg: butir, ambang_habis_dg: amb, rendemen_pct: rend, input_harga: Math.round(+$('bhHarga').value || 0), input_berat: berat, input_satuan: sat};
       if(id) payload.id = +id; else payload.client_bahan_id = cidBahan;
       const r = await apiPost('save_bahan', payload);
       if(!id){ id = String(r.id || r.bahan_id); cur = id; }
-      pkgSave(id, {h:+$('bhHarga').value || 0, b:berat, s:sat, pk:payload.harga_per_kg});
       const kl = KL.filter(l => l.bid && l.g > 0), hs = parseFloat($('bhKompHasil').value);
       if(kl.length || hadOlh) await apiPost('save_olahan', {olahan_id: +id, komposisi: kl.map(l => ({bahan_id: +l.bid, qty_dg: Math.round(l.g * 10)})), hasil_dg: hs > 0 && kl.length ? Math.round(hs * 10) : null});
     }
@@ -6287,10 +6303,10 @@ $('bhSaveItem').onclick = async () => {
 let cidBuat = '', buatSaving = false;
 function buatCalc(){
   const b = byId(cur), g = parseFloat($('bhBuatG').value) || 0, setDg = b.olh.hasil_dg || b.olh.komp.reduce((s, k) => s + k.qty_dg, 0), fk = g * 10 / setDg;
-  let ok = g > 0;
-  const rows = b.olh.komp.map(k => { const x = byId(k.bahan_id), used = Math.round(k.qty_dg * fk), low = x && x.stok !== null && x.stok < used; if(low) ok = false;
-    return `<div class="er2" style="grid-template-columns:1fr auto"><span>${x ? esc(x.nama) : '(dihapus)'}${low ? ' <span class="bp bp-red" style="margin:0">stok kurang</span>' : ''}</span><span class="m dn">−${fc(used)}${x && x.stok !== null ? ' (sisa ' + fc(x.stok) + ')' : ' · belum dilacak'}</span></div>`; }).join('');
-  $('bhBuatPrev').innerHTML = g > 0 ? `<div class="evt" style="margin-top:12px">${rows}<div class="er2" style="grid-template-columns:1fr auto"><b>${esc(b.nama)}</b><span class="m up">+${fc(Math.round(g * 10))}${b.stok === null ? ' · belum dilacak' : ''}</span></div></div>` : '';
+  let ok = g > 0, neto = Math.round(g * 10);
+  const rows = b.olh.komp.map(k => { const x = byId(k.bahan_id), used = Math.round(k.qty_dg * fk), self = String(k.bahan_id) === String(cur), low = x && x.stok !== null && x.stok < used; if(low) ok = false; if(self) neto -= used;
+    return `<div class="er2" style="grid-template-columns:1fr auto"><span>${x ? esc(x.nama) : '(dihapus)'}${self ? ' <span class="bp bp-mut" style="margin:0">starter</span>' : ''}${low ? ' <span class="bp bp-red" style="margin:0">stok kurang</span>' : ''}</span><span class="m dn">−${fc(used)}${x && x.stok !== null ? ' (sisa ' + fc(x.stok) + ')' : ' · belum dilacak'}</span></div>`; }).join('');
+  $('bhBuatPrev').innerHTML = g > 0 ? `<div class="evt" style="margin-top:12px">${rows}<div class="er2" style="grid-template-columns:1fr auto"><b>${esc(b.nama)}${neto !== Math.round(g * 10) ? ' (bersih)' : ''}</b><span class="m up">+${fc(neto)}${b.stok === null ? ' · belum dilacak' : ''}</span></div></div>` : '';
   $('bhBuatOk').disabled = !ok || buatSaving;
 }
 $('bhBuat').onclick = () => {
@@ -6316,9 +6332,15 @@ let L = [], cidStok = '', stokSaving = false;
 function openStok(){
   L = [{bid:'', qty:1, isi:1000, tot:0}]; cidStok = crypto.randomUUID(); dirty.bhStokM = false; applyRole(); renderL(); openM('bhStokM', guarded('bhStokM')); stokOpened();
 }
+function beliHint(b, tot, gr){ // gr = gram bersih; tot = Rp
+  if(!isOwner() || !(tot > 0) || !(gr > 0)) return '';
+  const pk = tot / (gr / 1000), d = pk - b.harga;
+  return b.harga > 0 && Math.round(pk) !== b.harga ? (d > 0 ? ' · harga sistem naik jadi ' + rp(pk) + '/kg' : ' · lebih murah dari harga sistem, harga sistem tetap') : '';
+}
+const brut = (l, b) => { const rd = (b && b.rend) || 100, g = l.qty * l.isi * rd / 100; return {gr: g, txt: rd < 100 ? ' (rendemen ' + rd + '%, dari ' + f(l.qty * l.isi * 10) + ')' : ''}; };
 function pv(i){
-  const l = L[i], b = l.bid && byId(l.bid), gr = l.qty * l.isi, el = $('bhlp' + i); if(!el) return;
-  el.textContent = !b ? 'Pilih bahan' : gr > 0 ? `+${f(gr * 10)}${l.tot > 0 ? ' · ' + rp(l.tot / (gr / 1000)) + '/kg' : ''}${b.stok === null ? ' · belum ada stok awal, hanya harga diperbarui' : ''}` : 'Isi jumlah dan isi per satuan';
+  const l = L[i], b = l.bid && byId(l.bid), r = brut(l, b), gr = r.gr, el = $('bhlp' + i); if(!el) return;
+  el.textContent = !b ? 'Pilih bahan' : gr > 0 ? `+${f(gr * 10)}${r.txt}${l.tot > 0 ? ' · ' + rp(l.tot / (gr / 1000)) + '/kg' : ''}${beliHint(b, l.tot, gr)}${b.stok === null ? ' · belum ada stok awal, hanya harga diperbarui' : ''}` : 'Isi jumlah dan isi per satuan';
 }
 function cnt(){ const n = L.filter(l => l.bid && l.qty * l.isi > 0).length; $('bhSaveStok').textContent = `Tambahkan ke stok (${n})`; $('bhSaveStok').disabled = !n || stokSaving; }
 function renderL(){
@@ -6427,8 +6449,8 @@ async function openStruk(id){
   dirty.bhStrukM = false; strukSaving = false; applyRole(); renderStruk(); $('bhStrukM').classList.remove('hidden');
 }
 function spv(i){
-  const l = SL[i], b = l.bid && byId(l.bid), gr = l.qty * l.isi, el = $('bhsp' + i); if(!el) return;
-  el.textContent = !b ? 'Pilih bahan supaya ikut masuk stok' : gr > 0 ? `+${f(gr * 10)}${l.tot > 0 ? ' · ' + rp(l.tot / (gr / 1000)) + '/kg' : ''}${b.stok === null ? ' · belum ada stok awal, hanya harga diperbarui' : ''}` : 'Isi gram per satuan dulu';
+  const l = SL[i], b = l.bid && byId(l.bid), r = brut(l, b), gr = r.gr, el = $('bhsp' + i); if(!el) return;
+  el.textContent = !b ? 'Pilih bahan supaya ikut masuk stok' : gr > 0 ? `+${f(gr * 10)}${r.txt}${l.tot > 0 ? ' · ' + rp(l.tot / (gr / 1000)) + '/kg' : ''}${beliHint(b, l.tot, gr)}${b.stok === null ? ' · belum ada stok awal, hanya harga diperbarui' : ''}` : 'Isi gram per satuan dulu';
 }
 function scnt(){ const n = SL.filter(l => l.on && l.bid && l.qty * l.isi > 0).length; $('bhStrukApprove').textContent = `Approve (${n})`; $('bhStrukApprove').disabled = !n || strukSaving; }
 function renderStruk(){
@@ -6472,28 +6494,73 @@ $('bhStrukX').onclick = () => kembaliLayar();
 // ---------- Riwayat ----------
 const PL = {produksi:['Produksi','bp-jade'], stok:['Tambah stok','bp-gold'], opname:['Opname','bp-mut']};
 const dl = d => d === null || d === undefined ? 'stok awal' : d === 0 ? 'tetap' : (d > 0 ? '+' : '−') + fc(Math.abs(d));
-let hCursor = null, hLast = '', hTok = 0;
+let hCursor = null, hLast = '', hTok = 0, hView = 'stok';
 function evHtml(e){
   const nm = id => { const b = byId(id); return b ? esc(b.nama) : '(bahan dihapus)'; }, pl = PL[e.jenis] || [e.jenis, 'bp-mut'];
   return `<div class="evt"><div class="eh"><span class="bp ${pl[1]}" style="margin:0">${pl[0]}</span><b>${esc(e.judul || '')}</b><span class="ts">${jam(e.waktu)}</span></div>${e.baris.map(r => `<div class="er2"><span>${nm(r.bahan_id)}</span><span class="m ${r.delta_dg > 0 ? 'up' : r.delta_dg < 0 ? 'dn' : 'mut'}">${dl(r.delta_dg)}</span><span class="m ${r.sisa_dg === null ? 'mut' : ''}">${r.sisa_dg === null ? 'belum dilacak' : '→ ' + fc(r.sisa_dg)}</span></div>`).join('')}</div>`;
 }
+// ---- riwayat harga (owner)
+const HS = {pembelian:['Beli','bp-gold'], struk:['Struk','bp-gold'], manual:['Manual','bp-jade'], olahan:['Olahan','bp-mut'], awal:['Awal','bp-mut']};
+const pct1 = x => Math.abs(x).toLocaleString('id-ID', {maximumFractionDigits:1}) + '%';
+function hargaEvHtml(e){
+  const b = byId(e.bahan_id), pl = HS[e.sumber] || [e.sumber, 'bp-mut'], lama = e.harga_lama, kg = n => rp(n) + '/kg';
+  let line;
+  if(e.sumber === 'awal') line = 'Harga awal ' + kg(e.harga_baru);
+  else if(!e.diterapkan){ const d = lama > 0 ? (e.harga_beli - lama) / lama * 100 : 0; line = `▼ ${pct1(d)} saat beli · harga beli ${kg(e.harga_beli)} · harga sistem tetap ${kg(lama)}`; }
+  else { const d = lama > 0 ? (e.harga_baru - lama) / lama * 100 : 0; line = `${lama != null ? kg(lama) + ' → ' : ''}${kg(e.harga_baru)}${lama > 0 ? ' (' + (d >= 0 ? '▲ ' : '▼ ') + pct1(d) + ')' : ''}${e.harga_beli ? ' · harga beli ' + kg(e.harga_beli) : ''}`; }
+  const inp = e.sumber === 'manual' && e.input_harga ? `<div class="hint" style="margin:0">Diketik: ${rp(e.input_harga)} untuk ${(e.input_berat || 0).toLocaleString('id-ID')} ${esc(e.input_satuan || '')}</div>` : '';
+  return `<div class="evt"><div class="eh"><span class="bp ${pl[1]}" style="margin:0">${pl[0]}</span><b>${b ? esc(b.nama) : '(bahan dihapus)'}</b><span class="ts">${jam(e.waktu)}</span></div><div class="er2" style="grid-template-columns:1fr;display:block"><span class="m" style="text-align:left;display:block">${line}</span>${inp}</div></div>`;
+}
+function ringkasanHtml(r){
+  if(!r) return '';
+  if(!r.dilacak) return '<div class="warn plain">Belum dilacak. Isi stok awal dulu supaya ada hitungan.</div>';
+  const row = (l, v, c) => `<div class="er2" style="grid-template-columns:1fr auto"><span>${l}</span><span class="m ${c || ''}">${v}</span></div>`, sel = r.selisih_dg;
+  return `<div class="evt"><div class="eh"><b>Hitungan sejak opname ${esc(tgl(r.opname_at))}</b>${sel !== 0 ? '<span class="bp bp-red" style="margin:0">tidak cocok</span>' : ''}</div>`
+    + row('Stok awal (opname)', fc(r.awal_dg)) + row('+ Masuk', fc(r.masuk_dg), 'up') + row('− Keluar', fc(r.keluar_dg), 'dn') + row('= Hitungan sistem', fc(r.sistem_dg)) + row('Stok tercatat', fc(r.tercatat_dg))
+    + (sel !== 0 ? row('Selisih', (sel > 0 ? '+' : '−') + fc(Math.abs(sel)), 'dn') : '')
+    + row('Koreksi opname 30 hari', (r.koreksi_opname_30h_dg > 0 ? '+' : r.koreksi_opname_30h_dg < 0 ? '−' : '') + fc(Math.abs(r.koreksi_opname_30h_dg))) + row('Koreksi opname total', (r.koreksi_opname_total_dg > 0 ? '+' : r.koreksi_opname_total_dg < 0 ? '−' : '') + fc(Math.abs(r.koreksi_opname_total_dg))) + '</div>';
+}
+// cache-first (maks 12 kombinasi pill+bahan, yang paling lama tidak dipakai dibuang; dibuang total saat akun berganti atau data bahan berubah)
+const RH_KEY = 'pos-riwayat-bahan-cache-v1', RH_MAX = 12;
+const rhWho = () => (staffSession && staffSession.email) || '';
+function rhAll(){ try{ const o = JSON.parse(localStorage.getItem(RH_KEY) || 'null'); if(o && o.who === rhWho() && o.v) return o; }catch(e){} return {who: rhWho(), v: {}}; }
+function rhGet(k){ const o = rhAll(), d = o.v[k]; if(!d) return null; d.at = Date.now(); try{ localStorage.setItem(RH_KEY, JSON.stringify(o)); }catch(e){} return d; }
+function rhPut(k, d){ const o = rhAll(); o.v[k] = Object.assign({}, d, {at: Date.now()}); const ks = Object.keys(o.v); if(ks.length > RH_MAX){ ks.sort((a, b) => o.v[a].at - o.v[b].at); delete o.v[ks[0]]; } try{ localStorage.setItem(RH_KEY, JSON.stringify(o)); }catch(e){} }
+window.rhClear = () => { try{ localStorage.removeItem(RH_KEY); }catch(e){} };
+function histDays(kej){ let h = ''; kej.forEach(e => { const k = dayKey(e.waktu); if(k !== hLast){ h += `<div class="dayh">${esc(dayLbl(e.waktu))}</div>`; hLast = k; } h += hView === 'harga' ? hargaEvHtml(e) : evHtml(e); }); return h; }
+function histPaint(r, more){
+  if(!more){ hLast = ''; $('bhHist').innerHTML = ''; }
+  $('bhSum').innerHTML = !more && hView === 'stok' && $('bhHF').value ? ringkasanHtml(r.ringkasan) : '';
+  $('bhHist').insertAdjacentHTML('beforeend', histDays(r.kejadian || [])); hCursor = r.next_cursor || null;
+  const empty = !$('bhHist').children.length;
+  $('bhMore').innerHTML = empty ? '<div class="hint">Belum ada ' + (hView === 'harga' ? 'perubahan harga' : 'pergerakan') + '.</div>' : hCursor ? '<button type="button" class="secondary" id="bhBtnMore">Muat lebih lama</button>' : '<div class="hint" style="text-align:center">Sudah paling awal</div>';
+}
 async function histLoad(more){
-  const tok = ++hTok, fil = $('bhHF').value;
-  if(!more){ hCursor = null; hLast = ''; $('bhHist').innerHTML = ''; }
-  $('bhMore').innerHTML = '<div class="hint" style="text-align:center">Memuat…</div>';
+  const tok = ++hTok, fil = $('bhHF').value, ck = hView + '|' + (fil || 'all'), act = hView === 'harga' ? 'get_riwayat_harga' : 'get_riwayat_bahan';
+  let shown = null;
+  if(!more){
+    const c = rhGet(ck);
+    if(c){ shown = JSON.stringify(c.r); histPaint(c.r, false); $('bhMore').innerHTML += '<div class="hint" style="text-align:center">Memperbarui…</div>'; }
+    else { hCursor = null; hLast = ''; $('bhHist').innerHTML = ''; $('bhSum').innerHTML = ''; $('bhMore').innerHTML = '<div class="hint" style="text-align:center">Memuat…</div>'; }
+  } else $('bhMore').innerHTML = '<div class="hint" style="text-align:center">Memuat…</div>';
   try{
-    const r = await apiGet('get_riwayat_bahan', {bahan_id: fil, cursor: hCursor || '', limit: 20});
+    const r = await apiGet(act, {bahan_id: fil, cursor: more ? (hCursor || '') : '', limit: 20}, shown ? {silent:true} : undefined);
     if(tok !== hTok) return;
-    let h = ''; (r.kejadian || []).forEach(e => { const k = dayKey(e.waktu); if(k !== hLast){ h += `<div class="dayh">${esc(dayLbl(e.waktu))}</div>`; hLast = k; } h += evHtml(e); });
-    $('bhHist').insertAdjacentHTML('beforeend', h); hCursor = r.next_cursor || null;
-    const empty = !$('bhHist').children.length;
-    $('bhMore').innerHTML = empty ? '<div class="hint">Belum ada pergerakan.</div>' : hCursor ? '<button type="button" class="secondary" id="bhBtnMore">Muat lebih lama</button>' : '<div class="hint" style="text-align:center">Sudah paling awal</div>';
-  }catch(e){ if(tok === hTok) $('bhMore').innerHTML = '<div class="hint dn">Gagal memuat: ' + esc(e.message) + '</div><button type="button" class="secondary" id="bhBtnMore">Coba lagi</button>'; }
+    if(!more){ rhPut(ck, {r}); if(JSON.stringify(r) !== shown) histPaint(r, false); else $('bhMore').lastChild && $('bhMore').lastChild.remove(); }
+    else histPaint(r, true);
+  }catch(e){
+    if(tok !== hTok) return;
+    if(shown) { $('bhMore').lastChild && $('bhMore').lastChild.remove(); return; } // gagal refresh: tetap tampilkan cache
+    $('bhMore').innerHTML = '<div class="hint dn">Gagal memuat: ' + esc(e.message) + '</div><button type="button" class="secondary" id="bhBtnMore">Coba lagi</button>';
+  }
 }
 function histOpen(fil){
+  if(!isOwner()) hView = 'stok';
+  document.querySelectorAll('#bhHPills button').forEach(b => b.classList.toggle('on', b.dataset.v === hView));
   $('bhHF').innerHTML = '<option value="">Semua bahan</option>' + BH().map(b => `<option value="${b.id}">${esc(b.nama)}</option>`).join('');
   $('bhHF').value = fil ? String(fil) : ''; applyRole(); openM('bhHistM'); histLoad(false);
 }
+$('bhHPills').addEventListener('click', e => { const b = e.target.closest('button'); if(!b || b.dataset.v === hView) return; hView = b.dataset.v; document.querySelectorAll('#bhHPills button').forEach(x => x.classList.toggle('on', x === b)); histLoad(false); });
 $('bhHF').onchange = () => histLoad(false);
 $('bhMore').addEventListener('click', e => { if(e.target.closest('#bhBtnMore')) histLoad(true); });
 
