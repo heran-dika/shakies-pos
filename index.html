@@ -555,7 +555,10 @@
 .bh .grip{border:none;background:none;color:var(--ink-soft);font-size:20px;padding:6px 10px 6px 0;touch-action:none;cursor:grab;line-height:1}
 .bh .dragging{opacity:.92;box-shadow:0 6px 18px rgba(0,0,0,.22);background:#fff;position:relative;z-index:5}
 .bh .brm{border:none;background:none;color:var(--chili);font-size:16px;padding:8px 0 8px 8px}
-.bh .hrow{display:grid;grid-template-columns:1fr 62px 66px 54px;gap:8px;align-items:center}
+.bh .hrow{display:grid;grid-template-columns:1fr 62px 66px;gap:8px;align-items:center}
+.bh .cust2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.bh .brth{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+@media (prefers-reduced-motion:no-preference){@keyframes bhBreath{0%,100%{opacity:.7}50%{opacity:1}}.bh .brth{animation:bhBreath 3.6s ease-in-out infinite}}
 .bh .hrow .bplain,.bh .hrow select{padding:11px 8px;font-size:15px}
 .bh .gp{display:flex;flex-direction:column;align-items:center;justify-content:center;height:46px;border:2px solid var(--jade);border-radius:var(--radius-sm);background:transparent;line-height:1;padding:0}
 .bh .gp small{font-size:10px;color:var(--jade-dark);font-weight:700}.bh .gp i{font-style:normal;font-size:18px;color:var(--jade-dark)}
@@ -1186,7 +1189,8 @@
     <div id="enrWrap"><label class="lb">Waktu & energi (ikut ukuran adonan)</label><div class="tbl" id="enr"></div></div>
     <div id="pkWrap"><label class="lb">Packaging (per pcs)</label><div class="tbl" id="pk"></div></div>
     <label class="lb">Hasil adonan</label><div id="hasilV"></div><div class="hint" id="yHint"></div>
-    <div class="hpp" id="hppBox"><div class="sub">HPP penuh</div><div id="hppList"></div><div class="sub" id="hppNote" style="margin-top:3px"></div></div>
+    <div class="hpp" id="hppBox"><div class="sub">HPP penuh</div><div id="hppList"></div><div class="sub" id="hppNote" style="margin-top:3px"></div>
+      <div id="profitWrap" style="margin-top:10px;border-top:1px dashed var(--gold);padding-top:10px"><div class="numlbl">Profit dari HPP</div><div class="rs-ns" style="max-width:220px"><button type="button" data-h="pm:0" aria-label="kurangi profit">−</button><div class="val" id="pfVal"></div><button type="button" data-h="pp:0" aria-label="tambah profit">+</button></div><div class="sub" style="margin-top:8px">Harga jual (HPP + profit)</div><div id="sellList"></div></div></div>
     <div id="noteWrap" style="display:none"><label class="lb">Catatan</label><div id="noteV" class="notev"></div></div>
   </div>
   <div id="editR" style="display:none"></div>
@@ -1222,15 +1226,13 @@
     <div class="hrow"><input class="bplain" id="bhHarga" type="number" min="0" inputmode="numeric" placeholder="Harga" aria-label="Harga">
       <input class="bplain" id="bhBerat" type="number" min="0" step="any" inputmode="decimal" value="1" aria-label="Angka berat">
       <select class="bfi" id="bhSat" aria-label="Satuan berat"><option>kg</option><option>gr</option></select>
-      <button type="button" class="gp" id="bhGp" aria-expanded="false" aria-label="Berat per butir"><small>gr/pcs</small><i>↵</i></button></div>
-    <div id="bhButirBox" style="display:none"><label class="lb" for="bhButir">Berat per butir (gr/pcs), untuk bahan butiran seperti telur</label>
-      <input class="bplain" id="bhButir" type="number" min="0" step="0.1" inputmode="decimal"></div>
+    </div>
     <div class="hint" id="bhHtxt"></div>
-    <label class="lb" for="bhAmb">Ambang "Mau habis" (gr), kosong = otomatis dari resep</label>
-    <input class="bplain" id="bhAmb" type="number" min="0" step="any" inputmode="decimal">
-    <label class="lb" for="bhRend">Rendemen (%), kosong = 100</label>
-    <input class="bplain" id="bhRend" type="number" min="1" max="100" step="any" inputmode="decimal" placeholder="100">
-    <div class="hint">Bagian yang terpakai dari yang dibeli. Contoh telur: 16 butir x 50 gr = 800 gr dari 1 kg, jadi 80%. Stok dan harga per kg dihitung dari gram bersih.</div>
+    <div style="margin-top:8px"><button type="button" class="field-toggle-pill" id="bhCust" aria-expanded="false">customize (buka)</button></div>
+    <div id="bhCustBox" style="display:none"><div class="cust2">
+      <div><label class="lb" for="bhButir">gr/pcs</label><input class="bplain" id="bhButir" type="number" min="0" step="0.1" inputmode="decimal"></div>
+      <div><label class="lb" for="bhRend">Rendemen (%)</label><input class="bplain" id="bhRend" type="number" min="1" max="100" step="any" inputmode="decimal" placeholder="100"></div></div>
+      <div class="hint">gr/pcs: berat per butir untuk bahan butiran (telur). Rendemen: bagian yang terpakai dari yang dibeli, mis. 16 butir x 50 gr = 800 gr dari 1 kg = 80%. Kosong = 100%.</div></div>
   </div>
   <div class="owner-only" id="bhOlahan">
     <div class="olh-head"><label class="lb" style="margin:0">Olahan (opsional)</label><button type="button" class="field-toggle-pill" id="bhOlhPill" aria-expanded="false">buka</button></div>
@@ -1246,6 +1248,7 @@
   <input class="bplain" id="bhStok" type="number" min="0" step="0.1" inputmode="decimal" placeholder="kosong = tidak diubah">
   <div class="hint" id="bhSel"></div>
   <div class="info4" id="bhInfo"></div>
+  <div class="owner-only" id="bhAmbRow" style="display:none"><label class="lb" for="bhAmb">Ambang "Mau habis" (gr), kosong = otomatis dari resep</label><input class="bplain" id="bhAmb" type="number" min="0" step="any" inputmode="decimal"></div>
   <div class="hint" id="bhNote"></div>
   <button type="button" class="secondary" id="bhBuat" style="display:none">🍳 Buat olahan</button>
   <button type="button" class="secondary" id="bhItemHist">🕘 Riwayat bahan ini</button>
@@ -5609,6 +5612,7 @@ const hppFull = R => { const t = totG(R.rows), g = R.hasil[0].g; return { b:biay
 const k = () => baseG(REC) > 0 ? S.jangkar/baseG(REC) : 1;
 const clone = o => JSON.parse(JSON.stringify(o));
 const reduce = matchMedia('(prefers-reduced-motion:reduce)').matches;
+let PROFIT = 30; try{ const pv0 = parseInt(localStorage.getItem('pos-profit-pct'), 10); if(pv0 >= 10 && pv0 <= 100) PROFIT = pv0; }catch(e){}
 
 // ---------- indeks resep (tombol di Edit Menu Item) ----------
 async function rsIndex(force){
@@ -5766,7 +5770,10 @@ function drawResep(){
   $('yHint').innerHTML = sisa < -1e-6 ? `<span class="neg">Melebihi adonan ${f1(-sisa)}</span>` : `Terpakai ${f1(used)} dari ${f1(tot)} · sisa ${f1(Math.max(0,sisa))}. Baris pertama otomatis dari sisa adonan.`;
   $('hppBox').style.display = own ? '' : 'none';
   if(own){ const bt = biaya(REC.rows)*kk + eTot(REC,kk), ref = hppFull(REC);
-    $('hppList').innerHTML = S.h.map(x=>`<div class="hr"><span>${escapeHtml(nameOf(x.id))}</span><strong>${used?rupiah(x.g*bt/used+packFor(REC,x.id))+' / pcs':'—'}</strong></div>`).join('');
+    const hp = S.h.map(x => used ? x.g*bt/used + packFor(REC,x.id) : 0);
+    $('hppList').innerHTML = S.h.map((x,i)=>`<div class="hr"><span>${escapeHtml(nameOf(x.id))}</span><strong>${used?rupiah(hp[i])+' / pcs':'—'}</strong></div>`).join('');
+    $('pfVal').textContent = PROFIT + '%'; qs('[data-h="pm:0"]').classList.toggle('dis', PROFIT <= 10); qs('[data-h="pp:0"]').classList.toggle('dis', PROFIT >= 100);
+    $('sellList').innerHTML = S.h.map((x,i)=>`<div class="hr"><span>${escapeHtml(nameOf(x.id))}</span><strong>${used?rupiah(Math.round(hp[i]*(1+PROFIT/100)))+' / pcs':'—'}</strong></div>`).join('');
     $('hppNote').textContent = `Biaya bahan + waktu & energi dibagi ke gram adonan yang jadi roti, jadi makin banyak pcs makin murah. Packaging per pcs. Acuan resep: ${rupiah(ref.b+ref.o+ref.k)} / pcs.` + (COST.gasKgJam ? '' : ' Biaya gas belum diisi, HPP belum lengkap.'); }
   $('noteWrap').style.display = REC.note && REC.note.trim() ? '' : 'none'; $('noteV').textContent = REC.note || '';
   const over = sisa < -1e-6;
@@ -5775,6 +5782,7 @@ function drawResep(){
 }
 function setJ(d){ const A = REC.anc, f = ancF(REC), n = Math.min(A.max*f, Math.max(A.min*f, S.jangkar + d*A.step*f)); if(n === S.jangkar) return; S.jangkar = n; drawResep(); }
 function hAct(a,i){ if(a==='jm'||a==='jp'){ setJ(a==='jm'?-1:1); return; }
+  if(a==='pm'||a==='pp'){ const np = Math.min(100, Math.max(10, PROFIT + (a==='pp'?5:-5))); if(np === PROFIT) return; PROFIT = np; try{ localStorage.setItem('pos-profit-pct', String(np)); }catch(e){} drawResep(); return; }
   const r = S.h[i]; if(a==='gm'||a==='gp'){ r.g = Math.max(0, Math.round((r.g + (a==='gm'?-1:1))*10)/10); r.edited = false; } else { r.n = Math.max(0, r.n + (a==='nm'?-1:1)); r.edited = true; } drawResep(); }
 const stopHold = () => { clearTimeout(holdT); clearInterval(holdI); };
 $('resepM').addEventListener('pointerdown', e => { const b = e.target.closest('[data-h]'); if(!b) return; e.preventDefault(); stopHold(); const [a,i] = b.dataset.h.split(':'), fn = () => hAct(a,+i); fn(); holdT = setTimeout(()=>{ holdI = setInterval(fn,130); }, 380); });
@@ -5793,7 +5801,8 @@ const stokable = E => menuItems.filter(it => !it.stok_induk && it.item_id !== E.
 function drawEditor(){
   const E = S.edit, multi = E.hasil.length > 1, u = ancU(E), used = E.rows.map(r=>r.b);
   const emTxt = i => pcsTxt(E.rows[i].b, E.rows[i].g);
-  $('editR').innerHTML = `<div class="hint" style="margin:0 0 10px">Takaran untuk ${escapeHtml(baseLbl(E))}. Bahan lain ikut menyesuaikan saat produksi. Geser ⠿ untuk memindah baris; ⋯ untuk jadikan jangkar atau hapus.</div>` +
+  const cpOpts = !E.resep_id && idxCache ? [...new Map(Object.values(idxCache).filter(x => x.item_utama_id !== E.item_id).map(x => [x.item_utama_id, x.item_utama_id])).values()].map(id => ({id, n:nameOf(id)})).sort((a,b) => a.n.localeCompare(b.n, 'id')) : [];
+  $('editR').innerHTML = (cpOpts.length ? `<select id="cpSel" class="plain" style="text-align:left;font-family:inherit;margin:0 0 10px"><option value="">📋 Salin dari resep lain…</option>${cpOpts.map(o=>`<option value="${o.id}">${escapeHtml(o.n)}</option>`).join('')}</select>` : '') + `<div class="hint" style="margin:0 0 10px">Takaran untuk ${escapeHtml(baseLbl(E))}. Bahan lain ikut menyesuaikan saat produksi. Geser ⠿ untuk memindah baris; ⋯ untuk jadikan jangkar atau hapus.</div>` +
    edRows(E,(r,i)=>{ const m = M(r.b), opts = Object.values(MB).filter(x=>!x.isNew && (x.id===r.b || !used.includes(x.id)));
      const row = `<div class="er" style="grid-template-columns:28px 1fr 104px 34px"><button type="button" class="grip" data-grip="${i}" aria-label="geser">⠿</button><div>${m.isNew ? `<input class="tl" data-nb="${i}" placeholder="Nama bahan baru" value="${escapeHtml(m.n)}">` : `<select data-i="${i}">${opts.map(x=>`<option value="${x.id}" ${x.id===r.b?'selected':''}>${escapeHtml(x.n)}</option>`).join('')}<option value="__new">＋ Bahan baru…</option></select><em id="pc${i}">${emTxt(i)}</em>`}</div><input type="number" min="0" inputmode="decimal" step="0.1" data-g="${i}" value="${r.g}"><button type="button" class="more" data-more="${i}" aria-label="menu bahan">⋯</button></div>`;
      return i===E.anc.i ? `<div class="ancbox" data-item>${row}<div class="sub" style="margin:2px 0 6px 2px">Jangkar: stepper di resep mengatur jumlah ini, bahan lain ikut.</div><div class="three">${F('Min ('+u+')','data-a="min"',E.anc.min)}${F('Maks ('+u+')','data-a="max"',E.anc.max)}${F('Langkah ('+u+')','data-a="step"',E.anc.step)}</div></div>` : `<div data-item>${row}</div>`; }) +
@@ -5842,6 +5851,20 @@ $('editR').addEventListener('input', e => { const E = S.edit, t = e.target, d = 
   else if(d.mpcs !== undefined){ const m = MB[d.mpcs]; m.pcs = v > 0 ? v : null; m.dirty = true; }
   else if(d.r !== undefined){ if(d.r === 'kerja' && !$('kAuto')) t.closest('.two').children[1].innerHTML = '<button type="button" class="secondary" id="kAuto" style="margin:0;padding:11px 8px">↺ Otomatis</button>'; E.kerja = v; updEd(); }
   else if(d.a !== undefined){ E.anc[d.a] = v; } });
+$('editR').addEventListener('change', async e => { // salin resep lain ke resep baru: semua sama persis, kecuali hasil adonan (item hasil sudah dipakai resep sumber, jadi hanya baris pertama = item ini)
+  if(e.target.id !== 'cpSel') return; const sel = e.target, id = sel.value; if(!id || !S || !S.edit) return;
+  if(dirty() && !confirm('Isi editor sekarang diganti salinan resep ini. Lanjut?')){ sel.value = ''; return; }
+  sel.disabled = true;
+  try{
+    let r = (loadResepCache().items || {})[id]; if(!r){ r = await apiGet('get_resep', {item_id:id}); if(r) saveResepItemCache(id, r); }
+    if(!r) throw new Error('Resep sumber nggak ketemu.'); if(!S || !S.edit) return;
+    const C = fromServer(r), E = S.edit, first = C.hasil[0];
+    Object.keys(MB).forEach(k => { if(MB[k].isNew) delete MB[k]; });
+    C.pack = C.pack.map(p => ({...p, u: p.u === first.id ? E.item_id : 'all'}));
+    C.item_id = E.item_id; C.resep_id = null; C.versi = null; C.hasil = [{ id:E.item_id, g:first.g, n:first.n }];
+    S.edit = C; drawEditor(); showToast('Disalin dari ' + nameOf(r.item_id) + '. Cek lalu ubah seperlunya.');
+  }catch(err){ showToast('Gagal menyalin: ' + err.message); sel.disabled = false; }
+});
 $('editR').addEventListener('change', e => { const E = S.edit, t = e.target, d = t.dataset; if(!E) return;
   if(d.nb !== undefined) return;
   if(d.sec){ if(t.tagName !== 'SELECT') return; const r = E[d.sec][+d.i], old = r[d.k]; r[d.k] = t.value; if(d.sec === 'hasil') E.pack.forEach(p => { if(p.u === old) p.u = t.value; }); drawEditor(); return; }
@@ -6208,14 +6231,14 @@ const gauge = (c, a) => `<svg width="24" height="24" viewBox="0 0 24 24" aria-hi
 const scale = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2F5D50" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Berat tersisa"><path d="M12 4v16M7 20h10M5 7h14M5 7l-3 7a3.5 3.5 0 0 0 6 0zM19 7l-3 7a3.5 3.5 0 0 0 6 0z"/></svg>';
 const board = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2F5D50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="12" height="16" rx="2"/><path d="M7 4.5V3.5h5v1M6.5 10h6M6.5 13.5h3"/><path d="M20.5 8.5l-6 6-2.5.7.7-2.5 6-6z"/></svg>';
 const cell = (ic, v, t) => `<div class="i4" title="${t}" role="img" aria-label="${t}: ${v}">${ic}<span>${v}</span></div>`;
-function setGp(on){ gpOpen = on; $('bhButirBox').style.display = on ? 'block' : 'none'; $('bhGp').classList.toggle('on', on || !!$('bhButir').value); $('bhGp').setAttribute('aria-expanded', on); }
+function setCust(on){ $('bhCustBox').style.display = on ? 'block' : 'none'; $('bhCust').textContent = on ? 'customize (tutup)' : 'customize (buka)'; $('bhCust').setAttribute('aria-expanded', on); }
 function paintInfo(b){
   const n = b && b.need;
   $('bhInfo').style.display = b ? 'grid' : 'none';
   $('bhInfo').innerHTML = b ? [
     cell(scale, b.stok === null ? '–' : fc(b.stok), 'Berat tersisa'),
     cell(board, tgl(b.prod), 'Terakhir dipakai produksi'),
-    cell(gauge('#B9852D', 0), n ? fc(n * 2) : '–', 'Mau habis di bawah'),
+    isOwner() ? cell(gauge('#B9852D', 0), b.amb ? fc(b.amb) : n ? fc(n * 2) : '–', 'Mau habis di bawah').replace('class="i4"', 'class="i4 brth" data-amb="1"') : cell(gauge('#B9852D', 0), b.amb ? fc(b.amb) : n ? fc(n * 2) : '–', 'Mau habis di bawah'),
     cell(gauge('#C1443C', -65), n ? fc(n) : '–', 'Habis di bawah')].join('') : '';
 }
 // ---------- olahan: komposisi (owner) ----------
@@ -6252,7 +6275,7 @@ function openItem(id){
   $('bhStokL').textContent = b ? (b.stok === null ? 'Stok awal' : 'Stok fisik (opname)') : 'Stok awal (opsional)';
   $('bhStok').value = ''; $('bhSel').textContent = ''; $('bhSel').className = 'hint';
   $('bhNama').value = b ? b.nama : ''; const pk = b ? pkgOf(b) : null; $('bhHarga').value = pk ? pk.h : (b ? b.harga : ''); $('bhBerat').value = pk ? pk.b : 1; $('bhSat').value = pk ? pk.s : 'kg';
-  $('bhButir').value = b && b.butir ? b.butir / 10 : ''; setGp(false);
+  $('bhButir').value = b && b.butir ? b.butir / 10 : ''; setCust(!!(b && (b.butir || b.rend < 100))); $('bhAmbRow').style.display = 'none';
   $('bhAmb').value = b && b.amb ? b.amb / 10 : ''; $('bhRend').value = b && b.rend < 100 ? b.rend : '';
   $('bhHtxt').textContent = b ? hargaInfo(b) : '';
   paintInfo(b);
@@ -6272,8 +6295,13 @@ $('bhStok').addEventListener('input', e => {
   el.textContent = d === 0 ? 'Sama dengan sistem' : (d > 0 ? '+' : '−') + fc(Math.abs(d)) + ' dari sistem'; el.className = 'hint ' + (d > 0 ? 'up' : d < 0 ? 'dn' : '');
 });
 $('bhItemM').addEventListener('input', () => { dirty.bhItemM = true; });
-$('bhGp').onclick = () => { setGp(!gpOpen); if(gpOpen) $('bhButir').focus(); };
-$('bhButir').addEventListener('input', () => $('bhGp').classList.toggle('on', gpOpen || !!$('bhButir').value));
+$('bhCust').onclick = () => setCust($('bhCustBox').style.display === 'none');
+(function(){ // tekan lama ikon speedometer emas = buka baris ambang "Mau habis" (owner)
+  let t = null; const inf = $('bhInfo'), stop = () => { clearTimeout(t); t = null; };
+  inf.addEventListener('pointerdown', e => { if(!isOwner() || !e.target.closest('[data-amb]')) return; stop(); t = setTimeout(() => { t = null; $('bhAmbRow').style.display = 'block'; $('bhAmb').focus(); try{ navigator.vibrate && navigator.vibrate(15); }catch(_){} }, 500); });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => inf.addEventListener(ev, stop));
+  inf.addEventListener('contextmenu', e => { if(e.target.closest('[data-amb]')) e.preventDefault(); });
+})();
 $('bhSaveItem').onclick = async () => {
   const own = isOwner(), v = $('bhStok').value, nama = $('bhNama').value.trim(), btn = $('bhSaveItem');
   if(own && !nama){ showToast('Nama bahan wajib diisi'); return; }
