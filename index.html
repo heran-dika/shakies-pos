@@ -1190,7 +1190,7 @@
     <div id="pkWrap"><label class="lb">Packaging (per pcs)</label><div class="tbl" id="pk"></div></div>
     <label class="lb">Hasil adonan</label><div id="hasilV"></div><div class="hint" id="yHint"></div>
     <div class="hpp" id="hppBox"><div class="sub">HPP penuh</div><div id="hppList"></div><div class="sub" id="hppNote" style="margin-top:3px"></div>
-      <div id="profitWrap" style="margin-top:10px;border-top:1px dashed var(--gold);padding-top:10px"><div class="numlbl">Profit dari HPP</div><div class="rs-ns" style="max-width:220px"><button type="button" data-h="pm:0" aria-label="kurangi profit">−</button><div class="val" id="pfVal"></div><button type="button" data-h="pp:0" aria-label="tambah profit">+</button></div><div class="sub" style="margin-top:8px">Harga jual (HPP + profit)</div><div id="sellList"></div></div></div>
+      <div id="profitWrap" style="margin-top:10px;border-top:1px dashed var(--gold);padding-top:10px"><div class="numlbl">Target profit (dari harga jual)</div><div class="rs-ns" style="max-width:220px"><button type="button" data-h="pm:0" aria-label="kurangi profit">−</button><div class="val" id="pfVal"></div><button type="button" data-h="pp:0" aria-label="tambah profit">+</button></div><div class="sub" style="margin-top:8px">Harga jual (HPP ÷ (1 − profit))</div><div id="sellList"></div></div></div>
     <div id="noteWrap" style="display:none"><label class="lb">Catatan</label><div id="noteV" class="notev"></div></div>
   </div>
   <div id="editR" style="display:none"></div>
@@ -1215,6 +1215,7 @@
       <button type="button" class="chili-sm" id="bhGoHist" style="background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark)">🕘 Riwayat</button>
     </div>
   </div>
+  <div class="hpl owner-only" id="bhPills" style="margin:12px 0 0"><button type="button" data-f="tarif" aria-pressed="false">Biaya dasar</button><button type="button" data-f="bahan" aria-pressed="false">Bahan</button></div>
   <div class="bcard" id="bhList"></div>
   <div style="height:18px"></div>
 </div></div>
@@ -5612,7 +5613,7 @@ const hppFull = R => { const t = totG(R.rows), g = R.hasil[0].g; return { b:biay
 const k = () => baseG(REC) > 0 ? S.jangkar/baseG(REC) : 1;
 const clone = o => JSON.parse(JSON.stringify(o));
 const reduce = matchMedia('(prefers-reduced-motion:reduce)').matches;
-let PROFIT = 30; try{ const pv0 = parseInt(localStorage.getItem('pos-profit-pct'), 10); if(pv0 >= 10 && pv0 <= 100) PROFIT = pv0; }catch(e){}
+let PROFIT = 30; try{ const pv0 = parseInt(localStorage.getItem('pos-profit-pct'), 10); if(pv0 >= 10) PROFIT = Math.min(90, pv0); }catch(e){}
 
 // ---------- indeks resep (tombol di Edit Menu Item) ----------
 async function rsIndex(force){
@@ -5772,9 +5773,9 @@ function drawResep(){
   if(own){ const bt = biaya(REC.rows)*kk + eTot(REC,kk), ref = hppFull(REC);
     const hp = S.h.map(x => used ? x.g*bt/used + packFor(REC,x.id) : 0);
     $('hppList').innerHTML = S.h.map((x,i)=>`<div class="hr"><span>${escapeHtml(nameOf(x.id))}</span><strong>${used?rupiah(hp[i])+' / pcs':'—'}</strong></div>`).join('');
-    $('pfVal').textContent = PROFIT + '%'; qs('[data-h="pm:0"]').classList.toggle('dis', PROFIT <= 10); qs('[data-h="pp:0"]').classList.toggle('dis', PROFIT >= 100);
-    $('sellList').innerHTML = S.h.map((x,i)=>`<div class="hr"><span>${escapeHtml(nameOf(x.id))}</span><strong>${used?rupiah(Math.round(hp[i]*(1+PROFIT/100)))+' / pcs':'—'}</strong></div>`).join('');
-    $('hppNote').textContent = `Biaya bahan + waktu & energi dibagi ke gram adonan yang jadi roti, jadi makin banyak pcs makin murah. Packaging per pcs. Acuan resep: ${rupiah(ref.b+ref.o+ref.k)} / pcs.` + (COST.gasKgJam ? '' : ' Biaya gas belum diisi, HPP belum lengkap.'); }
+    $('pfVal').textContent = PROFIT + '%'; qs('[data-h="pm:0"]').classList.toggle('dis', PROFIT <= 10); qs('[data-h="pp:0"]').classList.toggle('dis', PROFIT >= 90);
+    $('sellList').innerHTML = S.h.map((x,i)=>`<div class="hr"><span>${escapeHtml(nameOf(x.id))}</span><strong>${used?rupiah(Math.round(hp[i]/(1-PROFIT/100)))+' / pcs':'—'}</strong></div>`).join('');
+    $('hppNote').textContent = `Biaya bahan + waktu & energi dibagi ke gram adonan yang jadi roti, jadi makin banyak pcs makin murah. Packaging per pcs. Acuan resep: ${rupiah(ref.b+ref.o+ref.k)} / pcs.` + (COST.gasKgJam ? '' : ' Biaya gas belum diisi, HPP belum lengkap.') + (REC.rows.some(x => !(M(x.b).p > 0)) ? ' ⚠ Ada bahan yang belum ada harga, isi di Bahan.' : ''); }
   $('noteWrap').style.display = REC.note && REC.note.trim() ? '' : 'none'; $('noteV').textContent = REC.note || '';
   const over = sisa < -1e-6;
   $('btnProduksi').disabled = over || pcsAll === 0 || S.saving || rsHold;
@@ -5782,7 +5783,7 @@ function drawResep(){
 }
 function setJ(d){ const A = REC.anc, f = ancF(REC), n = Math.min(A.max*f, Math.max(A.min*f, S.jangkar + d*A.step*f)); if(n === S.jangkar) return; S.jangkar = n; drawResep(); }
 function hAct(a,i){ if(a==='jm'||a==='jp'){ setJ(a==='jm'?-1:1); return; }
-  if(a==='pm'||a==='pp'){ const np = Math.min(100, Math.max(10, PROFIT + (a==='pp'?5:-5))); if(np === PROFIT) return; PROFIT = np; try{ localStorage.setItem('pos-profit-pct', String(np)); }catch(e){} drawResep(); return; }
+  if(a==='pm'||a==='pp'){ const np = Math.min(90, Math.max(10, PROFIT + (a==='pp'?5:-5))); if(np === PROFIT) return; PROFIT = np; try{ localStorage.setItem('pos-profit-pct', String(np)); }catch(e){} drawResep(); return; }
   const r = S.h[i]; if(a==='gm'||a==='gp'){ r.g = Math.max(0, Math.round((r.g + (a==='gm'?-1:1))*10)/10); r.edited = false; } else { r.n = Math.max(0, r.n + (a==='nm'?-1:1)); r.edited = true; } drawResep(); }
 const stopHold = () => { clearTimeout(holdT); clearInterval(holdI); };
 $('resepM').addEventListener('pointerdown', e => { const b = e.target.closest('[data-h]'); if(!b) return; e.preventDefault(); stopHold(); const [a,i] = b.dataset.h.split(':'), fn = () => hAct(a,+i); fn(); holdT = setTimeout(()=>{ holdI = setInterval(fn,130); }, 380); });
@@ -5808,9 +5809,6 @@ function drawEditor(){
      return i===E.anc.i ? `<div class="ancbox" data-item>${row}<div class="sub" style="margin:2px 0 6px 2px">Jangkar: stepper di resep mengatur jumlah ini, bahan lain ikut.</div><div class="three">${F('Min ('+u+')','data-a="min"',E.anc.min)}${F('Maks ('+u+')','data-a="max"',E.anc.max)}${F('Langkah ('+u+')','data-a="step"',E.anc.step)}</div></div>` : `<div data-item>${row}</div>`; }) +
    `<button type="button" class="secondary" id="addB" style="margin:2px 0 0">+ Tambah bahan</button>${E.pemisah.length<3&&E.rows.length-1>E.pemisah.length?`<button type="button" class="secondary" data-addsep style="margin:6px 0 0">+ Pembatas (${E.pemisah.length}/3)</button>`:''}
    <div class="tr tot" style="border-radius:10px;margin-top:12px"><span>Total adonan</span><span id="edTot"></span></div>
-   <div class="owner-only"><label class="lb">Harga & berat bahan</label><div class="er hd" style="grid-template-columns:1fr 70px 96px"><span>Bahan</span><span>gr/butir</span><span>Rp/kg</span></div>` +
-   E.rows.map(r=>{ const m = M(r.b); return `<div class="er" style="grid-template-columns:1fr 70px 96px"><div style="font-size:14px;padding-top:9px" data-mpname="${r.b}">${escapeHtml(m.n||'(bahan baru)')}</div><input type="number" min="0" inputmode="decimal" data-mpcs="${r.b}" value="${m.pcs||''}" placeholder="—"><input type="number" min="0" inputmode="decimal" data-mp="${r.b}" value="${Math.round(m.p*1000)}"></div>`; }).join('') +
-   `<div class="hint">Harga per kg diisi di sini (Tahap 1); dari menu Beli baru di Tahap 2.</div></div>
    <label class="lb">Proofing (menit, info saja)</label>` +
    E.proof.map((x,i)=>`<div class="er" style="grid-template-columns:1fr 84px 34px">${inp('proof',i,'n',x.n,'tl')}${inp('proof',i,'mnt',x.mnt)}${rmb('proof',i)}</div>`).join('') + addBtn('proof','+ Tambah proofing') +
    `<label class="lb">Oven</label>` + hd('1fr 1fr 1fr 34px',['Atas °C','Bawah °C','Menit']) +
@@ -5834,7 +5832,7 @@ function updEd(skip){
   if(n0 && skip !== n0) n0.value = E.hasil[0].g > 0 ? Math.max(0, Math.floor((tot-oth)/E.hasil[0].g+1e-9)) : 0;
   const kp = E.proof.reduce((s,x)=>s+x.mnt,0), kpe = $('kProof'); if(kpe) kpe.textContent = kp;
   if(E.kerja == null){ const ki = qs('#editR [data-r="kerja"]'); if(ki && document.activeElement !== ki) ki.value = kp; }
-  const hh = $('edHpp'); if(hh && COST && tot > 0){ const h = hppFull(E); hh.textContent = rupiah(h.b+h.o+h.k) + ' / pcs (bahan ' + rupiah(h.b) + ' + waktu & energi ' + rupiah(h.o) + ' + packaging ' + rupiah(h.k) + ')'; }
+  const hh = $('edHpp'); if(hh && COST && tot > 0){ const h = hppFull(E), nol = E.rows.filter(r => !(M(r.b).p > 0)).length; hh.textContent = rupiah(h.b+h.o+h.k) + ' / pcs (bahan ' + rupiah(h.b) + ' + waktu & energi ' + rupiah(h.o) + ' + packaging ' + rupiah(h.k) + ')' + (nol ? ' · ⚠ ' + nol + ' bahan belum ada harga, isi di Bahan' : ''); }
 }
 const resetAnc = E => { const f = ancF(E), b = baseG(E)/f; E.anc.min = Math.max(1, Math.round(b*0.5)); E.anc.max = Math.round(b*1.5); E.anc.step = f > 1 ? 1 : 100; };
 function rmRow(i){ const E = S.edit; E.rows.splice(i,1); if(i === E.anc.i) E.anc.i = 0; else if(i < E.anc.i) E.anc.i--; E.pemisah = [...new Set(E.pemisah.map(p => i < p ? p-1 : p).filter(p => p >= 1 && p < E.rows.length))].sort((a,b)=>a-b); drawEditor(); }
@@ -5847,8 +5845,6 @@ $('editR').addEventListener('input', e => { const E = S.edit, t = e.target, d = 
   else if(d.sec){ E[d.sec][+d.i][d.k] = t.type === 'number' ? v : t.value; updEd(); }
   else if(d.g !== undefined){ const i = +d.g; E.rows[i].g = v; const pc = $('pc'+i); if(pc) pc.textContent = pcsTxt(E.rows[i].b, v); updEd(); }
   else if(d.c !== undefined){ COST[d.c] = v; updEd(); }
-  else if(d.mp !== undefined){ const m = MB[d.mp]; m.p = v/1000; m.dirty = true; updEd(); }
-  else if(d.mpcs !== undefined){ const m = MB[d.mpcs]; m.pcs = v > 0 ? v : null; m.dirty = true; }
   else if(d.r !== undefined){ if(d.r === 'kerja' && !$('kAuto')) t.closest('.two').children[1].innerHTML = '<button type="button" class="secondary" id="kAuto" style="margin:0;padding:11px 8px">↺ Otomatis</button>'; E.kerja = v; updEd(); }
   else if(d.a !== undefined){ E.anc[d.a] = v; } });
 $('editR').addEventListener('change', async e => { // salin resep lain ke resep baru: semua sama persis, kecuali hasil adonan (item hasil sudah dipakai resep sumber, jadi hanya baris pertama = item ini)
@@ -6082,7 +6078,7 @@ async function load(force, soft, silent){
   B = fromServer(l || []); loaded = Date.now();
 }
 // ---------- Biaya dasar (listrik, gas LPG, upah): satu harga universal untuk semua resep, diedit satu per satu ----------
-let T = null, tg = null, tarifSaving = false;
+let T = null, tg = null, tarifSaving = false, bhFilter = null;
 async function loadTarif(silent){ if(!isOwner()) return; const t = await apiGet('get_tarif', {}, silent ? {silent:true} : undefined); T = t; saveTarifCache(t); }
 const TARIF_DEF = {
   listrik:{ title:'Listrik', f:[['listrik_per_kwh','Listrik (Rp per kWh)','0.01'],['daya_ac_watt','Daya AC (watt)','1']] },
@@ -6090,14 +6086,14 @@ const TARIF_DEF = {
   upah:{ title:'Upah', f:[['upah_bulan','Upah per bulan (Rp)','1']] }
 };
 const nf = (v, d) => (+v || 0).toLocaleString('id-ID', {maximumFractionDigits: d == null ? 2 : d});
-function tarifHtml(){
+function tarifHtml(noBahan){
   if(!isOwner() || !T) return '';
   const row = (g, nm, sub, val) => `<div class="brow" data-tarif="${g}" tabindex="0" role="button" style="cursor:pointer"><div style="flex:1;min-width:0"><div class="nm">${nm}</div><div class="sub">${sub}</div></div><div style="text-align:right"><div class="st">${val}</div></div></div>`;
   return '<div class="bsec" style="margin-top:2px">Biaya dasar (dipakai semua resep)</div>'
     + row('listrik', 'Listrik', 'AC ' + nf(T.daya_ac_watt, 0) + ' W', rp(T.listrik_per_kwh) + '/kWh')
     + row('gas', 'Gas LPG', 'isi ' + nf(T.lpg_kg_per_tabung, 1) + ' kg · oven ' + nf(T.gas_kg_per_jam, 2) + ' kg/jam', rp(T.lpg_per_tabung) + '/tabung')
     + row('upah', 'Upah', '÷ ' + nf(T.upah_pembagi, 0) + ' = ' + rp(T.upah_bulan / (T.upah_pembagi || 1)) + '/jam', rp(T.upah_bulan) + '/bln')
-    + '<div class="bsec">Bahan</div>';
+    + (noBahan ? '' : '<div class="bsec">Bahan</div>');
 }
 function tarifHint(){
   const v = k => +((document.querySelector('#bhTarifBody [data-tk="' + k + '"]') || {}).value) || 0;
@@ -6136,8 +6132,11 @@ function rowHtml(b, cls){
 }
 function renderList(){
   chip();
+  const f = reorder ? null : bhFilter; $('bhPills').style.display = reorder ? 'none' : '';
+  document.querySelectorAll('#bhPills [data-f]').forEach(b => { const on = b.dataset.f === f; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+  if(f === 'tarif'){ $('bhList').innerHTML = tarifHtml(true) || '<div class="hint" style="padding:12px 0">Memuat biaya dasar…</div>'; return; }
   const q = reorder ? '' : $('bhQ').value.trim().toLowerCase(), L = q ? BH().filter(b => b.nama.toLowerCase().includes(q)) : B;
-  if(!L.length){ $('bhList').innerHTML = (q ? '' : tarifHtml()) + '<div class="hint" style="padding:12px 0">' + (q ? 'Tidak ada bahan yang cocok.' : 'Belum ada bahan. Tambah lewat ☰ → + Bahan.') + '</div>'; return; }
+  if(!L.length){ $('bhList').innerHTML = (q || f ? '' : tarifHtml()) + '<div class="hint" style="padding:12px 0">' + (q ? 'Tidak ada bahan yang cocok.' : 'Belum ada bahan. Tambah lewat ☰ → + Bahan.') + '</div>'; return; }
   if(reorder){
     $('bhList').innerHTML = L.map((b, i) => b.sep
       ? `<div class="brow sepr" data-k="${b.id}"><button type="button" class="grip" aria-label="Geser garis">≡</button><div style="flex:1;border-top:2px solid #cfc7b8"></div><span class="sub" style="margin-left:8px">garis</span><button type="button" class="brm" data-rm="${b.id}" aria-label="Hapus garis">✕</button></div>`
@@ -6147,10 +6146,10 @@ function renderList(){
   const R = []; let top = false;
   L.forEach(b => { if(b.sep){ if(R.length) R[R.length-1].sa = 1; else top = true; return; } R.push({b}); });
   if(top && R.length) R[0].sb = 1;
-  $('bhList').innerHTML = (q ? '' : tarifHtml()) + R.map(r => rowHtml(r.b, (r.sa ? ' sepa' : '') + (r.sb ? ' sepb' : ''))).join('');
+  $('bhList').innerHTML = (q || f ? '' : tarifHtml()) + R.map(r => rowHtml(r.b, (r.sa ? ' sepa' : '') + (r.sb ? ' sepb' : ''))).join('');
 }
 function setReorder(on){
-  reorder = on; const bb = $('bhBurger'); bb.textContent = on ? '✓' : '☰'; bb.classList.toggle('done', on); bb.setAttribute('aria-label', on ? 'Selesai atur posisi' : 'Menu bahan');
+  reorder = on; if(on) bhFilter = null; const bb = $('bhBurger'); bb.textContent = on ? '✓' : '☰'; bb.classList.toggle('done', on); bb.setAttribute('aria-label', on ? 'Selesai atur posisi' : 'Menu bahan');
   $('bhQ').style.display = on ? 'none' : ''; $('bhRmBar').style.display = on ? 'flex' : 'none'; $('bhHam').classList.remove('on'); renderList();
 }
 // urutan disimpan sekali saat ✓ / sheet ditutup. Garis di paling atas dan garis berurutan dibuang (model server: garis = "di bawah bahan ini").
@@ -6213,7 +6212,7 @@ async function openBahan(){
   const c = loadBahanCache();
   B = c ? fromServer(c) : [];
   T = isOwner() ? loadTarifCache() : null;
-  applyRole(); $('bhQ').value = ''; reorder = false; setReorder(false);
+  applyRole(); $('bhQ').value = ''; bhFilter = null; reorder = false; setReorder(false);
   if(!c) $('bhList').innerHTML = '<div class="hint" style="padding:12px 0">Memuat bahan…</div>';
   openM('bhM', bahanUndo);
   try{ await Promise.all([load(true, true, !!c), isOwner() ? loadTarif(!!T).catch(() => {}) : null]); if(!$('bhM').classList.contains('hidden') && !reorder) renderList(); }
@@ -6598,6 +6597,7 @@ $('bhX').onclick = () => kembaliLayar(); $('bhItemX').onclick = () => kembaliLay
 $('bhLanjut').onclick = () => kembaliLayar();
 $('bhBuang').onclick = () => { dirty[$('bhDiscM').dataset.t] = false; pendingDiscard = true; kembaliLayar(); };
 $('bhQ').addEventListener('input', renderList);
+$('bhPills').onclick = e => { const b = e.target.closest('[data-f]'); if(!b) return; bhFilter = bhFilter === b.dataset.f ? null : b.dataset.f; renderList(); };
 $('bhBurger').onclick = () => { if(reorder){ finishReorder(); return; } const h = $('bhHam'); h.classList.toggle('on'); $('bhBurger').setAttribute('aria-expanded', h.classList.contains('on')); };
 document.addEventListener('click', e => { if(!e.target.closest('#bhBurger') && !e.target.closest('#bhHam')) $('bhHam').classList.remove('on'); });
 $('bhGoNew').onclick = () => { $('bhHam').classList.remove('on'); openItem(null); };
