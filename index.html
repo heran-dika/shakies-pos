@@ -1203,19 +1203,19 @@
 </div></div>
 <!-- ===== Sheet Bahan (Tahap 2) ===== -->
 <div class="modal-overlay hidden" id="bhM"><div class="modal-sheet bh">
-  <div class="sheet-head"><h3>Bahan</h3><button type="button" class="x" id="bhX" aria-label="Tutup">✕</button></div>
+  <div class="sheet-head"><div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;min-width:0"><h3>Bahan</h3><div class="hpl owner-only" id="bhPills" style="margin:0"><button type="button" data-f="tarif" aria-pressed="false">Biaya dasar</button><button type="button" data-f="bahan" aria-pressed="false">Bahan</button><button type="button" data-f="pack" aria-pressed="false">Packaging</button></div></div><button type="button" class="x" id="bhX" aria-label="Tutup">✕</button></div>
   <div class="bbar">
     <input class="bfi" id="bhQ" type="search" placeholder="Cari bahan…" aria-label="Cari bahan">
     <div id="bhRmBar" style="flex:1;display:none;align-items:center;justify-content:space-between;gap:8px"><span class="hint" style="margin:0">Seret ≡ untuk geser</span><button type="button" class="chili-sm" id="bhAddSep" style="background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark)">+ Garis</button></div>
     <button type="button" class="bib" id="bhBurger" aria-label="Menu bahan" aria-expanded="false">☰</button>
     <div class="bham" id="bhHam">
       <button type="button" class="chili-sm owner-only" id="bhGoNew" style="background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark)">+ Bahan</button>
+      <button type="button" class="chili-sm owner-only" id="bhGoPack" style="background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark)">+ Packaging</button>
       <button type="button" class="chili-sm owner-only" id="bhGoStok" style="background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark)">+ Stok</button>
       <button type="button" class="chili-sm owner-only" id="bhGoReord" style="background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark)">↕ Atur posisi</button>
       <button type="button" class="chili-sm" id="bhGoHist" style="background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark)">🕘 Riwayat</button>
     </div>
   </div>
-  <div class="hpl owner-only" id="bhPills" style="margin:12px 0 0"><button type="button" data-f="tarif" aria-pressed="false">Biaya dasar</button><button type="button" data-f="bahan" aria-pressed="false">Bahan</button></div>
   <div class="bcard" id="bhList"></div>
   <div style="height:18px"></div>
 </div></div>
@@ -5602,7 +5602,7 @@ const kerjaMnt = R => R.kerja == null ? R.proof.reduce((s,x)=>s+x.mnt,0) : R.ker
 const ovenTot = R => R.oven.reduce((s,x)=>s+x.mnt,0);
 const pcsTxt = (b,g) => { const m = M(b); return m.pcs && g > 0 ? '≈ ' + String(Math.round(g/m.pcs*2)/2).replace('.',',') + ' butir' : ''; };
 const nameOf = id => { const it = menuItems.find(m=>m.item_id===id); return it ? it.nama : id; };
-const packFor = (R,id) => R.pack.filter(x=>x.u==='all'||x.u===id).reduce((s,x)=>s+x.p,0);
+const packFor = (R,id) => R.pack.filter(x=>x.u==='all'||x.u===id).reduce((s,x)=>s+x.p*(x.q||1),0);
 const eRows = (R,kk) => [
   { n:'Tenaga kerja', mnt:kerjaMnt(R)*kk, jam:COST.upah/COST.pembagi },
   { n:'Listrik AC', mnt:kerjaMnt(R)*kk, jam:COST.watt/1000*COST.listrik },
@@ -5613,7 +5613,7 @@ const hppFull = R => { const t = totG(R.rows), g = R.hasil[0].g; return { b:biay
 const k = () => baseG(REC) > 0 ? S.jangkar/baseG(REC) : 1;
 const clone = o => JSON.parse(JSON.stringify(o));
 const reduce = matchMedia('(prefers-reduced-motion:reduce)').matches;
-let PROFIT = 30; try{ const pv0 = parseInt(localStorage.getItem('pos-profit-pct'), 10); if(pv0 >= 10) PROFIT = Math.min(90, pv0); }catch(e){}
+let PROFIT = 50; try{ const pv0 = parseInt(localStorage.getItem('pos-profit-pct'), 10); if(pv0 >= 10) PROFIT = Math.min(90, pv0); }catch(e){}
 
 // ---------- indeks resep (tombol di Edit Menu Item) ----------
 async function rsIndex(force){
@@ -5645,14 +5645,14 @@ async function setupEditButton(item){
 }
 
 // ---------- muat resep dari server ----------
-function mkMaster(list){ MB = {}; list.forEach(b => MB[b.id] = { id:b.id, n:b.nama, p:(b.harga_per_kg||0)/1000, pcs:b.berat_per_butir_dg ? b.berat_per_butir_dg/10 : null, amb:b.ambang_habis_dg, dirty:false }); }
+function mkMaster(list){ MB = {}; list.forEach(b => MB[b.id] = { id:b.id, n:b.nama, p:(b.harga_per_kg||0)/1000, pcs:b.berat_per_butir_dg ? b.berat_per_butir_dg/10 : null, amb:b.ambang_habis_dg, kat:b.kategori || 'bahan', dirty:false }); }
 function fromServer(r){
   const rows = r.bahan.map(x => ({ b:x.bahan_id, g:x.qty_dg/10 }));
   let ai = rows.findIndex(x => x.b === r.jangkar.bahan_id); if(ai < 0) ai = 0;
   const f = M(rows[ai].b).pcs || 1;
   return { item_id:r.item_id, resep_id:r.resep_id, versi:r.versi, rows, anc:{ i:ai, min:r.jangkar.min_dg/10/f, max:r.jangkar.max_dg/10/f, step:r.jangkar.step_dg/10/f },
     proof:r.proofing.map(x=>({n:x.n,mnt:x.mnt})), oven:r.oven.map(x=>({atas:x.atas,bawah:x.bawah,mnt:x.mnt})),
-    pack:r.packaging.map(x=>({ n:x.n, p:x.p||0, u:x.u })), note:r.catatan||'', kerja:r.kerja_mnt, pemisah:Array.isArray(r.pemisah) ? r.pemisah.slice() : (r.pemisah_setelah ? [r.pemisah_setelah] : []),
+    pack:r.packaging.map(x=>({ n:x.n, p:x.p||0, u:x.u, b:x.b==null ? null : String(x.b), q:x.q||1 })), note:r.catatan||'', kerja:r.kerja_mnt, pemisah:Array.isArray(r.pemisah) ? r.pemisah.slice() : (r.pemisah_setelah ? [r.pemisah_setelah] : []),
     hasil:r.hasil.map(h=>({ id:h.item_id, g:h.gramasi_dg/10, n:h.jumlah_bawaan })) };
 }
 function blankRec(itemId){
@@ -5762,8 +5762,8 @@ function drawResep(){
   if(own) $('enr').innerHTML = eRows(REC,kk).map(x=>`<div class="tr e"><span>${x.n}<em>${Math.round(x.mnt)} mnt · ${x.kosong?'belum diisi':rupiah(x.jam)+'/jam'}${x.dari?' · dari oven':''}</em></span><span>${x.kosong?'—':rupiah(x.c)}</span></div>`).join('') + `<div class="tr e tot"><span>Total waktu & energi</span><span>${rupiah(eTot(REC,kk))}</span></div>`;
   const npcs = x => S.h.filter(y=>x.u==='all'||x.u===y.id).reduce((s,y)=>s+y.n,0), multi = S.h.length > 1;
   $('pkWrap').style.display = REC.pack.length ? '' : 'none';
-  $('pk').innerHTML = REC.pack.map(x=>`<div class="tr e"><span>${escapeHtml(x.n)}${multi&&x.u!=='all'?` <small>(${escapeHtml(nameOf(x.u))})</small>`:''}<em class="owner-only">× ${npcs(x)} pcs = ${rupiah(x.p*npcs(x))}</em></span><span class="owner-only">${rupiah(x.p)}/pcs</span></div>`).join('') +
-    `<div class="tr e tot owner-only"><span>Total packaging</span><span>${rupiah(REC.pack.reduce((s,x)=>s+x.p*npcs(x),0))}</span></div>`;
+  $('pk').innerHTML = REC.pack.map(x=>`<div class="tr e"><span>${escapeHtml(x.n)}${multi&&x.u!=='all'?` <small>(${escapeHtml(nameOf(x.u))})</small>`:''}<em class="owner-only">× ${npcs(x)*(x.q||1)} pcs = ${rupiah(x.p*(x.q||1)*npcs(x))}</em></span><span class="owner-only">${rupiah(x.p)}/pcs</span></div>`).join('') +
+    `<div class="tr e tot owner-only"><span>Total packaging</span><span>${rupiah(REC.pack.reduce((s,x)=>s+x.p*(x.q||1)*npcs(x),0))}</span></div>`;
   const hv = $('hasilV'), key = S.h.map(x=>x.id).join();
   if(hv.dataset.key !== key){ hv.dataset.key = key; hv.innerHTML = S.h.map((x,i)=>`<div style="margin-bottom:10px"><div class="numlbl" style="color:var(--ink);font-weight:700">${escapeHtml(nameOf(x.id))}</div><div class="two"><div><div class="numlbl">Gramasi per roti (mentah)</div><div class="rs-ns"><button type="button" data-h="gm:${i}">−</button><div class="val" id="hg${i}"></div><button type="button" data-h="gp:${i}">+</button></div></div><div><div class="numlbl">Jumlah jadi (layak jual)</div><div class="rs-ns"><button type="button" data-h="nm:${i}">−</button><div class="val" id="hn${i}"></div><button type="button" data-h="np:${i}">+</button></div></div></div></div>`).join(''); }
   S.h.forEach((x,i) => { $('hg'+i).textContent = dF(x.g) + ' gr'; $('hn'+i).textContent = x.n + ' pcs'; });
@@ -5794,6 +5794,8 @@ $('resepM').addEventListener('contextmenu', e => { if(e.target.closest('[data-h]
 const inp = (sec,i,key,v,cls,step) => `<input class="${cls||''}" data-sec="${sec}" data-i="${i}" data-k="${key}" ${cls==='tl'?'type="text"':`type="number" min="0" inputmode="decimal" step="${step||1}"`} value="${escapeHtml(String(v))}">`;
 const rmb = (sec,i) => `<button type="button" class="rm" data-del="${sec}:${i}" aria-label="hapus">✕</button>`;
 const addBtn = (sec,t) => `<button type="button" class="secondary" data-add="${sec}" style="margin:2px 0 0">${t}</button>`;
+const PK = () => Object.values(MB).filter(m => m.kat === 'packaging');
+const pkRow = (x,i,multi,E) => `<div class="er" style="grid-template-columns:${multi?'1fr 58px 96px 34px':'1fr 70px 34px'}"><select data-sec="pack" data-i="${i}" data-k="b" aria-label="Packaging"><option value="">Pilih packaging…</option>${PK().map(m=>`<option value="${m.id}" ${String(x.b)===String(m.id)?'selected':''}>${escapeHtml(m.n)}</option>`).join('')}</select>${inp('pack',i,'q',x.q||1,'',1)}${multi?`<select data-sec="pack" data-i="${i}" data-k="u"><option value="all" ${x.u==='all'?'selected':''}>Semua ukuran</option>${E.hasil.map(y=>`<option value="${y.id}" ${x.u===y.id?'selected':''}>${escapeHtml(nameOf(y.id))}</option>`).join('')}</select>`:''}${rmb('pack',i)}</div>`;
 const hd = (cols,ls) => `<div class="er hd" style="grid-template-columns:${cols}">${ls.map(l=>`<span>${l}</span>`).join('')}<span></span></div>`;
 const F = (l,a,v,s) => `<div><div class="numlbl">${l}</div><input class="plain" type="number" min="0" inputmode="decimal" step="${s||1}" ${a} value="${v}"></div>`;
 const sepHtml = k => `<div class="sepE" data-item><button type="button" class="grip" data-grip="s${k}" aria-label="geser pembatas">⠿</button><span></span><button type="button" class="rm" data-sepx="${k}" aria-label="hapus pembatas">✕</button></div>`;
@@ -5804,7 +5806,7 @@ function drawEditor(){
   const emTxt = i => pcsTxt(E.rows[i].b, E.rows[i].g);
   const cpOpts = !E.resep_id && idxCache ? [...new Map(Object.values(idxCache).filter(x => x.item_utama_id !== E.item_id).map(x => [x.item_utama_id, x.item_utama_id])).values()].map(id => ({id, n:nameOf(id)})).sort((a,b) => a.n.localeCompare(b.n, 'id')) : [];
   $('editR').innerHTML = (cpOpts.length ? `<select id="cpSel" class="plain" style="text-align:left;font-family:inherit;margin:0 0 10px"><option value="">📋 Salin dari resep lain…</option>${cpOpts.map(o=>`<option value="${o.id}">${escapeHtml(o.n)}</option>`).join('')}</select>` : '') + `<div class="hint" style="margin:0 0 10px">Takaran untuk ${escapeHtml(baseLbl(E))}. Bahan lain ikut menyesuaikan saat produksi. Geser ⠿ untuk memindah baris; ⋯ untuk jadikan jangkar atau hapus.</div>` +
-   edRows(E,(r,i)=>{ const m = M(r.b), opts = Object.values(MB).filter(x=>!x.isNew && (x.id===r.b || !used.includes(x.id)));
+   edRows(E,(r,i)=>{ const m = M(r.b), opts = Object.values(MB).filter(x=>!x.isNew && x.kat!=='packaging' && (x.id===r.b || !used.includes(x.id)));
      const row = `<div class="er" style="grid-template-columns:28px 1fr 104px 34px"><button type="button" class="grip" data-grip="${i}" aria-label="geser">⠿</button><div>${m.isNew ? `<input class="tl" data-nb="${i}" placeholder="Nama bahan baru" value="${escapeHtml(m.n)}">` : `<select data-i="${i}">${opts.map(x=>`<option value="${x.id}" ${x.id===r.b?'selected':''}>${escapeHtml(x.n)}</option>`).join('')}<option value="__new">＋ Bahan baru…</option></select><em id="pc${i}">${emTxt(i)}</em>`}</div><input type="number" min="0" inputmode="decimal" step="0.1" data-g="${i}" value="${r.g}"><button type="button" class="more" data-more="${i}" aria-label="menu bahan">⋯</button></div>`;
      return i===E.anc.i ? `<div class="ancbox" data-item>${row}<div class="sub" style="margin:2px 0 6px 2px">Jangkar: stepper di resep mengatur jumlah ini, bahan lain ikut.</div><div class="three">${F('Min ('+u+')','data-a="min"',E.anc.min)}${F('Maks ('+u+')','data-a="max"',E.anc.max)}${F('Langkah ('+u+')','data-a="step"',E.anc.step)}</div></div>` : `<div data-item>${row}</div>`; }) +
    `<button type="button" class="secondary" id="addB" style="margin:2px 0 0">+ Tambah bahan</button>${E.pemisah.length<3&&E.rows.length-1>E.pemisah.length?`<button type="button" class="secondary" data-addsep style="margin:6px 0 0">+ Pembatas (${E.pemisah.length}/3)</button>`:''}
@@ -5813,8 +5815,8 @@ function drawEditor(){
    E.proof.map((x,i)=>`<div class="er" style="grid-template-columns:1fr 84px 34px">${inp('proof',i,'n',x.n,'tl')}${inp('proof',i,'mnt',x.mnt)}${rmb('proof',i)}</div>`).join('') + addBtn('proof','+ Tambah proofing') +
    `<label class="lb">Oven</label>` + hd('1fr 1fr 1fr 34px',['Atas °C','Bawah °C','Menit']) +
    E.oven.map((x,i)=>`<div class="er" style="grid-template-columns:1fr 1fr 1fr 34px">${inp('oven',i,'atas',x.atas)}${inp('oven',i,'bawah',x.bawah)}${inp('oven',i,'mnt',x.mnt)}${rmb('oven',i)}</div>`).join('') + addBtn('oven','+ Tambah oven') +
-   `<label class="lb">Packaging (Rp per pcs)</label>` +
-   E.pack.map((x,i)=>`<div class="er" style="grid-template-columns:${multi?'1fr 70px 96px 34px':'1fr 104px 34px'}">${inp('pack',i,'n',x.n,'tl')}${inp('pack',i,'p',x.p)}${multi?`<select data-sec="pack" data-i="${i}" data-k="u"><option value="all" ${x.u==='all'?'selected':''}>Semua ukuran</option>${E.hasil.map(y=>`<option value="${y.id}" ${x.u===y.id?'selected':''}>${escapeHtml(nameOf(y.id))}</option>`).join('')}</select>`:''}${rmb('pack',i)}</div>`).join('') + addBtn('pack','+ Tambah packaging') +
+   `<label class="lb">Packaging (pcs per roti, stok ikut berkurang)</label>` +
+   E.pack.map((x,i)=>x.b != null ? pkRow(x,i,multi,E) : `<div class="er" style="grid-template-columns:${multi?'1fr 70px 96px 34px':'1fr 104px 34px'}">${inp('pack',i,'n',x.n,'tl')}${inp('pack',i,'p',x.p)}${multi?`<select data-sec="pack" data-i="${i}" data-k="u"><option value="all" ${x.u==='all'?'selected':''}>Semua ukuran</option>${E.hasil.map(y=>`<option value="${y.id}" ${x.u===y.id?'selected':''}>${escapeHtml(nameOf(y.id))}</option>`).join('')}</select>`:''}${rmb('pack',i)}</div>`).join('') + (PK().length ? '' : `<div class="hint">Belum ada packaging. Tambah dulu di Bahan: ☰ → + Packaging.</div>`) + addBtn('pack','+ Tambah packaging') +
    `<div class="owner-only"><label class="lb">Bahan utama non-stok (harga bisa diedit)</label>
    <div class="two">${F('Waktu pengerjaan (menit)','data-r="kerja"',kerjaMnt(E))}<div style="align-self:end">${E.kerja==null?'<span class="sub">otomatis = total proofing</span>':'<button type="button" class="secondary" id="kAuto" style="margin:0;padding:11px 8px">↺ Otomatis</button>'}</div></div>
    <div class="hint">Bawaan = total waktu proofing (<span id="kProof"></span> mnt). Ketik angka sendiri kalau beda, biasanya proofing + 30–45 mnt. Ikut ukuran adonan; menentukan upah dan listrik AC. Gas dihitung dari total menit oven.</div>
@@ -5873,8 +5875,8 @@ $('editR').addEventListener('click', e => { const E = S.edit; if(!E) return; con
   if(t.closest('[data-addsep]')){ const free = []; for(let q = 1; q < E.rows.length; q++) if(!E.pemisah.includes(q)) free.push(q); if(free.length && E.pemisah.length < 3){ E.pemisah.push(free[free.length-1]); E.pemisah.sort((a,b)=>a-b); } drawEditor(); return; }
   if(t.id === 'kAuto'){ E.kerja = null; drawEditor(); return; }
   const del = t.closest('[data-del]'); if(del){ const [s,i] = del.dataset.del.split(':'), gone = E[s].splice(+i,1)[0]; if(s === 'hasil') E.pack.forEach(p => { if(p.u === gone.id) p.u = 'all'; }); drawEditor(); return; }
-  const ad = t.closest('[data-add]'); if(ad){ const s = ad.dataset.add; E[s].push(s==='proof'?{n:'Proofing',mnt:0}:s==='oven'?{atas:180,bawah:180,mnt:0}:s==='pack'?{n:'Packaging baru',p:0,u:'all'}:{ id:(stokable(E)[0]||{}).item_id, g:30, n:0 }); drawEditor(); return; }
-  if(t.id === 'addB'){ const free = Object.values(MB).find(x=>!x.isNew && !E.rows.some(r=>r.b===x.id)); if(free){ E.rows.push({ b:free.id, g:0 }); } else { const tid = --tempId; MB[tid] = { id:null, tid, n:'', p:0, pcs:null, amb:null, dirty:true, isNew:true }; E.rows.push({ b:tid, g:0 }); } drawEditor(); } });
+  const ad = t.closest('[data-add]'); if(ad){ const s = ad.dataset.add; E[s].push(s==='proof'?{n:'Proofing',mnt:0}:s==='oven'?{atas:180,bawah:180,mnt:0}:s==='pack'?{b:'',q:1,u:'all'}:{ id:(stokable(E)[0]||{}).item_id, g:30, n:0 }); drawEditor(); return; }
+  if(t.id === 'addB'){ const free = Object.values(MB).find(x=>!x.isNew && x.kat!=='packaging' && !E.rows.some(r=>r.b===x.id)); if(free){ E.rows.push({ b:free.id, g:0 }); } else { const tid = --tempId; MB[tid] = { id:null, tid, n:'', p:0, pcs:null, amb:null, dirty:true, isNew:true }; E.rows.push({ b:tid, g:0 }); } drawEditor(); } });
 // menu ⋯ per baris + geser (grip)
 const rowMenu = $('rsRowMenu');
 function openRowMenu(btn,i){ const E = S.edit, r = btn.getBoundingClientRect();
@@ -5904,6 +5906,7 @@ async function saveResep(){
   if(!E.rows.length) return showToast('Resep butuh minimal 1 bahan.');
   if(E.rows.some(r => !M(r.b).n.trim())) return showToast('Ada bahan baru yang namanya masih kosong.');
   if(baseG(E) <= 0) return showToast('Takaran bahan jangkar harus lebih dari 0.');
+  if(E.pack.some(x => x.b === '')) return showToast('Ada packaging yang belum dipilih.');
   btn.disabled = true; btn.textContent = 'Menyimpan…';
   try{
     const idOf = {}; // id sementara -> id server
@@ -5917,7 +5920,7 @@ async function saveResep(){
     const fa = (MB[E.rows[E.anc.i].b] || {}).pcs || 1;
     await apiPost('save_resep', { item_id:E.item_id, versi:E.versi, jangkar_bahan_id:real(E.rows[E.anc.i].b),
       jangkar_min_dg:Math.round(E.anc.min*fa*10), jangkar_max_dg:Math.round(E.anc.max*fa*10), jangkar_step_dg:Math.round(E.anc.step*fa*10),
-      kerja_mnt:E.kerja == null ? null : Math.round(E.kerja), proofing:E.proof, oven:E.oven, packaging:E.pack, catatan:E.note || '', pemisah:E.pemisah,
+      kerja_mnt:E.kerja == null ? null : Math.round(E.kerja), proofing:E.proof, oven:E.oven, packaging:E.pack.map(x => x.b == null ? {n:x.n, p:x.p, u:x.u} : {b:+x.b, q:Math.max(1, Math.round(+x.q || 1)), u:x.u}), catatan:E.note || '', pemisah:E.pemisah,
       bahan:E.rows.map(r=>({ bahan_id:real(r.b), qty_dg:Math.round(r.g*10) })), hasil:E.hasil.map(h=>({ item_id:h.id, gramasi_dg:Math.round(h.g*10), jumlah_bawaan:h.n||0 })) });
     idxCache = null; saveResepCache({ index:null }); showToast('Resep disimpan ✓');
     const itemId = E.item_id; S.edit = null; // muat ulang dari server supaya id & versi benar
@@ -5935,6 +5938,7 @@ async function saveResep(){
 function askProduksi(){
   const kk = k();
   $('confBody').innerHTML = `<div style="margin-bottom:6px;font-weight:600">Kurangi bahan</div>` + REC.rows.map((x,ix)=>`<div class="row"><span>${escapeHtml(M(x.b).n)}</span><span>−${f1(x.g*kk)}</span></div>` + (REC.pemisah.includes(ix+1)&&ix<REC.rows.length-1?'<div class="sep" style="margin:4px 0"></div>':'')).join('') +
+    (REC.pack.some(x=>x.b!=null) ? `<div style="margin:12px 0 6px;font-weight:600">Kurangi packaging</div>` + REC.pack.filter(x=>x.b!=null).map(x=>{ const n = S.h.filter(y=>x.u==='all'||x.u===y.id).reduce((a,y)=>a+y.n,0)*(x.q||1); return n>0 ? `<div class="row"><span>${escapeHtml(x.n)}</span><span>−${n} pcs</span></div>` : ''; }).join('') : '') +
     `<div style="margin:12px 0 6px;font-weight:600">Tambah stok</div>` + S.h.filter(x=>x.n>0).map(x=>{ const it = menuItems.find(m=>m.item_id===x.id), from = it ? (it.stok||0) : 0; return `<div class="row"><span>${escapeHtml(nameOf(x.id))}</span><span>${it&&it.unlimited?'unlimited':from+' → '+(from+x.n)+' (+'+x.n+')'}</span></div>`; }).join('');
   S.cid = S.cid || crypto.randomUUID(); // sekali per konfirmasi; dipakai ulang buat retry (idempotensi server)
   $('btnSimpan').disabled = false; $('btnSimpan').textContent = 'Simpan produksi'; open('resepConfM', () => close('resepConfM'));
@@ -6009,7 +6013,7 @@ $('rsOcrFile').onchange = async e => {
     if(E.rows.length === 1 && M(E.rows[0].b).isNew && !M(E.rows[0].b).n.trim()){ delete MB[E.rows[0].b]; E.rows = []; E.anc.i = 0; }
     let tambah = 0, lewat = 0;
     list.forEach(x => {
-      const nm = String(x.nama).trim(), ada = Object.values(MB).find(m => !m.isNew && norm(m.n) === norm(nm)) || Object.values(MB).find(m => m.isNew && norm(m.n) === norm(nm));
+      const nm = String(x.nama).trim(), ada = Object.values(MB).find(m => !m.isNew && m.kat !== 'packaging' && norm(m.n) === norm(nm)) || Object.values(MB).find(m => m.isNew && norm(m.n) === norm(nm));
       const bid = ada ? (ada.isNew ? ada.tid : ada.id) : null;
       if(bid != null && E.rows.some(r => r.b === bid)){ lewat++; return; }
       if(bid != null) E.rows.push({ b:bid, g:+x.gram });
@@ -6048,6 +6052,12 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':
 const fc = dg => (dg/10).toLocaleString('id-ID', {maximumFractionDigits:1}) + ' gr';
 const f  = dg => (dg/10).toLocaleString('id-ID', {minimumFractionDigits:1, maximumFractionDigits:1}) + ' gr';
 const rp = n => 'Rp ' + Math.round(n).toLocaleString('id-ID');
+const rpp = n => 'Rp ' + (+n || 0).toLocaleString('id-ID', {maximumFractionDigits:2});
+const isPk = b => !!b && b.kat === 'packaging'; // packaging disimpan 1 pcs = 1 gr (10 dg); layar selalu pcs
+const fcb = (b, dg) => isPk(b) ? Math.round(dg / 10).toLocaleString('id-ID') + ' pcs' : fc(dg);
+const fb = (b, dg) => isPk(b) ? fcb(b, dg) : f(dg);
+const pu = (b, n) => isPk(b) ? rpp(n / 1000) + '/pcs' : rp(n) + '/kg';
+const perU = (b, tot, gr) => isPk(b) ? rpp(tot / gr) + '/pcs' : rp(tot / (gr / 1000)) + '/kg';
 function tgl(iso){ if(!iso) return '–'; const p = new Intl.DateTimeFormat('en-GB', {timeZone:'Asia/Jakarta', day:'numeric', month:'numeric', year:'2-digit'}).formatToParts(new Date(iso)); const g = t => p.find(x => x.type === t).value; return g('day') + ' ' + BLN[+g('month') - 1] + " '" + g('year'); }
 const dayKey = iso => new Date(iso).toLocaleDateString('sv-SE', {timeZone:'Asia/Jakarta'});
 const jam = iso => new Date(iso).toLocaleTimeString('id-ID', {timeZone:'Asia/Jakarta', hour:'2-digit', minute:'2-digit', hour12:false});
@@ -6066,7 +6076,7 @@ const byId = id => B.find(b => !b.sep && String(b.id) === String(id));
 function fromServer(list){
   const out = [];
   list.forEach(x => {
-    out.push({id:x.id, nama:x.nama, butir:x.berat_per_butir_dg, harga:x.harga_per_kg || 0, stok:x.opname_at ? x.stok_dg : null, need:x.need_dg || null, prod:x.produksi_at || null, olh:x.olahan || null, rend:x.rendemen_pct || 100, amb:x.ambang_habis_dg || null, ht:x.harga_terakhir || null, pk:x.harga_input || null});
+    out.push({id:x.id, nama:x.nama, butir:x.berat_per_butir_dg, harga:x.harga_per_kg || 0, stok:x.opname_at ? x.stok_dg : null, need:x.need_dg || null, prod:x.produksi_at || null, olh:x.olahan || null, rend:x.rendemen_pct || 100, amb:x.ambang_habis_dg || null, ht:x.harga_terakhir || null, pk:x.harga_input || null, kat:x.kategori || 'bahan'});
     if(x.pemisah_setelah) out.push({sep:1, id:'s' + x.id});
   });
   return out;
@@ -6078,7 +6088,7 @@ async function load(force, soft, silent){
   B = fromServer(l || []); loaded = Date.now();
 }
 // ---------- Biaya dasar (listrik, gas LPG, upah): satu harga universal untuk semua resep, diedit satu per satu ----------
-let T = null, tg = null, tarifSaving = false, bhFilter = null;
+let T = null, tg = null, tarifSaving = false, bhFilter = null, curKat = 'bahan';
 async function loadTarif(silent){ if(!isOwner()) return; const t = await apiGet('get_tarif', {}, silent ? {silent:true} : undefined); T = t; saveTarifCache(t); }
 const TARIF_DEF = {
   listrik:{ title:'Listrik', f:[['listrik_per_kwh','Listrik (Rp per kWh)','0.01'],['daya_ac_watt','Daya AC (watt)','1']] },
@@ -6122,13 +6132,13 @@ function chip(){
 // jadi tanpa ini form edit selalu tampil "per 1 kg" dan angka struk (mis. 10 kg = Rp 861.470) hilang.
 // Input harga terakhir (Rp, berat, satuan) datang dari server (harga_riwayat); hanya dipakai kalau harga sistem belum berubah sejak itu.
 const pkgOf = b => { const p = b.pk; return p && p.h > 0 && p.b > 0 && (p.s === 'kg' || p.s === 'gr') ? p : null; };
-const hargaTxt = b => { const p = pkgOf(b); return p && p.s === 'gr' ? 'Rp ' + (b.harga / 1000).toLocaleString('id-ID', {maximumFractionDigits:2}) + '/gr' : rp(b.harga) + '/kg'; };
+const hargaTxt = b => { if(isPk(b)) return pu(b, b.harga); const p = pkgOf(b); return p && p.s === 'gr' ? 'Rp ' + (b.harga / 1000).toLocaleString('id-ID', {maximumFractionDigits:2}) + '/gr' : rp(b.harga) + '/kg'; };
 function rowHtml(b, cls){
   const s = status(b), bt = b.butir && b.stok != null ? '≈ ' + (Math.round(b.stok / b.butir * 2) / 2).toLocaleString('id-ID') + ' butir' : '';
   return `<div class="brow${cls||''}" data-k="${b.id}" ${reorder ? '' : `data-edit="${b.id}" tabindex="0" role="button" style="cursor:pointer"`}>
     ${reorder ? `<button type="button" class="grip" aria-label="Geser ${esc(b.nama)}">≡</button>` : ''}
     <div style="flex:1;min-width:0"><div class="nm">${esc(b.nama)}${b.olh ? ' <span class="bp bp-jade" style="margin:0 0 0 4px">olahan</span>' : ''}</div><div class="sub">${esc(tgl(b.prod))}${isOwner() ? ' · ' + hargaTxt(b) : ''}</div>${s ? `<span class="bp ${s.c}">${s.t}</span>` : ''}</div>
-    <div style="text-align:right"><div class="st">${b.stok === null ? '–' : f(b.stok)}</div><div class="sub">${bt}</div></div></div>`;
+    <div style="text-align:right"><div class="st">${b.stok === null ? '–' : fb(b, b.stok)}</div><div class="sub">${bt}</div></div></div>`;
 }
 function renderList(){
   chip();
@@ -6146,7 +6156,10 @@ function renderList(){
   const R = []; let top = false;
   L.forEach(b => { if(b.sep){ if(R.length) R[R.length-1].sa = 1; else top = true; return; } R.push({b}); });
   if(top && R.length) R[0].sb = 1;
-  $('bhList').innerHTML = (q || f ? '' : tarifHtml()) + R.map(r => rowHtml(r.b, (r.sa ? ' sepa' : '') + (r.sb ? ' sepb' : ''))).join('');
+  const row = r => rowHtml(r.b, (r.sa ? ' sepa' : '') + (r.sb ? ' sepb' : '')), Rb = R.filter(r => !isPk(r.b)), Rk = R.filter(r => isPk(r.b));
+  $('bhList').innerHTML = (q || f ? '' : tarifHtml())
+    + (f === 'pack' ? '' : Rb.map(row).join(''))
+    + (f === 'bahan' ? '' : Rk.length ? (f === 'pack' ? '' : '<div class="bsec">Packaging</div>') + Rk.map(row).join('') : f === 'pack' ? '<div class="hint" style="padding:12px 0">' + (q ? 'Tidak ada packaging yang cocok.' : 'Belum ada packaging. Tambah lewat ☰ → + Packaging.') + '</div>' : '');
 }
 function setReorder(on){
   reorder = on; if(on) bhFilter = null; const bb = $('bhBurger'); bb.textContent = on ? '✓' : '☰'; bb.classList.toggle('done', on); bb.setAttribute('aria-label', on ? 'Selesai atur posisi' : 'Menu bahan');
@@ -6235,10 +6248,10 @@ function paintInfo(b){
   const n = b && b.need;
   $('bhInfo').style.display = b ? 'grid' : 'none';
   $('bhInfo').innerHTML = b ? [
-    cell(scale, b.stok === null ? '–' : fc(b.stok), 'Berat tersisa'),
+    cell(scale, b.stok === null ? '–' : fcb(b, b.stok), 'Berat tersisa'),
     cell(board, tgl(b.prod), 'Terakhir dipakai produksi'),
-    isOwner() ? cell(gauge('#B9852D', 0), b.amb ? fc(b.amb) : n ? fc(n * 2) : '–', 'Mau habis di bawah').replace('class="i4"', 'class="i4 brth" data-amb="1"') : cell(gauge('#B9852D', 0), b.amb ? fc(b.amb) : n ? fc(n * 2) : '–', 'Mau habis di bawah'),
-    cell(gauge('#C1443C', -65), n ? fc(n) : '–', 'Habis di bawah')].join('') : '';
+    isOwner() ? cell(gauge('#B9852D', 0), b.amb ? fcb(b, b.amb) : n ? fcb(b, n * 2) : '–', 'Mau habis di bawah').replace('class="i4"', 'class="i4 brth" data-amb="1"') : cell(gauge('#B9852D', 0), b.amb ? fcb(b, b.amb) : n ? fcb(b, n * 2) : '–', 'Mau habis di bawah'),
+    cell(gauge('#C1443C', -65), n ? fcb(b, n) : '–', 'Habis di bawah')].join('') : '';
 }
 // ---------- olahan: komposisi (owner) ----------
 let KL = [];
@@ -6263,22 +6276,33 @@ $('bhKompHasil').addEventListener('input', kompHint);
 function hargaInfo(b){
   const t = b.ht; if(!t || !isOwner()) return '';
   const d = (t.harga_beli - t.harga_lama), p = t.harga_lama > 0 ? Math.abs(d) / t.harga_lama * 100 : 0, ps = x => x.toLocaleString('id-ID', {maximumFractionDigits:1});
-  let s = '💵 Beli terakhir ' + rp(t.harga_beli) + '/kg · ' + tgl(t.waktu) + (t.harga_lama > 0 && d !== 0 ? ' · ' + (d > 0 ? '▲' : '▼') + ps(p) + '%' : '');
+  let s = '💵 Beli terakhir ' + pu(b, t.harga_beli) + ' · ' + tgl(t.waktu) + (t.harga_lama > 0 && d !== 0 ? ' · ' + (d > 0 ? '▲' : '▼') + ps(p) + '%' : '');
   if(b.harga > t.harga_beli) s += ' · harga sistem ' + ps((b.harga - t.harga_beli) / t.harga_beli * 100) + '% di atas harga beli terakhir';
   return s;
 }
-function openItem(id){
-  cur = id ? String(id) : null; const b = cur ? byId(cur) : null, n = b && b.need;
+function openItem(id, kat){
+  cur = id ? String(id) : null; const b = cur ? byId(cur) : null, n = b && b.need; curKat = b ? b.kat : (kat === 'packaging' ? 'packaging' : 'bahan'); const pkx = curKat === 'packaging';
   dirty.bhItemM = false; cidBahan = crypto.randomUUID(); cidOp = crypto.randomUUID(); applyRole();
-  $('bhTitle').textContent = b ? b.nama : 'Bahan baru';
-  $('bhStokL').textContent = b ? (b.stok === null ? 'Stok awal' : 'Stok fisik (opname)') : 'Stok awal (opsional)';
+  $('bhTitle').textContent = b ? b.nama : (pkx ? 'Packaging baru' : 'Bahan baru');
+  $('bhStokL').textContent = (b ? (b.stok === null ? 'Stok awal' : 'Stok fisik (opname)') : 'Stok awal (opsional)') + (pkx ? ' (pcs)' : '');
   $('bhStok').value = ''; $('bhSel').textContent = ''; $('bhSel').className = 'hint';
-  $('bhNama').value = b ? b.nama : ''; const pk = b ? pkgOf(b) : null; $('bhHarga').value = pk ? pk.h : (b ? b.harga : ''); $('bhBerat').value = pk ? pk.b : 1; $('bhSat').value = pk ? pk.s : 'kg';
+  $('bhNama').value = b ? b.nama : ''; const pk = b ? pkgOf(b) : null; $('bhHarga').value = pkx ? (b ? +(b.harga / 1000).toFixed(2) : '') : pk ? pk.h : (b ? b.harga : ''); $('bhBerat').value = pk ? pk.b : 1; $('bhSat').value = pk ? pk.s : 'kg';
   $('bhButir').value = b && b.butir ? b.butir / 10 : ''; setCust(!!(b && (b.butir || b.rend < 100))); $('bhAmbRow').style.display = 'none';
   $('bhAmb').value = b && b.amb ? b.amb / 10 : ''; $('bhRend').value = b && b.rend < 100 ? b.rend : '';
   $('bhHtxt').textContent = b ? hargaInfo(b) : '';
   paintInfo(b);
+  const lbl = k => document.querySelector('#bhItemM label[for="' + k + '"]');
+  lbl('bhNama').textContent = pkx ? 'Nama packaging' : 'Nama bahan';
+  lbl('bhHarga').textContent = pkx ? 'Harga per pcs (Rp)' : 'Harga (Rp) · berat · satuan';
+  lbl('bhAmb').textContent = pkx ? 'Ambang "Mau habis" (pcs), isi supaya ada peringatan sebelum habis' : 'Ambang "Mau habis" (gr), kosong = otomatis dari resep';
+  $('bhBerat').style.display = $('bhSat').style.display = pkx ? 'none' : '';
+  document.querySelector('#bhItemM .hrow').style.gridTemplateColumns = pkx ? '1fr' : '';
+  $('bhCust').parentNode.style.display = pkx ? 'none' : ''; if(pkx) $('bhCustBox').style.display = 'none';
+  $('bhOlahan').style.display = pkx ? 'none' : '';
+  if(pkx) $('bhAmbRow').style.display = 'block';
+  $('bhStok').step = pkx ? '1' : '0.1';
   $('bhNote').textContent = !b ? 'Ambang peringatan terisi otomatis begitu bahan dipakai di resep.' : !n ? 'Belum dipakai di resep, jadi tanpa peringatan.' : b.stok === null ? 'Isi stok awal sekali saja untuk mulai dilacak. Setelah itu stok berubah otomatis lewat produksi dan + Stok.' : '';
+  if(pkx) $('bhNote').textContent = b && b.stok !== null ? '' : 'Isi stok awal sekali saja untuk mulai dilacak. Stok packaging berkurang otomatis tiap produksi yang memakainya di resep.';
   $('bhItemHist').style.display = b ? 'block' : 'none';
   $('bhBuat').style.display = b && b.olh ? 'block' : 'none';
   KL = b && b.olh ? b.olh.komp.map(k => ({bid:String(k.bahan_id), g:k.qty_dg / 10})) : [];
@@ -6290,8 +6314,8 @@ function openItem(id){
 $('bhStok').addEventListener('input', e => {
   const b = cur ? byId(cur) : null, v = e.target.value, el = $('bhSel');
   if(v === '' || !b || b.stok === null){ el.textContent = v && b ? 'Jadi stok awal' : ''; el.className = 'hint'; return; }
-  const d = Math.round(parseFloat(v) * 10) - b.stok;
-  el.textContent = d === 0 ? 'Sama dengan sistem' : (d > 0 ? '+' : '−') + fc(Math.abs(d)) + ' dari sistem'; el.className = 'hint ' + (d > 0 ? 'up' : d < 0 ? 'dn' : '');
+  const d = (isPk(b) ? Math.round(parseFloat(v)) * 10 : Math.round(parseFloat(v) * 10)) - b.stok;
+  el.textContent = d === 0 ? 'Sama dengan sistem' : (d > 0 ? '+' : '−') + fcb(b, Math.abs(d)) + ' dari sistem'; el.className = 'hint ' + (d > 0 ? 'up' : d < 0 ? 'dn' : '');
 });
 $('bhItemM').addEventListener('input', () => { dirty.bhItemM = true; });
 $('bhCust').onclick = () => setCust($('bhCustBox').style.display === 'none');
@@ -6312,13 +6336,14 @@ $('bhSaveItem').onclick = async () => {
       const berat = +$('bhBerat').value || 1, sat = $('bhSat').value, butir = $('bhButir').value ? Math.round(parseFloat($('bhButir').value) * 10) : null;
       const amb = $('bhAmb').value ? Math.round(parseFloat($('bhAmb').value) * 10) : null, rend = Math.min(100, Math.max(1, Math.round(parseFloat($('bhRend').value) || 100)));
       const payload = {nama, harga_per_kg: Math.round((+$('bhHarga').value || 0) / (berat * (sat === 'kg' ? 1 : .001))), berat_per_butir_dg: butir, ambang_habis_dg: amb, rendemen_pct: rend, input_harga: Math.round(+$('bhHarga').value || 0), input_berat: berat, input_satuan: sat};
-      if(id) payload.id = +id; else payload.client_bahan_id = cidBahan;
+      if(curKat === 'packaging'){ payload.harga_per_kg = Math.round((+$('bhHarga').value || 0) * 1000); payload.berat_per_butir_dg = null; ['rendemen_pct', 'input_harga', 'input_berat', 'input_satuan'].forEach(k => delete payload[k]); }
+      if(id) payload.id = +id; else { payload.client_bahan_id = cidBahan; payload.kategori = curKat; }
       const r = await apiPost('save_bahan', payload);
       if(!id){ id = String(r.id || r.bahan_id); cur = id; }
       const kl = KL.filter(l => l.bid && l.g > 0), hs = parseFloat($('bhKompHasil').value);
       if(kl.length || hadOlh) await apiPost('save_olahan', {olahan_id: +id, komposisi: kl.map(l => ({bahan_id: +l.bid, qty_dg: Math.round(l.g * 10)})), hasil_dg: hs > 0 && kl.length ? Math.round(hs * 10) : null});
     }
-    if(v !== ''){ await apiPost('add_opname', {client_opname_id: cidOp, bahan_id: +id, fisik_dg: Math.max(0, Math.round(parseFloat(v) * 10))}); }
+    if(v !== ''){ await apiPost('add_opname', {client_opname_id: cidOp, bahan_id: +id, fisik_dg: Math.max(0, curKat === 'packaging' ? Math.round(parseFloat(v)) * 10 : Math.round(parseFloat(v) * 10))}); }
     await load(true); clearResepItemsCache(); renderList(); dirty.bhItemM = false;
     const b = byId(id), s = b && status(b);
     showToast(s && s.t === 'Habis' && !wasHabis ? b.nama + ' habis' : 'Tersimpan');
@@ -6362,19 +6387,19 @@ function openStok(){
 function beliHint(b, tot, gr){ // gr = gram bersih; tot = Rp
   if(!isOwner() || !(tot > 0) || !(gr > 0)) return '';
   const pk = tot / (gr / 1000), d = pk - b.harga;
-  return b.harga > 0 && Math.round(pk) !== b.harga ? (d > 0 ? ' · harga sistem naik jadi ' + rp(pk) + '/kg' : ' · lebih murah dari harga sistem, harga sistem tetap') : '';
+  return b.harga > 0 && Math.round(pk) !== b.harga ? (d > 0 ? ' · harga sistem naik jadi ' + pu(b, pk) : ' · lebih murah dari harga sistem, harga sistem tetap') : '';
 }
 const brut = (l, b) => { const rd = (b && b.rend) || 100, g = l.qty * l.isi * rd / 100; return {gr: g, txt: rd < 100 ? ' (rendemen ' + rd + '%, dari ' + f(l.qty * l.isi * 10) + ')' : ''}; };
 function pv(i){
   const l = L[i], b = l.bid && byId(l.bid), r = brut(l, b), gr = r.gr, el = $('bhlp' + i); if(!el) return;
-  el.textContent = !b ? 'Pilih bahan' : gr > 0 ? `+${f(gr * 10)}${r.txt}${l.tot > 0 ? ' · ' + rp(l.tot / (gr / 1000)) + '/kg' : ''}${beliHint(b, l.tot, gr)}${b.stok === null ? ' · belum ada stok awal, hanya harga diperbarui' : ''}` : 'Isi jumlah dan isi per satuan';
+  el.textContent = !b ? 'Pilih bahan' : gr > 0 ? `+${fb(b, gr * 10)}${r.txt}${l.tot > 0 ? ' · ' + perU(b, l.tot, gr) : ''}${beliHint(b, l.tot, gr)}${b.stok === null ? ' · belum ada stok awal, hanya harga diperbarui' : ''}` : 'Isi jumlah dan isi per satuan';
 }
 function cnt(){ const n = L.filter(l => l.bid && l.qty * l.isi > 0).length; $('bhSaveStok').textContent = `Tambahkan ke stok (${n})`; $('bhSaveStok').disabled = !n || stokSaving; }
 function renderL(){
   $('bhLines').innerHTML = L.map((l, i) => `<div class="lnx" data-i="${i}">
    <div style="display:flex;gap:8px;align-items:center"><select class="bfi" data-f="bid" aria-label="Bahan"><option value="">Pilih bahan…</option>${BH().map(b => `<option value="${b.id}" ${String(b.id) === String(l.bid) ? 'selected' : ''}>${esc(b.nama)}</option>`).join('')}</select>${L.length > 1 ? `<button type="button" class="brm" data-del="${i}" aria-label="Hapus baris">✕</button>` : ''}</div>
    <div class="three" style="margin-top:8px"><div><div class="numlbl">Jumlah</div><input class="bplain" type="number" min="0" step="any" data-f="qty" value="${l.qty}"></div>
-   <div><div class="numlbl">Isi (gr)</div><input class="bplain" type="number" min="0" step="any" data-f="isi" value="${l.isi}"></div>
+   <div><div class="numlbl">${isPk(byId(l.bid)) ? 'Isi (pcs)' : 'Isi (gr)'}</div><input class="bplain" type="number" min="0" step="any" data-f="isi" value="${l.isi}"></div>
    <div><div class="numlbl">Total (Rp)</div><input class="bplain" type="number" min="0" data-f="tot" value="${l.tot}"></div></div>
    <div class="hint" id="bhlp${i}"></div></div>`).join('');
   L.forEach((_, i) => pv(i)); cnt();
@@ -6382,6 +6407,7 @@ function renderL(){
 $('bhLines').addEventListener('input', e => {
   const ln = e.target.closest('.lnx'), k = e.target.dataset.f; if(!ln || !k) return;
   const l = L[ln.dataset.i]; dirty.bhStokM = true; l[k] = k === 'bid' ? e.target.value : (+e.target.value || 0);
+  if(k === 'bid'){ const nb = byId(l.bid); if(isPk(nb) && l.isi === 1000) l.isi = 1; else if(!isPk(nb) && l.isi === 1) l.isi = 1000; renderL(); return; }
   pv(ln.dataset.i); cnt();
 });
 $('bhLines').addEventListener('click', e => { const d = e.target.closest('[data-del]'); if(!d) return; L.splice(+d.dataset.del, 1); renderL(); });
@@ -6477,7 +6503,7 @@ async function openStruk(id){
 }
 function spv(i){
   const l = SL[i], b = l.bid && byId(l.bid), r = brut(l, b), gr = r.gr, el = $('bhsp' + i); if(!el) return;
-  el.textContent = !b ? 'Pilih bahan supaya ikut masuk stok' : gr > 0 ? `+${f(gr * 10)}${r.txt}${l.tot > 0 ? ' · ' + rp(l.tot / (gr / 1000)) + '/kg' : ''}${beliHint(b, l.tot, gr)}${b.stok === null ? ' · belum ada stok awal, hanya harga diperbarui' : ''}` : 'Isi gram per satuan dulu';
+  el.textContent = !b ? 'Pilih bahan supaya ikut masuk stok' : gr > 0 ? `+${fb(b, gr * 10)}${r.txt}${l.tot > 0 ? ' · ' + perU(b, l.tot, gr) : ''}${beliHint(b, l.tot, gr)}${b.stok === null ? ' · belum ada stok awal, hanya harga diperbarui' : ''}` : 'Isi gram per satuan dulu';
 }
 function scnt(){ const n = SL.filter(l => l.on && l.bid && l.qty * l.isi > 0).length; $('bhStrukApprove').textContent = `Approve (${n})`; $('bhStrukApprove').disabled = !n || strukSaving; }
 function renderStruk(){
@@ -6488,7 +6514,7 @@ function renderStruk(){
    <div class="lh"><input type="checkbox" data-f="on" ${l.on ? 'checked' : ''} aria-label="Ikut ditambahkan"><b>Di struk: ${esc(l.txt)}</b>${l.bid ? '<span class="bp bp-jade" style="margin:0">Cocok</span>' : '<span class="bp bp-gold" style="margin:0">Belum cocok</span>'}</div>
    <select class="bfi" data-f="bid" aria-label="Bahan"><option value="">Pilih bahan…</option>${BH().map(b => `<option value="${b.id}" ${String(b.id) === l.bid ? 'selected' : ''}>${esc(b.nama)}</option>`).join('')}</select>
    <div class="three" style="margin-top:8px"><div><div class="numlbl">Jumlah</div><input class="bplain" type="number" min="0" step="any" data-f="qty" value="${l.qty}"></div>
-   <div><div class="numlbl">Isi (gr)</div><input class="bplain" type="number" min="0" step="any" data-f="isi" value="${l.isi}"></div>
+   <div><div class="numlbl">${isPk(byId(l.bid)) ? 'Isi (pcs)' : 'Isi (gr)'}</div><input class="bplain" type="number" min="0" step="any" data-f="isi" value="${l.isi}"></div>
    <div><div class="numlbl">Total (Rp)</div><input class="bplain" type="number" min="0" data-f="tot" value="${l.tot}"></div></div>
    <div class="hint" id="bhsp${i}"></div></div>`).join('');
   SL.forEach((_, i) => spv(i)); scnt();
@@ -6496,7 +6522,7 @@ function renderStruk(){
 $('bhStrukLines').addEventListener('input', e => {
   const ln = e.target.closest('.lnx'), k = e.target.dataset.f; if(!ln || !k) return;
   const l = SL[ln.dataset.i]; dirty.bhStrukM = true;
-  if(k === 'on') l.on = e.target.checked; else if(k === 'bid'){ l.bid = e.target.value; if(l.bid && l.isi > 0) l.on = true; } else l[k] = +e.target.value || 0;
+  if(k === 'on') l.on = e.target.checked; else if(k === 'bid'){ l.bid = e.target.value; if(isPk(byId(l.bid)) && l.isi === 1000) l.isi = 1; if(l.bid && l.isi > 0) l.on = true; } else l[k] = +e.target.value || 0;
   if(k === 'on' || k === 'bid') renderStruk(); else { spv(ln.dataset.i); scnt(); }
 });
 $('bhStrukApprove').onclick = async () => {
@@ -6520,25 +6546,33 @@ $('bhStrukX').onclick = () => kembaliLayar();
 
 // ---------- Riwayat ----------
 const PL = {produksi:['Produksi','bp-jade'], stok:['Tambah stok','bp-gold'], opname:['Opname','bp-mut']};
-const dl = d => d === null || d === undefined ? 'stok awal' : d === 0 ? 'tetap' : (d > 0 ? '+' : '−') + fc(Math.abs(d));
+const dl = (d, b) => d === null || d === undefined ? 'stok awal' : d === 0 ? 'tetap' : (d > 0 ? '+' : '−') + fcb(b, Math.abs(d));
 let hCursor = null, hLast = '', hTok = 0, hView = 'stok';
 function evHtml(e){
   const nm = id => { const b = byId(id); return b ? esc(b.nama) : '(bahan dihapus)'; }, pl = PL[e.jenis] || [e.jenis, 'bp-mut'];
-  return `<div class="evt"><div class="eh"><span class="bp ${pl[1]}" style="margin:0">${pl[0]}</span><b>${esc(e.judul || '')}</b><span class="ts">${jam(e.waktu)}</span></div>${e.baris.map(r => `<div class="er2"><span>${nm(r.bahan_id)}</span><span class="m ${r.delta_dg > 0 ? 'up' : r.delta_dg < 0 ? 'dn' : 'mut'}">${dl(r.delta_dg)}</span><span class="m ${r.sisa_dg === null ? 'mut' : ''}">${r.sisa_dg === null ? 'belum dilacak' : '→ ' + fc(r.sisa_dg)}</span></div>`).join('')}</div>`;
+  return `<div class="evt"><div class="eh"><span class="bp ${pl[1]}" style="margin:0">${pl[0]}</span><b>${esc(e.judul || '')}</b><span class="ts">${jam(e.waktu)}</span></div>${e.baris.map(r => `<div class="er2"><span>${nm(r.bahan_id)}</span><span class="m ${r.delta_dg > 0 ? 'up' : r.delta_dg < 0 ? 'dn' : 'mut'}">${dl(r.delta_dg, byId(r.bahan_id))}</span><span class="m ${r.sisa_dg === null ? 'mut' : ''}">${r.sisa_dg === null ? 'belum dilacak' : '→ ' + fcb(byId(r.bahan_id), r.sisa_dg)}</span></div>`).join('')}</div>`;
 }
 // ---- riwayat harga (owner)
 const HS = {pembelian:['Beli','bp-gold'], struk:['Struk','bp-gold'], manual:['Manual','bp-jade'], olahan:['Olahan','bp-mut'], awal:['Awal','bp-mut']};
 const pct1 = x => Math.abs(x).toLocaleString('id-ID', {maximumFractionDigits:1}) + '%';
 function hargaEvHtml(e){
-  const b = byId(e.bahan_id), pl = HS[e.sumber] || [e.sumber, 'bp-mut'], lama = e.harga_lama, kg = n => rp(n) + '/kg';
-  let line;
-  if(e.sumber === 'awal') line = 'Harga awal ' + kg(e.harga_baru);
-  else if(!e.diterapkan){ const d = lama > 0 ? (e.harga_beli - lama) / lama * 100 : 0; line = `▼ ${pct1(d)} saat beli · harga beli ${kg(e.harga_beli)} · harga sistem tetap ${kg(lama)}`; }
-  else { const d = lama > 0 ? (e.harga_baru - lama) / lama * 100 : 0; line = `${lama != null ? kg(lama) + ' → ' : ''}${kg(e.harga_baru)}${lama > 0 ? ' (' + (d >= 0 ? '▲ ' : '▼ ') + pct1(d) + ')' : ''}${e.harga_beli ? ' · harga beli ' + kg(e.harga_beli) : ''}`; }
-  const inp = e.sumber === 'manual' && e.input_harga ? `<div class="hint" style="margin:0">Diketik: ${rp(e.input_harga)} untuk ${(e.input_berat || 0).toLocaleString('id-ID')} ${esc(e.input_satuan || '')}</div>` : '';
-  return `<div class="evt"><div class="eh"><span class="bp ${pl[1]}" style="margin:0">${pl[0]}</span><b>${b ? esc(b.nama) : '(bahan dihapus)'}</b><span class="ts">${jam(e.waktu)}</span></div><div class="er2" style="grid-template-columns:1fr;display:block"><span class="m" style="text-align:left;display:block">${line}</span>${inp}</div></div>`;
+  const b = byId(e.bahan_id), pl = HS[e.sumber] || [e.sumber, 'bp-mut'], lama = e.harga_lama, kg = n => pu(b, n), beli = e.sumber === 'pembelian' || e.sumber === 'struk';
+  let kiri = '', ket = '';
+  // kiri = yang diketik/dibeli (mis. 5 kg · Rp 150.000), kanan = harga per kg (per pcs untuk packaging)
+  if(e.beli){ const gr = e.beli.qty * e.beli.isi_dg / 10; kiri = (isPk(b) ? fcb(b, gr * 10) : gr >= 1000 ? (gr / 1000).toLocaleString('id-ID', {maximumFractionDigits:2}) + ' kg' : gr.toLocaleString('id-ID', {maximumFractionDigits:1}) + ' gr') + ' · ' + rp(e.beli.total); }
+  else if(e.sumber === 'manual' && e.input_harga) kiri = (e.input_berat || 0).toLocaleString('id-ID') + ' ' + esc(e.input_satuan || '') + ' · ' + rp(e.input_harga);
+  else if(e.sumber === 'manual') kiri = 'Diubah manual';
+  else if(e.sumber === 'awal') kiri = 'Harga awal';
+  else if(e.sumber === 'olahan') kiri = 'Dihitung dari bahan baku';
+  const kanan = kg(beli && e.harga_beli ? e.harga_beli : e.harga_baru);
+  if(e.sumber !== 'awal'){
+    if(!e.diterapkan){ const d = lama > 0 ? (e.harga_beli - lama) / lama * 100 : 0; ket = `${d < 0 ? '▼' : '▲'} ${pct1(d)} saat beli · harga sistem tetap ${kg(lama)}`; }
+    else { const d = lama > 0 ? (e.harga_baru - lama) / lama * 100 : 0; ket = `${lama != null ? kg(lama) + ' → ' : ''}${kg(e.harga_baru)}${lama > 0 ? ' (' + (d >= 0 ? '▲ ' : '▼ ') + pct1(d) + ')' : ''}`; }
+  }
+  return `<div class="evt"><div class="eh"><span class="bp ${pl[1]}" style="margin:0">${pl[0]}</span><b>${b ? esc(b.nama) : '(bahan dihapus)'}</b><span class="ts">${jam(e.waktu)}</span></div><div class="er2" style="grid-template-columns:1fr auto"><span>${kiri}</span><span class="m">${kanan}</span></div>${ket ? `<div class="hint" style="margin:0">${ket}</div>` : ''}</div>`;
 }
-function ringkasanHtml(r){
+function ringkasanHtml(r, bb){
+  const fc = d => fcb(bb, d);
   if(!r) return '';
   if(!r.dilacak) return '<div class="warn plain">Belum dilacak. Isi stok awal dulu supaya ada hitungan.</div>';
   const row = (l, v, c) => `<div class="er2" style="grid-template-columns:1fr auto"><span>${l}</span><span class="m ${c || ''}">${v}</span></div>`, sel = r.selisih_dg;
@@ -6548,7 +6582,7 @@ function ringkasanHtml(r){
     + row('Koreksi opname 30 hari', (r.koreksi_opname_30h_dg > 0 ? '+' : r.koreksi_opname_30h_dg < 0 ? '−' : '') + fc(Math.abs(r.koreksi_opname_30h_dg))) + row('Koreksi opname total', (r.koreksi_opname_total_dg > 0 ? '+' : r.koreksi_opname_total_dg < 0 ? '−' : '') + fc(Math.abs(r.koreksi_opname_total_dg))) + '</div>';
 }
 // cache-first (maks 12 kombinasi pill+bahan, yang paling lama tidak dipakai dibuang; dibuang total saat akun berganti atau data bahan berubah)
-const RH_KEY = 'pos-riwayat-bahan-cache-v1', RH_MAX = 12;
+const RH_KEY = 'pos-riwayat-bahan-cache-v2', RH_MAX = 12;
 const rhWho = () => (staffSession && staffSession.email) || '';
 function rhAll(){ try{ const o = JSON.parse(localStorage.getItem(RH_KEY) || 'null'); if(o && o.who === rhWho() && o.v) return o; }catch(e){} return {who: rhWho(), v: {}}; }
 function rhGet(k){ const o = rhAll(), d = o.v[k]; if(!d) return null; d.at = Date.now(); try{ localStorage.setItem(RH_KEY, JSON.stringify(o)); }catch(e){} return d; }
@@ -6557,7 +6591,7 @@ window.rhClear = () => { try{ localStorage.removeItem(RH_KEY); }catch(e){} };
 function histDays(kej){ let h = ''; kej.forEach(e => { const k = dayKey(e.waktu); if(k !== hLast){ h += `<div class="dayh">${esc(dayLbl(e.waktu))}</div>`; hLast = k; } h += hView === 'harga' ? hargaEvHtml(e) : evHtml(e); }); return h; }
 function histPaint(r, more){
   if(!more){ hLast = ''; $('bhHist').innerHTML = ''; }
-  $('bhSum').innerHTML = !more && hView === 'stok' && $('bhHF').value ? ringkasanHtml(r.ringkasan) : '';
+  $('bhSum').innerHTML = !more && hView === 'stok' && $('bhHF').value ? ringkasanHtml(r.ringkasan, byId($('bhHF').value)) : '';
   $('bhHist').insertAdjacentHTML('beforeend', histDays(r.kejadian || [])); hCursor = r.next_cursor || null;
   const empty = !$('bhHist').children.length;
   $('bhMore').innerHTML = empty ? '<div class="hint">Belum ada ' + (hView === 'harga' ? 'perubahan harga' : 'pergerakan') + '.</div>' : hCursor ? '<button type="button" class="secondary" id="bhBtnMore">Muat lebih lama</button>' : '<div class="hint" style="text-align:center">Sudah paling awal</div>';
@@ -6601,6 +6635,7 @@ $('bhPills').onclick = e => { const b = e.target.closest('[data-f]'); if(!b) ret
 $('bhBurger').onclick = () => { if(reorder){ finishReorder(); return; } const h = $('bhHam'); h.classList.toggle('on'); $('bhBurger').setAttribute('aria-expanded', h.classList.contains('on')); };
 document.addEventListener('click', e => { if(!e.target.closest('#bhBurger') && !e.target.closest('#bhHam')) $('bhHam').classList.remove('on'); });
 $('bhGoNew').onclick = () => { $('bhHam').classList.remove('on'); openItem(null); };
+$('bhGoPack').onclick = () => { $('bhHam').classList.remove('on'); openItem(null, 'packaging'); };
 $('bhGoStok').onclick = () => { $('bhHam').classList.remove('on'); openStok(); };
 $('bhGoReord').onclick = () => { reSnap = JSON.stringify(normOrder()); setReorder(true); };
 $('bhGoHist').onclick = () => { $('bhHam').classList.remove('on'); histOpen(''); };
