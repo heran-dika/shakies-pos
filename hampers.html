@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PO Hampers Shakies</title>
+<style>
+:root{--bg:#fdf0f0;--ink:#1f4172;--sub:#f1b4bb;--jade:#2F5D50;--jt:#E4EDE9;--chili:#C1443C;--bd:#e7d6d6;--card:#fff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:16px 14px 60px}
+.wrap{max-width:520px;margin:0 auto}
+h1{font-size:20px;margin:0 0 2px}
+.subt{color:#d98a94;font-weight:600;font-size:13px;margin:0 0 14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:14px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.04em;margin:0 0 10px;color:#6b756f}
+label{display:block;font-size:12px;font-weight:600;color:#6b756f;margin:10px 0 4px}
+input,select,textarea{width:100%;padding:11px 12px;border:1.5px solid var(--bd);border-radius:10px;font:inherit;font-size:15px;color:var(--ink);background:#fff}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--jade);border-color:var(--jade)}
+.row{display:flex;gap:8px;align-items:flex-end}
+.row>*{flex:1}
+.qty{display:flex;align-items:center;border:1.5px solid var(--bd);border-radius:10px;overflow:hidden;flex:0 0 118px}
+.qty button{width:36px;height:42px;border:0;background:var(--jt);color:var(--jade);font-size:19px;font-weight:700}
+.qty span{flex:1;text-align:center;font-weight:700}
+button.p{width:100%;padding:13px;border:0;border-radius:10px;background:var(--jade);color:#fff;font:inherit;font-weight:700;font-size:15px;margin-top:12px}
+button.p:disabled{background:#b9beba}
+button.s{padding:10px 12px;border:1.5px solid var(--jade);border-radius:10px;background:#fff;color:var(--jade);font:inherit;font-weight:700;font-size:13px}
+.line{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--bd);font-size:14px}
+.line:last-child{border-bottom:0}
+.x{border:0;background:none;color:var(--chili);font-size:17px;padding:4px 8px}
+.muted{color:#6b756f;font-size:12px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.chip{padding:7px 12px;border-radius:999px;border:1.5px solid var(--bd);background:#fff;font-size:13px;font-weight:600;color:var(--ink)}
+.chip.on{background:var(--jade);border-color:var(--jade);color:#fff}
+.tot{display:flex;justify-content:space-between;font-weight:700;padding:6px 0}
+.big{font-size:22px}
+.prep .line b{font-size:18px;min-width:40px;text-align:right}
+.ord{border:1px solid var(--bd);border-radius:12px;padding:10px 12px;margin-top:8px}
+.ord .h{display:flex;justify-content:space-between;gap:8px;font-weight:700}
+.ord ul{margin:6px 0 0;padding-left:18px;font-size:13px}
+.empty{text-align:center;color:#6b756f;padding:14px;font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>PO Hampers Shakies</h1>
+  <p class="subt">Catat pesanan paket, total persiapan kehitung otomatis.</p>
+  <div id="gate" class="card" style="display:none"></div>
+  <div id="status" class="muted" style="margin:-8px 0 10px"></div>
+  <div id="app">
+
+  <div class="card">
+    <h2>Pesanan baru</h2>
+    <label>Nama customer</label>
+    <input id="nama" placeholder="Nama pemesan" autocomplete="off">
+    <label>Tanggal kirim</label>
+    <input id="tgl" type="date">
+    <label>Paket</label>
+    <div class="row">
+      <select id="paket"></select>
+      <div class="qty"><button type="button" id="qm">−</button><span id="qv">1</span><button type="button" id="qp">+</button></div>
+    </div>
+    <div class="muted" id="isi" style="margin-top:6px"></div>
+    <button class="s" id="addLine" style="width:100%;margin-top:10px">+ Tambah paket ke pesanan</button>
+
+    <div id="cart" style="margin-top:10px"></div>
+
+    <label>Catatan (opsional)</label>
+    <textarea id="note" rows="2" placeholder="mis. kartu ucapan, alamat"></textarea>
+    <button class="p" id="save" disabled>Simpan pesanan</button>
+  </div>
+
+  <div class="card prep">
+    <h2>Persiapan</h2>
+    <div class="chips" id="chips"></div>
+    <div id="prep"></div>
+    <button class="s" id="copy" style="width:100%;margin-top:10px">Salin ringkasan</button>
+  </div>
+
+  <div class="card">
+    <h2>Daftar pesanan</h2>
+    <div id="orders"></div>
+  </div>
+  <button class="s" id="refresh" style="width:100%">↻ Muat ulang dari server</button>
+  </div>
+</div>
+
+<script>
+// ===== KATALOG — edit di sini kalau isi/harga berubah. isi = [nama komponen, jumlah per paket] =====
+const PAKET = [
+  { nama:"Season’s Blessing Box", varian:[
+    { v:"", harga:87000, isi:[["Cranberry Large",1],["Salt Bread",1],["Donut Meses",1],["Donut Original",1]] } ]},
+  { nama:"Christmas Shokupan Box", varian:[
+    { v:"Original", harga:128000, isi:[["Cranberry Cream Cheese Large",1],["Salt Bread",2],["Shokupan Original",1]] },
+    { v:"Beef", harga:153000, isi:[["Cranberry Cream Cheese Large",1],["Salt Bread",2],["Shokupan Beef",1]] } ]},
+  { nama:"Shakies Christmas Donut Bouquet", varian:[
+    { v:"", harga:130000, isi:[["Christmas Donut",8]] } ]},
+  { nama:"Shakies Signature Whole Cheesecake", varian:[
+    { v:"Ø 20 cm", harga:330000, isi:[["Whole Cheesecake 20 cm",1]] } ]},
+  { nama:"Shakies Christmas Choco Bread Box", varian:[
+    { v:"", harga:60000, isi:[["Choco Bread Specialty",1]] } ]},
+  { nama:"Shakies Signature Banana Pudding", varian:[
+    { v:"Petite (10x10 cm)", harga:60000, isi:[["Banana Pudding Petite",1]] },
+    { v:"Family (20x20 cm)", harga:150000, isi:[["Banana Pudding Family",1]] } ]},
+];
+const DEFAULT_TGL = "2026-12-15";
+// ================================================================================================
+
+const API_URL = "https://pos.shakies.workers.dev";
+const SESSION_KEY = "staff-session-v1", CACHE_KEY = "hampers-cache-v1";
+const $ = id => document.getElementById(id);
+const rp = n => "Rp " + Math.round(n).toLocaleString("id-ID");
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const OPTS = [];
+PAKET.forEach(p => p.varian.forEach(v => OPTS.push({ label: p.nama + (v.v ? " — " + v.v : ""), harga: v.harga, isi: v.isi })));
+
+let session = null; try { session = JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); } catch (e) {}
+let orders = []; try { orders = JSON.parse(localStorage.getItem(CACHE_KEY) || "[]"); } catch (e) {}
+let cart = [], qty = 1, filter = "all", pendingClientId = null, busy = false;
+const saveCache = () => { try { localStorage.setItem(CACHE_KEY, JSON.stringify(orders)); } catch (e) {} };
+async function api(action, payload){
+  const isGet = action.startsWith("get_");
+  const tok = session ? session.session_token : "";
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 18000);
+  try {
+    const res = isGet
+      ? await fetch(API_URL + "?action=" + action + "&session_token=" + encodeURIComponent(tok), { cache: "no-store", signal: ctl.signal })
+      : await fetch(API_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action, payload: { ...payload, session_token: tok } }), signal: ctl.signal });
+    const j = await res.json();
+    if (j.status !== "ok") { const e = new Error(j.message || "Error"); e.status = j.status; throw e; }
+    return j.data;
+  } catch (e) { if (e.name === "AbortError") throw new Error("Server nggak merespons, coba lagi."); throw e; }
+  finally { clearTimeout(t); }
+}
+const isOwner = () => !!session && (session.is_owner === true || session.role === "owner");
+const setStatus = m => { $("status").textContent = m || ""; };
+async function load(){
+  setStatus("Memuat dari server…");
+  try { orders = await api("get_hampers_orders"); saveCache(); setStatus(""); render(); }
+  catch (e) { setStatus(e.status === "not_registered" ? "Sesi login habis — sign in ulang di POS." : "Gagal memuat (" + e.message + "). Menampilkan data terakhir."); render(); }
+}
+const fmtTgl = iso => { const [y,m,d] = iso.split("-").map(Number); return new Date(y, m-1, d).toLocaleDateString("id-ID", { weekday:"short", day:"numeric", month:"short", year:"numeric" }); };
+
+$("tgl").value = DEFAULT_TGL;
+$("paket").innerHTML = OPTS.map((o,i) => `<option value="${i}">${esc(o.label)} · ${rp(o.harga)}</option>`).join("");
+const showIsi = () => { const o = OPTS[$("paket").value]; $("isi").textContent = "Isi: " + o.isi.map(([n,q]) => q + " " + n).join(", "); };
+$("paket").onchange = showIsi; showIsi();
+$("qm").onclick = () => { qty = Math.max(1, qty - 1); $("qv").textContent = qty; };
+$("qp").onclick = () => { qty++; $("qv").textContent = qty; };
+
+$("addLine").onclick = () => {
+  const o = OPTS[$("paket").value];
+  const ex = cart.find(l => l.label === o.label);
+  if (ex) ex.qty += qty; else cart.push({ label:o.label, harga:o.harga, isi:o.isi, qty });
+  qty = 1; $("qv").textContent = 1; drawCart();
+};
+function drawCart(){
+  $("cart").innerHTML = cart.map((l,i) => `<div class="line"><span>${l.qty} × ${esc(l.label)}<br><span class="muted">${rp(l.harga*l.qty)}</span></span><button class="x" data-i="${i}">✕</button></div>`).join("")
+    + (cart.length ? `<div class="tot"><span>Total</span><span>${rp(cart.reduce((s,l)=>s+l.harga*l.qty,0))}</span></div>` : "");
+  $("save").disabled = !cart.length;
+}
+$("cart").onclick = e => { const b = e.target.closest("[data-i]"); if (b) { cart.splice(+b.dataset.i, 1); drawCart(); } };
+
+$("save").onclick = async () => {
+  if (busy) return;
+  if (!$("tgl").value) { alert("Isi tanggal kirim dulu."); return; }
+  busy = true; $("save").disabled = true; $("save").textContent = "Menyimpan…";
+  if (!pendingClientId) pendingClientId = crypto.randomUUID(); // dipakai ulang kalau retry, server tahu ini request yang sama
+  const tgl = $("tgl").value;
+  try {
+    await api("add_hampers_order", { client_id: pendingClientId, nama: $("nama").value.trim(), tgl, note: $("note").value.trim(), lines: cart });
+    pendingClientId = null; cart = []; $("nama").value = ""; $("note").value = ""; drawCart(); filter = tgl;
+    await load();
+  } catch (e) { alert("Gagal simpan: " + e.message + "\nIsian masih aman, tekan Simpan lagi."); }
+  finally { busy = false; $("save").textContent = "Simpan pesanan"; $("save").disabled = !cart.length; }
+};
+
+const visible = () => orders.filter(o => filter === "all" || o.tgl === filter);
+function summary(list){
+  const comp = {}, pak = {}; let rev = 0;
+  list.forEach(o => o.lines.forEach(l => {
+    pak[l.label] = (pak[l.label] || 0) + l.qty; rev += l.harga * l.qty;
+    l.isi.forEach(([n,q]) => comp[n] = (comp[n] || 0) + q * l.qty);
+  }));
+  return { comp, pak, rev };
+}
+function render(){
+  const dates = [...new Set(orders.map(o => o.tgl))].sort();
+  if (filter !== "all" && !dates.includes(filter)) filter = "all";
+  $("chips").innerHTML = `<button class="chip ${filter==="all"?"on":""}" data-f="all">Semua</button>` + dates.map(d => `<button class="chip ${filter===d?"on":""}" data-f="${d}">${esc(fmtTgl(d))}</button>`).join("");
+  const list = visible(), s = summary(list);
+  if (!list.length) $("prep").innerHTML = `<div class="empty">Belum ada pesanan.</div>`;
+  else $("prep").innerHTML =
+    `<div class="muted">Yang perlu disiapkan</div>` +
+    Object.keys(s.comp).sort().map(n => `<div class="line"><span>${esc(n)}</span><b>${s.comp[n]}</b></div>`).join("") +
+    `<div class="muted" style="margin-top:12px">Paket yang dipesan</div>` +
+    Object.keys(s.pak).sort().map(n => `<div class="line"><span>${esc(n)}</span><b style="font-size:15px">${s.pak[n]}</b></div>`).join("") +
+    `<div class="tot" style="border-top:1.5px solid var(--bd);margin-top:8px"><span>${list.length} pesanan</span><span class="big">${rp(s.rev)}</span></div>`;
+  $("orders").innerHTML = list.length ? list.slice().sort((a,b)=>a.tgl.localeCompare(b.tgl)||a.id-b.id).map(o => {
+    const t = o.lines.reduce((x,l)=>x+l.harga*l.qty,0);
+    return `<div class="ord"><div class="h"><span>${esc(o.nama)}</span><span>${rp(t)}</span></div>
+      <div class="muted">${esc(fmtTgl(o.tgl))}</div>
+      <ul>${o.lines.map(l=>`<li>${l.qty} × ${esc(l.label)}</li>`).join("")}</ul>
+      ${o.note ? `<div class="muted" style="margin-top:4px">“${esc(o.note)}”</div>` : ""}
+      <button class="x" data-del="${o.id}" style="font-size:13px;padding:6px 0">Hapus</button></div>`;
+  }).join("") : `<div class="empty">Kosong.</div>`;
+}
+$("chips").onclick = e => { const b = e.target.closest("[data-f]"); if (b) { filter = b.dataset.f; render(); } };
+$("orders").onclick = e => {
+  const b = e.target.closest("[data-del]"); if (!b) return;
+  const o = orders.find(x => x.id == b.dataset.del);
+  if (o && confirm(`Hapus pesanan ${o.nama}?`)) api("delete_hampers_order", { id: o.id }).then(load).catch(e => alert("Gagal hapus: " + e.message));
+};
+$("copy").onclick = async () => {
+  const list = visible(); if (!list.length) return;
+  const s = summary(list);
+  const txt = `PERSIAPAN HAMPERS — ${filter === "all" ? "semua tanggal" : fmtTgl(filter)}\n\n` +
+    Object.keys(s.comp).sort().map(n => `${s.comp[n]} ${n}`).join("\n") +
+    `\n\nPaket:\n` + Object.keys(s.pak).sort().map(n => `${s.pak[n]} × ${n}`).join("\n") +
+    `\n\n${list.length} pesanan · ${rp(s.rev)}`;
+  try { await navigator.clipboard.writeText(txt); $("copy").textContent = "Tersalin ✓"; }
+  catch (e) { prompt("Salin manual:", txt); }
+  setTimeout(() => $("copy").textContent = "Salin ringkasan", 1500);
+};
+$("refresh").onclick = load;
+if (!session) { $("app").style.display = "none"; $("gate").style.display = ""; $("gate").textContent = "Belum sign in. Buka POS (heran-dika.github.io/shakies-pos/), sign in sebagai owner, lalu buka halaman ini lagi."; }
+else if (!isOwner()) { $("app").style.display = "none"; $("gate").style.display = ""; $("gate").textContent = "Halaman ini khusus owner."; }
+else { render(); load(); }
+</script>
+</body>
+</html>
