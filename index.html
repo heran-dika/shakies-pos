@@ -989,6 +989,10 @@
         .ltv-scope .lt-menu-wrap .name{font-size:13.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
         .ltv-scope .lt-menu-wrap .side{flex-shrink:0; font-size:13px; color:var(--ink-soft); white-space:nowrap;}
         .ltv-scope .lt-menu-wrap .side b{color:var(--ink); font-weight:700;}
+        .ltv-scope .lt-contact{margin-left:auto; display:flex; gap:8px;}
+        .ltv-scope .lt-cbtn{width:34px; height:34px; border-radius:10px; border:1px solid var(--line); background:var(--zebra); color:var(--ink-soft); display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; flex-shrink:0;}
+        .ltv-scope .lt-cbtn svg{width:17px; height:17px;}
+        .ltv-scope .lt-cbtn.on{background:var(--jade-tint); border-color:transparent; color:var(--jade-deep);}
         /* ---- Merge picker sheet ---- */
         .ltv-scope .lt-merge-row{display:flex; justify-content:space-between; align-items:center; padding:10px 4px; border-bottom:1px solid var(--line);}
         .ltv-scope .lt-merge-row button{background:var(--jade-tint); border:1px solid var(--jade); color:var(--jade-deep); font-family:inherit; font-size:12px; font-weight:700; padding:5px 12px; border-radius:999px; cursor:pointer;}
@@ -1034,6 +1038,10 @@
         <div class="lt-profile-top">
           <div class="lt-back" title="Kembali" onclick="kembaliLayar()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></div>
           <h2>Profile Customer</h2>
+          <div class="lt-contact">
+            <button type="button" class="lt-cbtn" id="ltBtnWa" aria-label="Nomor WhatsApp" title="Isi nomor WhatsApp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></button>
+            <button type="button" class="lt-cbtn" id="ltBtnHome" aria-label="Alamat rumah" title="Isi alamat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></button>
+          </div>
         </div>
         <div class="lt-namecard">
           <div class="lt-namerow" id="ltNameRow"></div>
@@ -2368,6 +2376,7 @@ async function ltLoadProfile(nama){
 }
 async function openProfileByName(nama){
   ltCurrentNama = nama; ltEditingName = false; ltProfileData = null;
+  ltPaintContact();
   document.getElementById('saldoListView').style.display = 'none';
   document.getElementById('saldoProfileView').style.display = 'block';
   document.getElementById('saldoModalTitle').textContent = 'Customers';
@@ -2376,6 +2385,7 @@ async function openProfileByName(nama){
 }
 function renderLtProfile(p){
   ltProfileData = p;
+  ltPaintContact();
   renderLtNameRow();
   document.getElementById('ltJoined').textContent = 'Pelanggan sejak ' + ltFormatDateID(p.first_order_date);
   document.getElementById('ltLifespan').textContent = ltLifespanLabel(ltLifespanMonths(p.first_order_date));
@@ -2481,6 +2491,99 @@ function ltMergeStub(){
 function ltCloseMergeModal(){
   document.getElementById('ltMergeModal').classList.add('hidden');
 }
+// ==== KONTAK CUSTOMER (18 Okt 2026): ikon WA & rumah di judul Profile ====
+// Kosong: tap = buka isian. Terisi: tap WA = buka wa.me, tap rumah = salin alamat. Tekan lama (500ms) = edit.
+function ltNormWa(raw){
+  let d = String(raw||'').replace(/\D/g,'');
+  if(!d) return '';
+  if(d.startsWith('0')) d = '62' + d.slice(1);
+  else if(d.startsWith('8')) d = '62' + d;
+  return d;
+}
+function ltPaintContact(){
+  const p = ltProfileData || {};
+  const wa = document.getElementById('ltBtnWa'), hm = document.getElementById('ltBtnHome');
+  if(!wa || !hm) return;
+  wa.classList.toggle('on', !!p.no_wa);
+  hm.classList.toggle('on', !!p.alamat);
+  wa.title = p.no_wa ? 'Buka WhatsApp (tekan lama = ubah)' : 'Isi nomor WhatsApp';
+  hm.title = p.alamat ? 'Salin alamat (tekan lama = ubah)' : 'Isi alamat';
+}
+async function ltCopyText(text){
+  try{ await navigator.clipboard.writeText(text); return true; }
+  catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.cssText = 'position:fixed;opacity:0';
+    document.body.appendChild(ta); ta.select();
+    let ok = false; try{ ok = document.execCommand('copy'); }catch(e2){}
+    document.body.removeChild(ta);
+    return ok;
+  }
+}
+function ltContactTap(kind){
+  const p = ltProfileData; if(!p) return;
+  if(kind === 'wa'){
+    if(!p.no_wa){ ltOpenContactSheet('wa'); return; }
+    window.open('https://wa.me/' + p.no_wa, '_blank', 'noopener');
+    return;
+  }
+  if(!p.alamat){ ltOpenContactSheet('home'); return; }
+  ltCopyText(p.alamat).then(ok => showToast(ok ? 'Alamat disalin' : 'Gagal menyalin alamat'));
+}
+function ltContactHintUpdate(){
+  const el = document.getElementById('ltContactInput'), h = document.getElementById('ltContactHint');
+  if(!el || !h) return;
+  if(el.dataset.kind === 'wa'){
+    const n = ltNormWa(el.value);
+    h.textContent = !el.value.trim() ? 'Kosongin lalu simpan buat menghapus nomor.' : /^\d{9,15}$/.test(n) ? 'Link: wa.me/' + n : 'Nomor belum valid.';
+  } else h.textContent = 'Kosongin lalu simpan buat menghapus alamat.';
+}
+function ltOpenContactSheet(kind){
+  if(!ltProfileData) return;
+  const isWa = kind === 'wa', cur = (isWa ? ltProfileData.no_wa : ltProfileData.alamat) || '';
+  document.getElementById('ltMergeModal').classList.remove('hidden');
+  document.getElementById('ltMergeTitle').textContent = isWa ? 'Nomor WhatsApp' : 'Alamat rumah';
+  document.getElementById('ltMergeBody').innerHTML = `
+    <p style="font-size:13px;font-weight:600;margin:0 0 10px;">${escapeHtml(ltProfileData.display_name)}</p>
+    ${isWa
+      ? `<input type="text" id="ltContactInput" data-kind="wa" inputmode="tel" autocomplete="off" placeholder="mis. 0812-3456-7890" value="${escapeHtml(cur)}" oninput="ltContactHintUpdate()">`
+      : `<textarea id="ltContactInput" data-kind="home" rows="4" placeholder="Alamat lengkap" oninput="ltContactHintUpdate()">${escapeHtml(cur)}</textarea>`}
+    <div id="ltContactHint" style="font-size:12px;color:var(--ink-soft,#6B756F);margin:6px 0 12px;min-height:16px;"></div>
+    <button type="button" id="ltContactSave" onclick="ltSaveContact('${kind}')" style="width:100%;background:var(--jade,#2F5D50);color:#fff;border:none;border-radius:10px;padding:12px;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:8px;">Simpan</button>
+    <button type="button" onclick="ltCloseMergeModal()" style="width:100%;background:none;border:1px solid var(--line,#F1D8D8);border-radius:10px;padding:11px;font-weight:600;font-size:13.5px;color:var(--ink-soft,#6B756F);cursor:pointer;">Batal</button>`;
+  ltContactHintUpdate();
+}
+async function ltSaveContact(kind){
+  const el = document.getElementById('ltContactInput'), btn = document.getElementById('ltContactSave');
+  if(!el || !ltProfileData) return;
+  const raw = el.value.trim(), key = kind === 'wa' ? 'no_wa' : 'alamat';
+  const val = kind === 'wa' ? ltNormWa(raw) : raw;
+  if(kind === 'wa' && raw && !/^\d{9,15}$/.test(val)){ showToast('Nomor WA nggak valid'); return; }
+  btn.disabled = true; btn.textContent = 'Menyimpan...';
+  try{
+    const r = await apiPost('update_customer_contact', { nama: ltProfileData.display_name, [key]: val });
+    ltProfileData[key] = r[key] || '';
+    ltPaintContact();
+    ltCloseMergeModal();
+    showToast(ltProfileData[key] ? 'Tersimpan' : 'Dihapus');
+  } catch(e){
+    showToast('Gagal simpan: ' + e.message);
+    btn.disabled = false; btn.textContent = 'Simpan';
+  }
+}
+(function(){
+  [['ltBtnWa','wa'],['ltBtnHome','home']].forEach(([id, kind])=>{
+    const el = document.getElementById(id); if(!el) return;
+    let t = null, long = false;
+    const stop = ()=>{ if(t){ clearTimeout(t); t = null; } };
+    el.addEventListener('pointerdown', ()=>{
+      long = false; stop();
+      t = setTimeout(()=>{ t = null; long = true; try{ navigator.vibrate && navigator.vibrate(15); }catch(e){} ltOpenContactSheet(kind); }, 500);
+    });
+    ['pointerup','pointerleave','pointercancel'].forEach(ev => el.addEventListener(ev, stop));
+    el.addEventListener('click', ()=>{ if(long){ long = false; return; } ltContactTap(kind); });
+  });
+})();
 function ltConfirmMerge(sourceName){
   const targetName = ltProfileData.display_name;
   document.getElementById('ltMergeBody').innerHTML = `
