@@ -76,9 +76,7 @@
      nutup icon-nya) digantiin ::after biar visualnya tetep ada. */
   .date-field{position:relative;overflow:hidden;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);}
   .date-field:focus-within{outline:2px solid var(--jade);outline-offset:1px;border-color:var(--jade);}
-  .date-field input[type=date]{pointer-events:auto;border:none;background:transparent;padding:12px 13px;} /* FIX 29 Sep 2026 (dibalikin 18 Okt): input harus jadi tap target ASLI, iOS nggak mau buka picker kalau dipicu showPicker() dari elemen lain */
-  .date-field input[type=date]::-webkit-datetime-edit{opacity:0;}
-  .date-field input[type=date]::-webkit-calendar-picker-indicator{opacity:0;}
+  .date-field input[type=date]{opacity:0;pointer-events:auto;border:none;background:transparent;padding:12px 13px;} /* FIX 18 Okt 2026: opacity:0 sembunyiin SEMUA render native (teks iOS nggak mempan lewat ::-webkit-datetime-edit), pointer-events:auto biar tap langsung kena input asli (iOS nolak showPicker() dari elemen lain) */
   .date-field .date-display{position:absolute;inset:0;display:flex;align-items:center;padding:0 40px 0 13px;cursor:pointer;pointer-events:none;font-family:'DM Sans',sans-serif;font-size:15px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2;}
   .date-field .date-display::after{content:'📅';position:absolute;right:13px;top:50%;transform:translateY(-50%);font-size:14px;opacity:.55;pointer-events:none;transition:right .18s ease;}
   /* FIX 22 Sep 2026: tombol x buat kosongin filter tanggal Riwayat — cuma nongol kalau
