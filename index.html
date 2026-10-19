@@ -202,6 +202,13 @@
   /* FIX 18 Sep 2026: badge dd-mmm | hh:mm di kartu Prep — kecil & samar (bukan elemen utama, cuma info tambahan) */
   .order-card-time{font-size:10.5px;color:var(--ink-soft);opacity:.62;white-space:nowrap;align-self:flex-start;margin-right:2px;}
   .order-card .cust{font-family:'Fraunces',serif;font-weight:600;font-size:15.5px;}
+  /* 18 Okt 2026: ikon WA & rumah di sebelah pil nama pembuat order (Prep) — cuma muncul kalau customer punya kontak. Ukuran ~ pil, jarak antar ikon dilebarin, area tap diperluas lewat ::before (tanpa makan tempat). */
+  .order-card .pc-row{display:flex;align-items:center;margin-top:4px;}
+  .order-card .pc-row .badge{margin-top:0;}
+  .order-card .pc-ics{display:inline-flex;align-items:center;gap:16px;margin-left:10px;}
+  .order-card .pc-ic{position:relative;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:10px;border:none;padding:0;background:var(--jade-tint);color:var(--jade-dark);cursor:pointer;}
+  .order-card .pc-ic::before{content:'';position:absolute;inset:-6px;}
+  .order-card .pc-ic svg{width:12px;height:12px;}
   .order-card .items-list{font-size:13px;color:var(--ink-soft);margin:6px 0;}
   .order-card .bottom-row{display:flex;justify-content:space-between;align-items:center;margin-top:8px;}
   .order-card .price{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:14px;color:var(--jade-dark);}
@@ -2564,6 +2571,10 @@ async function ltSaveContact(kind){
     const r = await apiPost('update_customer_contact', { nama: ltProfileData.display_name, [key]: val });
     ltProfileData[key] = r[key] || '';
     ltPaintContact();
+    const lk = String(ltProfileData.display_name).trim().toLowerCase(), fk = key === 'no_wa' ? 'kontak_wa' : 'kontak_alamat';
+    allOrders.forEach(o => { if(String(o.customer_name||'').trim().toLowerCase() === lk) o[fk] = ltProfileData[key]; });
+    savePrepCache(allOrders);
+    if(document.querySelector('.tab-btn.active')?.dataset.tab === 'besok') renderBesokList();
     ltCloseMergeModal();
     showToast(ltProfileData[key] ? 'Tersimpan' : 'Dihapus');
   } catch(e){
@@ -4514,6 +4525,30 @@ async function renderBesok(){
                        // bisa nyangkut nunjukin Real (demand keitung 0) padahal orderan udah numpuk.
   syncSaldoForUnpaidOrders(allOrders); // fire-and-forget, cuma buat coba auto-lunas FIFO
 }
+// ==== KONTAK DI CARD PREP (18 Okt 2026) ====
+// Server nempelin kontak_wa / kontak_alamat ke tiap order (get_orders). Order baru yang masih optimistic belum punya
+// field itu, jadi dipinjam dari order lain milik customer yang sama.
+const PC_WA_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>';
+const PC_HOME_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>';
+function contactForOrder(o){
+  if(o.kontak_wa || o.kontak_alamat) return { wa: o.kontak_wa || '', alamat: o.kontak_alamat || '' };
+  const k = String(o.customer_name||'').trim().toLowerCase();
+  const m = allOrders.find(x => x !== o && (x.kontak_wa || x.kontak_alamat) && String(x.customer_name||'').trim().toLowerCase() === k);
+  return m ? { wa: m.kontak_wa || '', alamat: m.kontak_alamat || '' } : { wa: '', alamat: '' };
+}
+function prepContactIconsHtml(o){
+  const c = contactForOrder(o);
+  if(!c.wa && !c.alamat) return '';
+  const id = escapeHtml(o.order_id).replace(/'/g, "\\'");
+  return `<span class="pc-ics">${c.wa ? `<button type="button" class="pc-ic" onclick="prepContactTap(event,'${id}','wa')" aria-label="Buka WhatsApp">${PC_WA_SVG}</button>` : ''}${c.alamat ? `<button type="button" class="pc-ic" onclick="prepContactTap(event,'${id}','home')" aria-label="Salin alamat">${PC_HOME_SVG}</button>` : ''}</span>`;
+}
+function prepContactTap(ev, orderId, kind){
+  ev.stopPropagation(); // jangan ikut buka edit order
+  const o = allOrders.find(x => x.order_id === orderId); if(!o) return;
+  const c = contactForOrder(o);
+  if(kind === 'wa'){ if(c.wa) window.open('https://wa.me/' + c.wa, '_blank', 'noopener'); return; }
+  if(c.alamat) ltCopyText(c.alamat).then(ok => showToast(ok ? 'Alamat disalin' : 'Gagal menyalin alamat'));
+}
 function renderBesokList(){
   const area = document.getElementById('besokContent');
   const target = selectedBesokDate;
@@ -4602,7 +4637,7 @@ function renderBesokList(){
       <div class="top-row">
         <div onclick="openEditOrder('${o.order_id}')" style="flex:1;">
           <div class="cust">${escapeHtml(o.customer_name)}</div>
-          <span class="badge">${escapeHtml(o.device_label)}</span>
+          <div class="pc-row"><span class="badge">${escapeHtml(o.device_label)}</span>${prepContactIconsHtml(o)}</div>
         </div>
         <span class="order-card-time">${formatOrderCreatedBadge(o.created_at)}</span>
         <div class="check-toggle ${o.prepared?'checked':''}" onclick="togglePrepared('${o.order_id}')">
