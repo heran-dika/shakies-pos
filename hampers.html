@@ -106,6 +106,8 @@ const DEFAULT_TGL = "2026-12-15";
 // ================================================================================================
 
 const API_URL = "https://pos.shakies.workers.dev";
+const POS_URL = "https://heran-dika.github.io/shakies-pos/";
+const posLink = t => `<a href="${POS_URL}" style="color:var(--jade);font-weight:700">${t}</a>`;
 const SESSION_KEY = "staff-session-v1", CACHE_KEY = "hampers-cache-v1";
 const $ = id => document.getElementById(id);
 const rp = n => "Rp " + Math.round(n).toLocaleString("id-ID");
@@ -132,11 +134,11 @@ async function api(action, payload){
   finally { clearTimeout(t); }
 }
 const isOwner = () => !!session && (session.is_owner === true || session.role === "owner");
-const setStatus = m => { $("status").textContent = m || ""; };
+const setStatus = (m, html) => { $("status")[html ? "innerHTML" : "textContent"] = m || ""; };
 async function load(){
   setStatus("Memuat dari server…");
   try { orders = await api("get_hampers_orders"); saveCache(); setStatus(""); render(); }
-  catch (e) { setStatus(e.status === "not_registered" ? "Sesi login habis — sign in ulang di POS." : "Gagal memuat (" + e.message + "). Menampilkan data terakhir."); render(); }
+  catch (e) { if (e.status === "not_registered") setStatus("Sesi login habis. " + posLink("Buka POS") + " dan sign in ulang.", true); else setStatus("Gagal memuat (" + e.message + "). Menampilkan data terakhir."); render(); }
 }
 const fmtTgl = iso => { const [y,m,d] = iso.split("-").map(Number); return new Date(y, m-1, d).toLocaleDateString("id-ID", { weekday:"short", day:"numeric", month:"short", year:"numeric" }); };
 
@@ -222,8 +224,8 @@ $("copy").onclick = async () => {
   setTimeout(() => $("copy").textContent = "Salin ringkasan", 1500);
 };
 $("refresh").onclick = load;
-if (!session) { $("app").style.display = "none"; $("gate").style.display = ""; $("gate").textContent = "Belum sign in. Buka POS (heran-dika.github.io/shakies-pos/), sign in sebagai owner, lalu buka halaman ini lagi."; }
-else if (!isOwner()) { $("app").style.display = "none"; $("gate").style.display = ""; $("gate").textContent = "Halaman ini khusus owner."; }
+if (!session) { $("app").style.display = "none"; $("gate").style.display = ""; $("gate").innerHTML = "Belum sign in. " + posLink("Buka POS") + ", sign in sebagai owner, lalu buka halaman ini lagi."; }
+else if (!isOwner()) { $("app").style.display = "none"; $("gate").style.display = ""; $("gate").innerHTML = "Halaman ini khusus owner. " + posLink("Kembali ke POS") + "."; }
 else { render(); load(); }
 </script>
 </body>
