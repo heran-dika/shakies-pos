@@ -1579,8 +1579,33 @@ function loadPrepCache(){
     const raw = localStorage.getItem(PREP_CACHE_KEY);
     if(!raw) return null;
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed.orders) ? parsed.orders : null;
+    return Array.isArray(parsed.orders) ? parsed.orders.map(recoverStalePending) : null;
   } catch(e){ return null; }
+}
+// FIX 20 Okt 2026: order _pending yang kebawa dari cache lama berarti app keburu mati/di-suspend sebelum
+// request add_order/update_order kelar (then/catch gak pernah jalan), jadi flag-nya nyangkut selamanya dan
+// gak ada banner "Coba Lagi". Kalau udah lewat batas aman (> API_TIMEOUT_MS), ubah jadi _failed supaya bisa
+// di-retry. Retry aman: add_order idempotent lewat client_order_id (server balikin duplicate:true kalau sudah masuk).
+const STALE_PENDING_MS = 120000;
+function recoverStalePending(o){
+  if(!o || !o._pending || o._failed || o._demo) return o;
+  const ts = Date.parse(o.updated_at || o.created_at || '');
+  if(!ts || Date.now() - ts < STALE_PENDING_MS) return o; // masih wajar lagi in-flight
+  const isEdit = !String(o.order_id || '').startsWith('pending_');
+  const payload = {
+    delivery_date: o.delivery_date, customer_name: o.customer_name, items_summary: o.items_summary,
+    items: o.items, total: o.total, note: o.note, device_label: o.device_label || 'Tanpa label',
+    shipping_fee: o.shipping_fee, discount_type: o.discount_type, discount_value: o.discount_value
+  };
+  if(isEdit){ payload.order_id = o.order_id; payload.prepared = !!o.prepared; payload.paid = !!o.paid; }
+  else payload.client_order_id = o.client_order_id;
+  const r = Object.assign({}, o);
+  delete r._pending;
+  r._failed = true;
+  r._failedMessage = 'Pengiriman terputus (app tertutup sebelum selesai)';
+  r._failedPayload = payload;
+  r._failedIsEdit = isEdit;
+  return r;
 }
 function savePrepCache(orders){
   try{
