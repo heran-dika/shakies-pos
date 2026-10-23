@@ -4045,16 +4045,29 @@ async function submitOrder(){
 // user udah dipindah ke tab Prep). Sukses -> tempId ditukar jadi order_id asli dari server (buat
 // order baru) atau nggak ngapa-ngapain lagi (buat edit). Gagal -> card ditandain _failed, muncul
 // banner "Coba Lagi", + notifikasi HP (kalau diizinin) + toast sebagai fallback.
-async function saveOrderInBackground(payload, tempOrRealId, isEdit){
+// FIX 23 Okt 2026: iPhone/jaringan sering bikin request putus sekali (app ke-suspend, fetch mati "Load failed", timeout).
+// Dulu 1x gagal langsung banner "Coba Lagi" yang harus dipencet manual. Sekarang ulang otomatis 2x untuk error jaringan/timeout
+// (error ber-status dari server, mis. not_registered/validasi, TIDAK diulang). Aman: add_order idempotent lewat client_order_id.
+const SAVE_RETRY_DELAYS = [1500, 4000];
+async function apiPostWithRetry(action, payload){
+  for(let i = 0; ; i++){
+    try{ return await apiPost(action, payload); }
+    catch(e){
+      if(e.status || i >= SAVE_RETRY_DELAYS.length) throw e;
+      await new Promise(r => setTimeout(r, SAVE_RETRY_DELAYS[i]));
+    }
+  }
+}
+async function saveOrderInBackground(payload, tempOrRealId, isEdit, silent){
   try{
     if(isEdit){
-      await apiPost('update_order', payload);
+      await apiPostWithRetry('update_order', payload);
       const idx = allOrders.findIndex(o => o.order_id === tempOrRealId);
       if(idx !== -1) delete allOrders[idx]._pending;
     } else {
       // origin_push_endpoint = penanda "order ini dibuat dari HP yang subscribe push" — Worker skip push kalau sama
       // dengan endpoint subscription-nya (gak perlu notif buat order yang baru aja diketik sendiri). Kosong = HP ini belum aktifin push.
-      const addResult = await apiPost('add_order', { ...payload, origin_push_endpoint: getPushEndpoint() });
+      const addResult = await apiPostWithRetry('add_order', { ...payload, origin_push_endpoint: getPushEndpoint() });
       const idx = allOrders.findIndex(o => o.order_id === tempOrRealId);
       if(idx !== -1){
         allOrders[idx].order_id = addResult.order_id;
@@ -4076,22 +4089,30 @@ async function saveOrderInBackground(payload, tempOrRealId, isEdit){
     }
     savePrepCache(allOrders); // gagal juga disimpen — biar refresh nampilin banner "Coba Lagi", bukan ilang
     if(document.querySelector('.tab-btn.active')?.dataset.tab === 'besok') renderBesokList();
+    if(silent) return; // retry otomatis: jangan spam notif/toast tiap gagal, banner di card udah cukup
     const notified = await ensureNotifyPermission();
     if(notified) notifyBackgroundFailure('Gagal simpan orderan', `${payload.customer_name} gagal tersimpan — buka tab Prep buat coba lagi.`);
     showToast('Gagal simpan orderan: ' + e.message);
   }
 }
 const RETRY_COOLDOWN_MS = 4000; // jeda minimum antar tap "Coba Lagi" per order — nyegah badai request beruntun yang bisa micu halaman "unusual traffic" Google (lihat log 13 Agt 2026)
-async function retryFailedOrder(orderId){
+const AUTO_RETRY_GAP_MS = 15000, AUTO_RETRY_MAX = 3; // retry otomatis: jeda min antar percobaan & batas percobaan per order
+async function retryFailedOrder(orderId, auto){
   if(retryingOrderIds.has(orderId)) return; // masih ada retry yg sama lagi jalan — abaikan tap ini
   const now = Date.now();
-  if(now - (lastRetryTapAt[orderId] || 0) < RETRY_COOLDOWN_MS){
+  if(auto){
+    if(now - (lastRetryTapAt[orderId] || 0) < AUTO_RETRY_GAP_MS) return; // diam-diam, bukan toast
+  } else if(now - (lastRetryTapAt[orderId] || 0) < RETRY_COOLDOWN_MS){
     showToast('Tunggu sebentar sebelum coba lagi ya');
     return;
   }
-  lastRetryTapAt[orderId] = now;
   const order = allOrders.find(o=>o.order_id===orderId);
   if(!order || !order._failed) return;
+  if(auto){
+    if((order._autoTries || 0) >= AUTO_RETRY_MAX) return;
+    order._autoTries = (order._autoTries || 0) + 1;
+  }
+  lastRetryTapAt[orderId] = now;
   retryingOrderIds.add(orderId);
   order._failed = false;
   order._pending = true;
@@ -4099,11 +4120,20 @@ async function retryFailedOrder(orderId){
   const isEdit = order._failedIsEdit;
   renderBesokList();
   try{
-    await saveOrderInBackground(payload, orderId, isEdit);
+    await saveOrderInBackground(payload, orderId, isEdit, !!auto);
   } finally {
     retryingOrderIds.delete(orderId);
   }
 }
+// Retry otomatis order _failed: pas app balik ke foreground, jaringan balik, dan tiap 20 detik selagi kebuka (nutup kasus
+// cold start di mana order _failed baru muncul dari cache). Butuh sesi login; maks AUTO_RETRY_MAX percobaan per order.
+function autoRetryFailedOrders(){
+  if(document.visibilityState !== 'visible' || !staffSession || navigator.onLine === false) return;
+  allOrders.filter(o => o._failed && !o._demo).forEach(o => retryFailedOrder(o.order_id, true));
+}
+document.addEventListener('visibilitychange', autoRetryFailedOrders);
+window.addEventListener('online', autoRetryFailedOrders);
+setInterval(autoRetryFailedOrders, 20000);
 async function deleteCurrentOrder(){
   if(!editingOrderId) return;
   const order = allOrders.find(o=>o.order_id===editingOrderId);
