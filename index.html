@@ -4406,7 +4406,9 @@ async function payOrderWithSaldoManual(order){
 }
 async function togglePaid(orderId){
   const order = allOrders.find(o=>o.order_id===orderId);
-  if(!order) return;
+  // FIX 28 Okt 2026: dulu return diam-diam (tap Lunas "gak ada reaksi") kalau card Riwayat dirender dari cache tapi order-nya
+  // belum ada di allOrders (fetch get_orders belum kelar/gagal). Sekarang minimal ada toast.
+  if(!order){ showToast('Data order belum termuat — tunggu sebentar lalu coba lagi, atau pencet tombol refresh.'); return; }
   if(order._pending){ showToast('Order ini masih diproses ke server, tunggu sebentar ya...'); return; }
   if(order._failed){ showToast('Order ini gagal tersimpan — pencet "Coba Lagi" di card-nya dulu.'); return; }
   if(order.paid){
@@ -4809,6 +4811,11 @@ async function renderRiwayatList(){
   const cached = loadRiwayatUnpaidCache();
   if(cached && cached.length){
     riwayatDefaultSnapshot = cached;
+    // FIX 28 Okt 2026: card dirender dari cache Riwayat (isinya order belum-lunas LAMA yang di luar jendela cache Prep), padahal
+    // togglePaid/openEditOrder/openReceiptView cari lewat allOrders.find(). Selama get_orders belum sukses (iPhone suci sering
+    // lambat/gagal), order itu gak ada di allOrders → tombol Lunas diam saja. Masukin yang belum ada; loadOrders() di bawah
+    // tetap menggantikan allOrders dengan data server begitu sukses.
+    cached.forEach(o => { if(!allOrders.some(x => x.order_id === o.order_id)) allOrders.push(o); });
     renderRiwayatCards(riwayatDefaultSnapshot);
   } else {
     area.innerHTML = `<div class="spinner">Memuat riwayat...</div>`;
