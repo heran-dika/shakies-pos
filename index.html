@@ -631,6 +631,8 @@
     </div>
   </header>
 
+  <div id="sessionBanner" onclick="openDeviceModal()" style="display:none;margin:8px 14px 0;padding:10px 12px;border-radius:10px;font-size:13px;line-height:1.35;cursor:pointer;"></div>
+
   <main>
     <!-- ORDER -->
     <section class="tab active" id="tab-order">
@@ -1333,6 +1335,10 @@ let allOrders = [];
 let deviceLabel = ''; // diisi dari alias hasil Google Sign-In (lihat STAFF SESSION di bawah)
 let staffSession = null; // {session_token, alias, email} — null kalau belum login / mode coba-coba
 const STAFF_SESSION_KEY = 'staff-session-v1';
+// FIX 30 Okt 2026: sesi server cuma 30 hari (SESSION_TTL_DAYS di worker). Dulu pas habis, HP diem-diem nampilin cache lama
+// (push tetep masuk, tapi get_orders ditolak) dan baru ketauan kalau buka modal login. Sekarang ada banner di atas layar.
+const SESSION_EXPIRED_KEY = 'session-expired-v1'; // di-set pas server nolak sesi (not_registered), dihapus pas login ulang / logout manual
+const SESSION_TTL_DAYS_CLIENT = 30, SESSION_WARN_DAYS = 29;
 let orderSelections = {}; // nama_item -> qty
 let editingOrderId = null;
 let editOriginTab = null; // FIX 16 Sep 2026 (v6): inget tab asal sebelum masuk mode edit, biar "Batal" balik ke situ lagi
@@ -1794,6 +1800,7 @@ async function apiPost(action, payload){
     if(json.status !== 'ok'){
       if(json.status === 'not_registered' && action !== 'verify_login' && staffSession){
         // Sesi login udah nggak valid lagi di server (expired/dihapus) — bersihin biar kepampang "Sign in" lagi
+        try{ localStorage.setItem(SESSION_EXPIRED_KEY, '1'); }catch(e){}
         clearStaffSession();
         showToast('Sesi login abis / gak valid lagi — sign in ulang ya'); // FIX 15 Sep 2026: dulu gak ada pesan, jadi kayak nge-freeze diam-diam
       }
@@ -1888,7 +1895,36 @@ function clearStaffSession(){
   localStorage.removeItem(STAFF_SESSION_KEY);
   document.getElementById('deviceLabelText').textContent = 'Sign in';
   document.getElementById('custName').placeholder = 'Nama pemesan';
+  updateSessionBanner();
 }
+// Banner sesi di atas layar (semua tab). Merah = sesi habis (dari penolakan server, atau umur lokal >= 30 hari);
+// kuning = tinggal <= 1 hari (umur lokal >= 29 hari). Umur dihitung dari signed_in_at di HP, jadi cuma perkiraan —
+// penentu sebenarnya tetap respons server (flag SESSION_EXPIRED_KEY).
+function updateSessionBanner(){
+  const el = document.getElementById('sessionBanner');
+  if(!el) return;
+  let kind = '', text = '';
+  let expiredFlag = false;
+  try{ expiredFlag = localStorage.getItem(SESSION_EXPIRED_KEY) === '1'; }catch(e){}
+  if(!staffSession){
+    if(expiredFlag){ kind = 'red'; text = '🔒 Sesi login habis — data di layar bisa sudah lama. Tap di sini untuk sign in ulang.'; }
+  } else if(staffSession.signed_in_at){
+    const ageDays = (Date.now() - staffSession.signed_in_at) / 86400000;
+    if(ageDays >= SESSION_TTL_DAYS_CLIENT){
+      kind = 'red'; text = '🔒 Sesi login kemungkinan sudah habis. Tap di sini, logout lalu sign in lagi.';
+    } else if(ageDays >= SESSION_WARN_DAYS){
+      const left = Math.max(1, Math.ceil(SESSION_TTL_DAYS_CLIENT - ageDays));
+      kind = 'yellow'; text = `⏳ Sesi login tinggal ±${left} hari. Tap di sini, logout lalu sign in lagi biar tidak mati mendadak.`;
+    }
+  }
+  if(!kind){ el.style.display = 'none'; el.textContent = ''; return; }
+  el.textContent = text;
+  el.style.display = 'block';
+  el.style.background = kind === 'red' ? '#fdecea' : '#fff8e6';
+  el.style.border = '1px solid ' + (kind === 'red' ? '#c0392b' : '#d4a017');
+  el.style.color = kind === 'red' ? '#a02a1e' : '#7a5b00';
+}
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') updateSessionBanner(); });
 function formatDateTimeShort(d){
   const dd = String(d.getDate()).padStart(2,'0');
   const mmm = MONTH_ABBR_ID[d.getMonth()];
@@ -2077,6 +2113,7 @@ async function deleteAuthEmail(email){
 
 function logoutStaff(){
   if(!confirm('Yakin mau logout dari HP ini?')) return;
+  try{ localStorage.removeItem(SESSION_EXPIRED_KEY); }catch(e){} // logout sengaja bukan "sesi habis" — jangan munculin banner merah
   clearStaffSession();
   kembaliLayar();
   showToast('Berhasil logout');
@@ -2090,6 +2127,8 @@ async function handleCredentialResponse(response){
     localStorage.setItem(STAFF_SESSION_KEY, JSON.stringify(staffSession));
     deviceLabel = data.alias;
     applyStaffLabelToUI(data.alias);
+    try{ localStorage.removeItem(SESSION_EXPIRED_KEY); }catch(e){}
+    updateSessionBanner();
     kembaliLayar();
     showToast(`Sign in berhasil — masuk sebagai "${data.alias}" ✓`);
   } catch(e){
@@ -5722,6 +5761,7 @@ bindDateDisplay('riwayatDateTo', 'riwayatDateToDisplay', { placeholder: 'Sampai 
   // Lihat blok "BACK BUTTON ANDROID" di atas buat mekanisme lengkapnya.
   pushSentinel();
   loadStaffSession();
+  updateSessionBanner();
   syncPushSubscription(); // gak di-await, diam-diam (lihat blok PUSH NOTIFICATION ORDER BARU)
   loadSaldoMapFromCache();
 
