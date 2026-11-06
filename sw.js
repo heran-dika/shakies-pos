@@ -18,7 +18,8 @@
 // v7 — 15 Oktober 2026: fetch network-first sekarang pakai {cache:'no-cache'} — sebelumnya fetch(req) masih lewat cache HTTP
 // browser (GitHub Pages ngasih max-age=600), jadi abis push update, refresh bisa tetep dapet index.html LAMA sampai ~10 menit.
 // v8 — 15 Oktober 2026: push 'alarm' (rekap order jam 04.00) pakai requireInteraction + getar panjang.
-const CACHE_NAME = 'shakies-pos-v8';
+// v9 — 5 November 2026: rilis fitur Hampers (layar Hampers, tombol Hampers di tab Order, pengingat push hampers).
+const CACHE_NAME = 'shakies-pos-v9';
 
 // Halaman yang dibuka pas notif order di-klik dan gak ada tab app yang lagi kebuka.
 // Bisa di-override Worker lewat field `url` di payload push.

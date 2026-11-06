@@ -610,6 +610,80 @@
 .bh #bhKompHasil:placeholder-shown{text-align:left;font-family:'DM Sans',sans-serif;font-size:13px}
 .bh #bhKompHasil::placeholder{color:#9a958a;font-family:'DM Sans',sans-serif;font-size:13px}
 .bh .lh{display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:14px;flex-wrap:wrap}.bh .lh input{accent-color:var(--jade);width:18px;height:18px;margin:0}
+/* ==== HAMPERS (5 Nov 2026) ==== */
+.hp-pillbtn{display:inline-flex;align-items:center;gap:6px;padding:9px 13px;border-radius:999px;background:var(--jade);color:#fff;font:700 13px 'DM Sans',sans-serif;border:none;cursor:pointer;white-space:nowrap;flex-shrink:0;margin-top:2px}
+.hp-pillbtn .hp-badge{background:#fff;color:var(--jade-dark);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;padding:1px 7px;border-radius:9px}
+.order-ttl{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.order-ttl p.section-sub{margin-bottom:12px}
+#btnHampers .hp-chip{font-family:'IBM Plex Mono',monospace;font-size:10.5px;background:var(--jade);color:#fff;padding:1px 7px;border-radius:9px;font-weight:600;margin-left:4px}
+.modal-sheet.hp-full{min-height:92vh;max-height:92vh}
+.hp-head{display:flex;align-items:center;gap:10px;margin-bottom:2px}
+.hp-head h3{flex:1;margin:0;font-size:20px}
+.hp-back,.hp-sync{width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--ink);cursor:pointer;flex-shrink:0;padding:0}
+.hp-sync svg{width:16px;height:16px}
+.hp-sync.spin svg{animation:spin 1s linear infinite}
+.hp-seg{display:flex;background:var(--jade-tint);border-radius:999px;padding:3px;margin:12px 0}
+.hp-seg button{flex:1;border:none;background:none;padding:8px 0;border-radius:999px;font:700 13px 'DM Sans',sans-serif;color:var(--jade-dark);cursor:pointer}
+.hp-seg button.on{background:var(--jade);color:#fff}
+.hp-main{width:100%;padding:12px;border:none;border-radius:var(--radius-sm);background:var(--jade);color:#fff;font:700 14.5px 'DM Sans',sans-serif;cursor:pointer;margin-bottom:10px}
+.hp-pills{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;margin-bottom:6px}
+.hp-pills::-webkit-scrollbar{display:none}
+.hp-pill{flex-shrink:0;padding:7px 12px;border-radius:999px;border:1.5px solid var(--border);background:var(--surface);font:600 12.5px 'DM Sans',sans-serif;color:var(--ink);cursor:pointer}
+.hp-pill.on{background:var(--jade);border-color:var(--jade);color:#fff}
+.hp-day{font-family:'Fraunces',serif;font-weight:600;font-size:15px;margin:16px 0 8px;display:flex;justify-content:space-between;align-items:baseline;color:var(--ink)}
+.hp-day span{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;color:var(--ink-soft)}
+.hp-prep{background:var(--jade-tint);border:1px solid #cfdcd5;border-radius:var(--radius);padding:11px 14px;margin-bottom:8px}
+.hp-prep b{font-size:12px;color:var(--jade-dark);display:block;margin-bottom:5px}
+.hp-prep .l{display:flex;justify-content:space-between;font-size:13px;padding:2px 0}
+.hp-prep .l span:last-child{font-family:'IBM Plex Mono',monospace;font-weight:600}
+.hp-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:13px 14px;margin-bottom:10px}
+.hp-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.hp-nm{font-weight:700;font-size:14.5px}
+.hp-tag{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:9px;background:var(--gold-tint);color:var(--gold);margin-left:6px;vertical-align:1px}
+.hp-tot{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:13.5px;white-space:nowrap}
+.hp-ln{font-size:13px;color:var(--ink-soft);padding:2px 0}
+.hp-note{font-size:12.5px;color:var(--ink-soft);margin-top:4px}
+.hp-act,.hp-foot{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap}
+.hp-btn{padding:7px 12px;border-radius:var(--radius-sm);border:1.5px solid var(--border);background:var(--surface);font:600 12.5px 'DM Sans',sans-serif;color:var(--ink);cursor:pointer}
+.hp-btn.danger{color:var(--chili)}
+.hp-btn.soft{background:var(--jade-tint);color:var(--jade-dark);border-color:var(--jade-tint)}
+.hp-more{width:100%;padding:10px;margin-top:14px;border:1.5px dashed var(--border);border-radius:var(--radius-sm);background:none;font:600 13px 'DM Sans',sans-serif;color:var(--ink-soft);cursor:pointer}
+.hp-empty{text-align:center;color:var(--ink-soft);font-size:13px;padding:22px 0}
+.hp-hint{font-size:12px;color:var(--ink-soft);margin:6px 0 10px;line-height:1.4}
+.hp-per h4{font-family:'Fraunces',serif;font-size:16px;margin:0;color:var(--jade-dark)}
+.hp-meta{font-size:12px;color:var(--ink-soft);margin-top:2px}
+.hp-st{font-size:11px;font-weight:700;padding:3px 9px;border-radius:9px;background:var(--jade-tint);color:var(--jade-dark);white-space:nowrap}
+.hp-st.x{background:#eee;color:#777}
+.hp-pk{padding:10px 0;border-top:1px dashed var(--border)}
+.hp-pk .r{display:flex;justify-content:space-between;gap:8px;font-weight:700;font-size:14px}
+.hp-pk .r b{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;white-space:nowrap}
+.hp-pk .isi{font-size:12.5px;color:var(--ink-soft);margin-top:3px;line-height:1.4}
+.hp-sheet-h{display:flex;justify-content:space-between;align-items:center}
+.hp-sheet-h h3{margin:0}
+.hp-x{border:none;background:none;font-size:22px;color:var(--ink-soft);cursor:pointer;padding:0 4px}
+.hp-fld{margin-bottom:11px}
+.hp-fld label{display:block;font-size:12px;font-weight:700;color:var(--ink-soft);margin-bottom:4px}
+.hp-fld input{width:100%}
+.hp-two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.hp-sec{font-family:'Fraunces',serif;font-weight:600;font-size:15px;margin:14px 0 6px}
+.hp-isirow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:6px;font-size:13.5px;font-weight:600}
+.hp-isirow small{display:block;font-weight:500;color:var(--gold);font-size:11.5px}
+.hp-stp{display:flex;align-items:center;border:1.5px solid var(--border);border-radius:9px;overflow:hidden;flex-shrink:0}
+.hp-stp button{width:32px;height:34px;border:none;background:var(--jade-tint);color:var(--jade);font-size:18px;font-weight:700;cursor:pointer;padding:0}
+.hp-stp span{min-width:30px;text-align:center;font-weight:700;font-size:14px}
+.hp-picker{border:1.5px dashed var(--border);border-radius:var(--radius-sm);padding:10px;margin-top:6px}
+.hp-picker input{width:100%;margin-bottom:8px}
+.hp-chips{display:flex;flex-wrap:wrap;gap:6px;max-height:150px;overflow-y:auto}
+.hp-chips span{padding:6px 10px;border-radius:999px;background:var(--jade-tint);color:var(--jade-dark);font-size:12.5px;font-weight:600;cursor:pointer}
+.hp-chips span.off{background:#f1f1f1;color:#999}
+.hp-link{background:none;border:none;color:var(--jade);font:700 12px 'DM Sans',sans-serif;text-decoration:underline;padding:0;cursor:pointer}
+.hp-opt{border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.hp-opt .n{font-weight:700;font-size:14px}
+.hp-opt .i{font-size:12px;color:var(--ink-soft);margin-top:2px;line-height:1.35}
+.hp-opt .p{font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:600;margin-top:3px}
+.hp-opt.sel{border-color:var(--jade);background:var(--jade-tint)}
+.hp-sum{display:flex;justify-content:space-between;align-items:center;background:var(--jade-tint);border-radius:var(--radius-sm);padding:11px 13px;margin:12px 0 10px;font-weight:700}
+.hp-sum span:last-child{font-family:'IBM Plex Mono',monospace}
 </style>
 </head>
 <body>
@@ -636,8 +710,13 @@
   <main>
     <!-- ORDER -->
     <section class="tab active" id="tab-order">
-      <h2 class="section-title">Input Orderan</h2>
-      <p class="section-sub">Catat orderan baru, total kehitung otomatis.</p>
+      <div class="order-ttl">
+        <div>
+          <h2 class="section-title">Input Orderan</h2>
+          <p class="section-sub">Catat orderan baru, total kehitung otomatis.</p>
+        </div>
+        <button type="button" class="hp-pillbtn" id="btnHampersOrder" aria-label="Input pesanan hampers">Hampers <span class="hp-badge" id="hpBadge" style="display:none"></span></button>
+      </div>
 
       <div class="edit-banner" id="editBanner" style="display:none;">
         <span>✎ Lagi edit orderan</span>
@@ -735,6 +814,7 @@
           <button class="chili-sm" id="btnToggleStokMode" onclick="toggleStokMode()" style="background:var(--gold-tint);border-color:var(--gold);color:var(--gold);">📦 Stock / Available</button>
           <button class="chili-sm" id="btnToggleDeleteMode" onclick="toggleDeleteMode()" style="background:#fff;">🗑️ Hapus</button>
           <button class="chili-sm" id="btnBahan" type="button" style="display:none;background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark);">🧂 Bahan <span class="bp bp-gold" id="bhChip" style="display:none"></span></button>
+          <button class="chili-sm" id="btnHampers" type="button" style="background:var(--jade-tint);border-color:var(--jade);color:var(--jade-dark);">🎁 Hampers <span class="hp-chip" id="hpMenuChip" style="display:none"></span></button>
         </div>
       </div>
       <p class="section-sub">Kelola kategori &amp; item menu.</p>
@@ -831,6 +911,50 @@
     </div>
   </nav>
 
+  <!-- ===== HAMPERS (5 Nov 2026): layar Hampers + sheet pesanan/periode/paket. Posisi di DOM SEBELUM addMenuModal supaya "Tambah menu dulu" tampil di atasnya ===== -->
+  <div class="modal-overlay hidden" id="hpM"><div class="modal-sheet hp-full">
+    <div class="hp-head"><button type="button" class="hp-back" onclick="kembaliLayar()" aria-label="Kembali">&#8592;</button><h3>Hampers</h3><button type="button" class="hp-sync" id="hpSync" aria-label="Segarkan Hampers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button></div>
+    <div class="hp-seg" id="hpSeg"></div>
+    <div id="hpBody"></div>
+  </div></div>
+
+  <div class="modal-overlay hidden" id="hpOrdM" onclick="if(event.target===this) kembaliLayar()"><div class="modal-sheet">
+    <div class="hp-sheet-h"><h3 id="hpOrdT">Pesanan hampers</h3><button type="button" class="hp-x" onclick="kembaliLayar()" aria-label="Tutup">&times;</button></div>
+    <p>Paket dari semua periode yang sedang berjalan.</p>
+    <div class="hp-fld"><label>Nama customer</label><input type="text" id="hpOrdNama" list="customerList" autocomplete="off" autocapitalize="words" placeholder="Nama pemesan"></div>
+    <div class="hp-fld"><label>Tanggal kirim</label><input type="date" id="hpOrdTgl"></div>
+    <div class="hp-pills" id="hpOrdPills"></div>
+    <div id="hpOrdList"></div>
+    <div class="hp-fld"><label>Catatan (opsional)</label><input type="text" id="hpOrdNote" maxlength="500" placeholder="Kartu ucapan, alamat kirim, dll"></div>
+    <div class="hp-sum"><span>Total</span><span id="hpOrdTot">Rp 0</span></div>
+    <button type="button" class="primary" id="hpOrdSave">Simpan pesanan</button>
+  </div></div>
+
+  <div class="modal-overlay hidden" id="hpPerM" onclick="if(event.target===this) kembaliLayar()"><div class="modal-sheet">
+    <div class="hp-sheet-h"><h3 id="hpPerT">Periode baru</h3><button type="button" class="hp-x" onclick="kembaliLayar()" aria-label="Tutup">&times;</button></div>
+    <p>Contoh: Natal 2026, Lebaran 2027. Tanggal hanya sebagai keterangan, tidak menutup periode otomatis.</p>
+    <div class="hp-fld"><label>Nama periode</label><input type="text" id="hpPerNama" maxlength="60" placeholder="Lebaran 2027"></div>
+    <div class="hp-two"><div class="hp-fld"><label>PO buka (opsional)</label><input type="date" id="hpPerBuka"></div><div class="hp-fld"><label>PO tutup (opsional)</label><input type="date" id="hpPerTutup"></div></div>
+    <button type="button" class="primary" id="hpPerSave">Simpan periode</button>
+  </div></div>
+
+  <div class="modal-overlay hidden" id="hpPkM" onclick="if(event.target===this) kembaliLayar()"><div class="modal-sheet">
+    <div class="hp-sheet-h"><h3 id="hpPkT">Paket baru</h3><button type="button" class="hp-x" onclick="kembaliLayar()" aria-label="Tutup">&times;</button></div>
+    <p id="hpPkSub"></p>
+    <div class="hp-fld"><label>Nama paket</label><input type="text" id="hpPkNama" maxlength="120" placeholder="Box Lebaran Kecil"></div>
+    <div class="hp-fld"><label>Harga (Rp)</label><input type="text" inputmode="numeric" id="hpPkHarga" placeholder="95000"></div>
+    <div class="hp-sec">Isi paket (dari menu)</div>
+    <div id="hpPkIsi"></div>
+    <div class="hp-picker">
+      <input type="text" id="hpPkQ" placeholder="Cari item menu…" autocomplete="off">
+      <div class="hp-chips" id="hpPkChips"></div>
+      <div class="hp-hint" style="margin:8px 0 0">Item belum ada di menu? <button type="button" class="hp-link" id="hpPkAddMenu">Tambah menu dulu</button>, lalu ketuk kolom cari lagi.</div>
+    </div>
+    <div style="height:12px"></div>
+    <button type="button" class="primary" id="hpPkSave">Simpan paket</button>
+    <button type="button" class="secondary" id="hpPkDel" style="width:100%;margin-top:8px;color:var(--chili);border-color:var(--chili);display:none">Hapus paket</button>
+  </div></div>
+
   <!-- Staff sign-in modal -->
   <div class="modal-overlay hidden" id="deviceModal" onclick="if(event.target===this) kembaliLayar()">
     <div class="modal-sheet">
@@ -861,6 +985,7 @@
         <div id="pushPrefs" style="display:none;margin:-2px 0 10px;padding:6px 12px;border:1.5px solid var(--border);border-radius:12px;">
           <label style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;font-size:14px;"><input type="checkbox" data-pref="order_baru" style="margin-top:3px;"><span>Order baru masuk<br><small style="color:var(--ink-soft);">Order dengan tanggal kirim hari ini</small></span></label>
           <label style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;font-size:14px;border-top:1px dashed var(--border);"><input type="checkbox" data-pref="rekap_pagi" style="margin-top:3px;"><span>Rekap order jam 04.00<br><small style="color:var(--ink-soft);">Ringkasan order hari itu. Cuma dikirim kalau ada order.</small></span></label>
+          <label style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;font-size:14px;border-top:1px dashed var(--border);"><input type="checkbox" data-pref="hampers" style="margin-top:3px;"><span>Pengingat hampers<br><small style="color:var(--ink-soft);">H-3 sampai hari-H jam 04.00: paket dan isi yang perlu disiapkan</small></span></label>
           <label id="pushPrefHabisRow" style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;font-size:14px;border-top:1px dashed var(--border);"><input type="checkbox" data-pref="bahan_habis" style="margin-top:3px;"><span>Bahan habis<br><small style="color:var(--ink-soft);">Khusus owner</small></span></label>
         </div>
         <button class="secondary" style="width:100%;color:var(--chili);border-color:var(--chili);" onclick="logoutStaff()">Logout</button>
@@ -6884,6 +7009,301 @@ $('bhAddSep').onclick = () => { const id = 's' + Date.now(); B.splice(Math.min(1
 $('btnMenuHam').addEventListener('click', () => { const b = $('btnBahan'); b.style.display = canSee() ? '' : 'none'; refreshChip(); });
 window.bhState = () => ({B, reorder}); // dipakai tes headless
 })();
+
+/* ==== HAMPERS (5 Nov 2026) ====
+   Layar Hampers (hamburger tab Menu) + tombol Hampers di tab Order. Backend: hampers.js di worker (get_hampers, add/update/delete_hampers_order,
+   save_hampers_periode, set_hampers_periode_closed, save_hampers_paket, delete_hampers_paket).
+   Semua role boleh lihat/input/edit/hapus pesanan; periode & paket hanya owner (ditegakkan SERVER, UI cuma menyembunyikan tombol).
+   Back = pola pushLayar/kembaliLayar yang sama dengan modal lain. Tampil cache-first, data segar diambil di belakang. */
+(function(){
+'use strict';
+const $ = id => document.getElementById(id);
+const esc = s => escapeHtml(s);
+const CACHE_KEY = 'hampers-cache-v2';
+const isOwnerH = () => !!staffSession && (staffSession.is_owner === true || staffSession.role === 'owner');
+const todayISO = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Jakarta' });
+const fmtTgl = iso => { try { return new Intl.DateTimeFormat('id-ID', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(iso + 'T00:00:00Z')); } catch(e) { return iso; } };
+const isiTxt = l => (l.isi || []).map(x => Array.isArray(x) ? x[1] + ' ' + x[0] : x.qty + ' ' + x.nama).join(', ');
+const uid = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'h-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9);
+
+let H = (function(){ try { const p = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); if(p && Array.isArray(p.periode) && Array.isArray(p.orders)) return p; } catch(e) {} return { periode: [], orders: [] }; })();
+let hadData = H.periode.length > 0 || H.orders.length > 0;
+let tab = 'pesanan', perF = 'all', showPast = false, loading = false, saving = false;
+const perName = id => { const p = H.periode.find(x => x.id === id); return p ? p.nama : ''; };
+const saveCache = () => { try { localStorage.setItem(CACHE_KEY, JSON.stringify(H)); } catch(e) {} };
+const running = () => H.periode.filter(p => !p.closed);
+const runningPaketCount = () => running().reduce((s, p) => s + p.pakets.length, 0);
+
+function updateBadge(){
+  const n = runningPaketCount(), b = $('hpBadge'), c = $('hpMenuChip');
+  if(b){ b.textContent = n; b.style.display = n ? '' : 'none'; }
+  if(c){ const r = running().length; c.textContent = r + ' periode'; c.style.display = r ? '' : 'none'; }
+}
+
+async function load(silent){
+  if(loading) return;
+  loading = true;
+  const ic = $('hpSync'); if(ic && !silent) ic.classList.add('spin');
+  try{
+    const d = await apiGet('get_hampers', {}, { silent: !!silent || hadData });
+    H = { periode: d.periode || [], orders: d.orders || [] };
+    hadData = true; saveCache(); updateBadge();
+    if(!$('hpM').classList.contains('hidden')) render();
+  } catch(e){
+    if(!silent) showToast(e.status === 'not_registered' ? 'Sign in dulu buat lihat Hampers.' : 'Gagal ambil data Hampers: ' + e.message);
+    if(!hadData && !$('hpM').classList.contains('hidden')) $('hpBody').innerHTML = '<div class="hp-empty">Gagal memuat. Tarik tombol segarkan di kanan atas.</div>';
+  } finally { loading = false; if(ic) ic.classList.remove('spin'); }
+}
+
+// ---------- layar utama ----------
+function openL(id, undo){ $(id).classList.remove('hidden'); pushLayar(undo || (() => $(id).classList.add('hidden'))); }
+function closeL(id){ $(id).classList.add('hidden'); }
+
+function openHampers(){
+  tab = 'pesanan'; perF = 'all'; showPast = false;
+  render();
+  openL('hpM');
+  load(false);
+}
+window.openHampers = openHampers;
+
+function setTab(t){ tab = t; render(); }
+
+function render(){
+  $('hpSeg').innerHTML = `<button type="button" class="${tab === 'pesanan' ? 'on' : ''}" data-t="pesanan">Pesanan</button><button type="button" class="${tab === 'paket' ? 'on' : ''}" data-t="paket">Paket</button>`;
+  $('hpBody').innerHTML = tab === 'pesanan' ? renderPesanan() : renderPaket();
+}
+
+function persiapanBox(os){
+  const tot = {}; let boxes = 0;
+  os.forEach(o => o.lines.forEach(l => { boxes += l.qty; (l.isi || []).forEach(x => { const n = Array.isArray(x) ? x[0] : x.nama, q = Array.isArray(x) ? x[1] : x.qty; tot[n] = (tot[n] || 0) + q * l.qty; }); }));
+  const rows = Object.entries(tot);
+  return { boxes, html: `<div class="hp-prep"><b>Persiapan isi paket</b>${rows.map(([n, q]) => `<div class="l"><span>${esc(n)}</span><span>${q}</span></div>`).join('')}</div>` };
+}
+
+function orderCard(o){
+  return `<div class="hp-card" data-oid="${esc(o.id)}">
+    <div class="hp-top"><div class="hp-nm">${esc(o.nama)}${[...new Set(o.lines.map(l => l.periode_id))].map(p => perName(p) ? `<span class="hp-tag">${esc(perName(p))}</span>` : '').join('')}</div><div class="hp-tot">${rupiah(o.total)}</div></div>
+    ${o.lines.map(l => `<div class="hp-ln">${l.qty} &times; ${esc(l.label)}</div>`).join('')}
+    ${o.note ? `<div class="hp-note">📝 ${esc(o.note)}</div>` : ''}
+    <div class="hp-act"><button type="button" class="hp-btn" data-act="edit">Edit</button><button type="button" class="hp-btn danger" data-act="del">Hapus</button></div>
+  </div>`;
+}
+
+function renderPesanan(){
+  let h = `<button type="button" class="hp-main" data-act="neworder">+ Pesanan hampers</button>`;
+  if(H.periode.length > 1) h += `<div class="hp-pills"><button type="button" class="hp-pill ${perF === 'all' ? 'on' : ''}" data-p="all">Semua</button>${H.periode.map(p => `<button type="button" class="hp-pill ${perF === p.id ? 'on' : ''}" data-p="${esc(p.id)}">${esc(p.nama)}</button>`).join('')}</div>`;
+  const list = H.orders.filter(o => perF === 'all' || o.lines.some(l => l.periode_id === perF));
+  if(!list.length) return h + `<div class="hp-empty">${hadData ? 'Belum ada pesanan hampers.' : 'Memuat…'}</div>`;
+  const today = todayISO();
+  const up = list.filter(o => o.tgl >= today), past = list.filter(o => o.tgl < today).reverse();
+  const group = os => {
+    const tgls = [...new Set(os.map(o => o.tgl))];
+    return tgls.map(t => {
+      const g = os.filter(o => o.tgl === t), p = persiapanBox(g);
+      return `<div class="hp-day">${esc(fmtTgl(t))}<span>${g.length} pesanan · ${p.boxes} paket</span></div>${p.html}${g.map(orderCard).join('')}`;
+    }).join('');
+  };
+  h += up.length ? group(up) : `<div class="hp-empty">Tidak ada pesanan yang akan datang.</div>`;
+  if(past.length) h += `<button type="button" class="hp-more" data-act="past">${showPast ? 'Sembunyikan' : 'Tampilkan'} yang sudah lewat (${past.length})</button>${showPast ? group(past) : ''}`;
+  return h;
+}
+
+function renderPaket(){
+  const own = isOwnerH();
+  let h = own ? `<button type="button" class="hp-main" data-act="newperiode">+ Periode baru</button>` : `<div class="hp-hint">Periode dan paket hanya bisa diubah owner.</div>`;
+  if(!H.periode.length) return h + `<div class="hp-empty">${hadData ? 'Belum ada periode hampers.' : 'Memuat…'}</div>`;
+  h += H.periode.map(p => `<div class="hp-card hp-per" data-pid="${esc(p.id)}">
+    <div class="hp-top"><div><h4>${esc(p.nama)}</h4><div class="hp-meta">${p.buka || p.tutup ? 'PO ' + (p.buka ? esc(fmtTgl(p.buka)) : '…') + ' – ' + (p.tutup ? esc(fmtTgl(p.tutup)) : '…') : 'Tanpa tanggal'}</div></div><span class="hp-st ${p.closed ? 'x' : ''}">${p.closed ? 'Ditutup' : 'Berjalan'}</span></div>
+    ${p.pakets.length ? p.pakets.map(k => `<div class="hp-pk" data-kid="${esc(k.id)}"><div class="r"><span>${esc(k.nama)}</span><b>${rupiah(k.harga)}</b></div><div class="isi">${esc(isiTxt(k))}</div>${own ? `<div class="hp-act"><button type="button" class="hp-btn" data-act="editpaket">Ubah</button></div>` : ''}</div>`).join('') : '<div class="hp-hint" style="margin:8px 0 0">Belum ada paket.</div>'}
+    ${own ? `<div class="hp-foot"><button type="button" class="hp-btn soft" data-act="newpaket">+ Paket</button><button type="button" class="hp-btn" data-act="editperiode">Ubah periode</button><button type="button" class="hp-btn ${p.closed ? '' : 'danger'}" data-act="toggleclose">${p.closed ? 'Buka lagi' : 'Tutup periode'}</button></div>` : ''}
+  </div>`).join('');
+  if(own) h += `<div class="hp-hint">Periode yang ditutup tidak muncul saat input pesanan baru, tapi pesanannya tetap terlihat di tab Pesanan.</div>`;
+  return h;
+}
+
+// tombol dua-langkah buat aksi berbahaya (tanpa dialog): ketuk sekali -> "Yakin?", ketuk lagi dalam 3 detik -> jalan.
+function arm(btn, label, fn){
+  if(btn.dataset.armed){ clearTimeout(btn._t); delete btn.dataset.armed; btn.textContent = btn.dataset.orig; fn(); return; }
+  btn.dataset.armed = '1'; btn.dataset.orig = btn.textContent; btn.textContent = label;
+  btn._t = setTimeout(() => { delete btn.dataset.armed; btn.textContent = btn.dataset.orig; }, 3000);
+}
+
+$('hpBody').addEventListener('click', e => {
+  const pill = e.target.closest('.hp-pill'); if(pill){ perF = pill.dataset.p; render(); return; }
+  const b = e.target.closest('[data-act]'); if(!b) return;
+  const card = b.closest('[data-oid]'), per = b.closest('[data-pid]'), pk = b.closest('[data-kid]');
+  switch(b.dataset.act){
+    case 'neworder': openOrd(null); break;
+    case 'past': showPast = !showPast; render(); break;
+    case 'edit': openOrd(H.orders.find(o => o.id === card.dataset.oid)); break;
+    case 'del': arm(b, 'Yakin hapus?', () => delOrder(card.dataset.oid)); break;
+    case 'newperiode': openPer(null); break;
+    case 'editperiode': openPer(H.periode.find(p => p.id === per.dataset.pid)); break;
+    case 'toggleclose': { const p = H.periode.find(x => x.id === per.dataset.pid); arm(b, p.closed ? 'Yakin buka lagi?' : 'Yakin tutup?', () => togglePer(p)); break; }
+    case 'newpaket': openPk(null, per.dataset.pid); break;
+    case 'editpaket': { const p = H.periode.find(x => x.id === per.dataset.pid); openPk(p.pakets.find(k => k.id === pk.dataset.kid), p.id); break; }
+  }
+});
+$('hpSeg').addEventListener('click', e => { const b = e.target.closest('button[data-t]'); if(b) setTab(b.dataset.t); });
+$('hpSync').addEventListener('click', () => load(false));
+
+async function delOrder(id){
+  const keep = H.orders;
+  H.orders = H.orders.filter(o => o.id !== id); saveCache(); render();
+  try{ await apiPost('delete_hampers_order', { id }); showToast('Pesanan hampers dihapus'); }
+  catch(e){ H.orders = keep; saveCache(); render(); showToast('Gagal hapus: ' + e.message); }
+}
+async function togglePer(p){
+  try{ await apiPost('set_hampers_periode_closed', { id: p.id, closed: !p.closed }); showToast(p.closed ? 'Periode dibuka lagi' : 'Periode ditutup'); await load(true); render(); updateBadge(); }
+  catch(e){ showToast('Gagal: ' + e.message); }
+}
+
+// ---------- sheet periode ----------
+let editPer = null;
+function openPer(p){
+  editPer = p || null;
+  $('hpPerT').textContent = p ? 'Ubah periode' : 'Periode baru';
+  $('hpPerNama').value = p ? p.nama : ''; $('hpPerBuka').value = p ? p.buka : ''; $('hpPerTutup').value = p ? p.tutup : '';
+  openL('hpPerM');
+}
+$('hpPerSave').addEventListener('click', async () => {
+  if(saving) return;
+  const nama = $('hpPerNama').value.trim(); if(!nama){ showToast('Nama periode wajib diisi.'); return; }
+  saving = true; $('hpPerSave').disabled = true;
+  try{
+    await apiPost('save_hampers_periode', { id: editPer ? editPer.id : '', nama, buka: $('hpPerBuka').value, tutup: $('hpPerTutup').value });
+    await load(true); render(); kembaliLayar(); showToast('Periode tersimpan');
+  } catch(e){ showToast('Gagal simpan: ' + e.message); }
+  finally { saving = false; $('hpPerSave').disabled = false; }
+});
+
+// ---------- sheet paket ----------
+let pk = null; // {id, periode_id, isi:[{item_id,nama,qty}]}
+function openPk(k, periodeId){
+  pk = { id: k ? k.id : '', periode_id: periodeId, isi: k ? k.isi.map(x => Object.assign({}, x)) : [] };
+  $('hpPkT').textContent = k ? 'Ubah paket' : 'Paket baru';
+  $('hpPkSub').innerHTML = 'Masuk ke periode <b>' + esc(perName(periodeId)) + '</b>.';
+  $('hpPkNama').value = k ? k.nama : ''; $('hpPkHarga').value = k ? String(k.harga) : ''; $('hpPkQ').value = '';
+  $('hpPkDel').style.display = k ? '' : 'none';
+  renderPk(); openL('hpPkM');
+}
+function renderPk(){
+  $('hpPkIsi').innerHTML = pk.isi.length ? pk.isi.map((x, i) => `<div class="hp-isirow"><div>${esc(x.nama)}${x.item_id ? '' : '<small>belum terhubung ke menu</small>'}</div><div class="hp-stp"><button type="button" data-i="${i}" data-d="-1">&minus;</button><span>${x.qty}</span><button type="button" data-i="${i}" data-d="1">+</button></div></div>`).join('') : '<div class="hp-hint" style="margin:0 0 6px">Belum ada isi. Pilih item menu di bawah.</div>';
+  const q = $('hpPkQ').value.trim().toLowerCase();
+  const seen = new Set(), items = [];
+  (typeof menuItems !== 'undefined' ? menuItems : []).forEach(m => { const k = m.item_id || m.nama; if(!seen.has(k) && (!q || String(m.nama).toLowerCase().includes(q))){ seen.add(k); items.push(m); } });
+  $('hpPkChips').innerHTML = items.slice(0, 40).map(m => { const on = pk.isi.some(x => x.item_id ? x.item_id === m.item_id : x.nama === m.nama); return `<span class="${on ? 'off' : ''}" data-id="${esc(m.item_id || '')}" data-n="${esc(m.nama)}">${on ? '✓ ' : '+ '}${esc(m.nama)}</span>`; }).join('') || '<div class="hp-hint" style="margin:0">Item nggak ketemu.</div>';
+}
+$('hpPkIsi').addEventListener('click', e => {
+  const b = e.target.closest('button[data-i]'); if(!b) return;
+  const i = +b.dataset.i; pk.isi[i].qty = Math.max(0, pk.isi[i].qty + (+b.dataset.d));
+  if(!pk.isi[i].qty) pk.isi.splice(i, 1);
+  renderPk();
+});
+$('hpPkChips').addEventListener('click', e => {
+  const s = e.target.closest('span[data-n]'); if(!s) return;
+  const id = s.dataset.id, n = s.dataset.n;
+  if(!pk.isi.some(x => id ? x.item_id === id : x.nama === n)) pk.isi.push({ item_id: id || null, nama: n, qty: 1 });
+  renderPk();
+});
+$('hpPkQ').addEventListener('input', renderPk);
+$('hpPkQ').addEventListener('focus', renderPk); // menu baru (habis "Tambah menu dulu") ikut muncul
+$('hpPkAddMenu').addEventListener('click', () => { if(typeof openAddMenuModal === 'function') openAddMenuModal(); });
+$('hpPkSave').addEventListener('click', async () => {
+  if(saving) return;
+  const nama = $('hpPkNama').value.trim(), harga = parseInt($('hpPkHarga').value.replace(/\D/g, ''), 10);
+  if(!nama){ showToast('Nama paket wajib diisi.'); return; }
+  if(isNaN(harga)){ showToast('Harga paket wajib diisi.'); return; }
+  if(!pk.isi.length){ showToast('Isi paket belum dipilih.'); return; }
+  saving = true; $('hpPkSave').disabled = true;
+  try{
+    await apiPost('save_hampers_paket', { id: pk.id, periode_id: pk.periode_id, nama, harga, isi: pk.isi });
+    await load(true); render(); kembaliLayar(); showToast('Paket tersimpan');
+  } catch(e){ showToast('Gagal simpan: ' + e.message); }
+  finally { saving = false; $('hpPkSave').disabled = false; }
+});
+$('hpPkDel').addEventListener('click', function(){
+  arm(this, 'Yakin hapus paket?', async () => {
+    try{ await apiPost('delete_hampers_paket', { id: pk.id }); await load(true); render(); kembaliLayar(); showToast('Paket dihapus (pesanan lama tetap utuh)'); }
+    catch(e){ showToast('Gagal hapus: ' + e.message); }
+  });
+});
+
+// ---------- sheet pesanan (baru / edit) ----------
+let ord = null; // {id, clientId, qty:{paket_id:n}, extra:[line], per}
+function openOrd(o){
+  if(!o && !runningPaketCount()){
+    if(!hadData){ showToast('Memuat paket hampers… coba lagi sebentar.'); load(false); return; }
+    showToast(isOwnerH() ? 'Belum ada paket berjalan. Buat dulu di Menu > Hampers > Paket.' : 'Belum ada paket hampers berjalan. Minta owner membuatnya.'); return;
+  }
+  ord = { id: o ? o.id : '', clientId: uid(), qty: {}, extra: [], per: 'all' };
+  if(o){
+    const live = new Set(); running().forEach(p => p.pakets.forEach(k => live.add(k.id)));
+    o.lines.forEach(l => { if(l.paket_id && live.has(l.paket_id)) ord.qty[l.paket_id] = l.qty; else ord.extra.push(Object.assign({}, l)); });
+  }
+  $('hpOrdT').textContent = o ? 'Edit pesanan hampers' : 'Pesanan hampers';
+  $('hpOrdNama').value = o ? o.nama : ''; $('hpOrdTgl').value = o ? o.tgl : ''; $('hpOrdNote').value = o ? o.note : '';
+  renderOrd(); openL('hpOrdM');
+  if($('hpM').classList.contains('hidden')) load(true); // dibuka dari tab Order: segarkan paket di belakang
+}
+window.openHampersOrder = () => openOrd(null);
+function renderOrd(){
+  const pers = running();
+  $('hpOrdPills').innerHTML = pers.length > 1 ? `<button type="button" class="hp-pill ${ord.per === 'all' ? 'on' : ''}" data-p="all">Semua</button>` + pers.map(p => `<button type="button" class="hp-pill ${ord.per === p.id ? 'on' : ''}" data-p="${esc(p.id)}">${esc(p.nama)}</button>`).join('') : '';
+  let h = '';
+  pers.filter(p => ord.per === 'all' || p.id === ord.per).forEach(p => {
+    p.pakets.forEach(k => {
+      const q = ord.qty[k.id] || 0;
+      h += `<div class="hp-opt ${q ? 'sel' : ''}"><div><div class="n">${esc(k.nama)}${pers.length > 1 && ord.per === 'all' ? `<span class="hp-tag">${esc(p.nama)}</span>` : ''}</div><div class="i">${esc(isiTxt(k))}</div><div class="p">${rupiah(k.harga)}</div></div><div class="hp-stp"><button type="button" data-k="${esc(k.id)}" data-d="-1">&minus;</button><span>${q}</span><button type="button" data-k="${esc(k.id)}" data-d="1">+</button></div></div>`;
+    });
+  });
+  ord.extra.forEach((l, i) => {
+    h += `<div class="hp-opt ${l.qty ? 'sel' : ''}"><div><div class="n">${esc(l.label)}${l.periode_id && perName(l.periode_id) ? `<span class="hp-tag">${esc(perName(l.periode_id))}</span>` : ''}</div><div class="i">${esc(isiTxt(l))}</div><div class="p">${rupiah(l.harga)} · paket lama/ditutup</div></div><div class="hp-stp"><button type="button" data-x="${i}" data-d="-1">&minus;</button><span>${l.qty}</span><button type="button" data-x="${i}" data-d="1">+</button></div></div>`;
+  });
+  $('hpOrdList').innerHTML = h || '<div class="hp-empty">Belum ada paket berjalan.</div>';
+  let tot = ord.extra.reduce((s, l) => s + l.harga * l.qty, 0);
+  running().forEach(p => p.pakets.forEach(k => { tot += k.harga * (ord.qty[k.id] || 0); }));
+  $('hpOrdTot').textContent = rupiah(tot);
+  $('hpOrdSave').disabled = saving || tot === 0;
+}
+$('hpOrdPills').addEventListener('click', e => { const b = e.target.closest('.hp-pill'); if(b){ ord.per = b.dataset.p; renderOrd(); } });
+$('hpOrdList').addEventListener('click', e => {
+  const b = e.target.closest('button[data-d]'); if(!b) return;
+  const d = +b.dataset.d;
+  if(b.dataset.k) ord.qty[b.dataset.k] = Math.max(0, (ord.qty[b.dataset.k] || 0) + d);
+  else { const l = ord.extra[+b.dataset.x]; l.qty = Math.max(0, l.qty + d); }
+  renderOrd();
+});
+$('hpOrdSave').addEventListener('click', async () => {
+  if(saving) return;
+  const nama = $('hpOrdNama').value.trim(), tgl = $('hpOrdTgl').value;
+  if(!nama){ showToast('Nama customer wajib diisi.'); return; }
+  if(!tgl){ showToast('Tanggal kirim wajib diisi.'); return; }
+  const lines = [];
+  Object.entries(ord.qty).forEach(([id, q]) => { if(q > 0) lines.push({ paket_id: id, qty: q }); });
+  ord.extra.forEach(l => { if(l.qty > 0) lines.push(l.paket_id ? { paket_id: l.paket_id, qty: l.qty } : { label: l.label, harga: l.harga, qty: l.qty, isi: l.isi }); });
+  if(!lines.length){ showToast('Pilih minimal 1 paket.'); return; }
+  saving = true; $('hpOrdSave').disabled = true; $('hpOrdSave').textContent = 'Menyimpan…';
+  try{
+    const payload = { nama, tgl, note: $('hpOrdNote').value.trim(), lines };
+    if(ord.id) await apiPost('update_hampers_order', Object.assign({ id: ord.id }, payload));
+    else await apiPost('add_hampers_order', Object.assign({ client_id: ord.clientId }, payload)); // client_id tetap sama kalau retry -> idempoten
+    showToast(ord.id ? 'Pesanan hampers diperbarui' : 'Pesanan hampers tersimpan');
+    saving = false; await load(true); kembaliLayar();
+    if(!$('hpM').classList.contains('hidden')) render();
+  } catch(e){ showToast('Gagal simpan: ' + e.message); }
+  finally { saving = false; $('hpOrdSave').textContent = 'Simpan pesanan'; if(ord) renderOrd(); }
+});
+
+// ---------- tombol masuk ----------
+$('btnHampers').addEventListener('click', openHampers);
+$('btnHampersOrder').addEventListener('click', () => openOrd(null));
+updateBadge();
+if(staffSession) load(true); // badge + cache segar saat app dibuka
+window.hampersState = () => ({ H, tab, perF }); // dipakai tes headless
+})();
+
 </script>
 </body>
 </html>
