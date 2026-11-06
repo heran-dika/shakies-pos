@@ -664,6 +664,7 @@
 .hp-fld{margin-bottom:11px}
 .hp-fld label{display:block;font-size:12px;font-weight:700;color:var(--ink-soft);margin-bottom:4px}
 .hp-fld input{width:100%}
+.hp-fld input[type=date]{min-height:46px}
 .hp-two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .hp-sec{font-family:'Fraunces',serif;font-weight:600;font-size:15px;margin:14px 0 6px}
 .hp-isirow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:6px;font-size:13.5px;font-weight:600}
@@ -715,7 +716,7 @@
           <h2 class="section-title">Input Orderan</h2>
           <p class="section-sub">Catat orderan baru, total kehitung otomatis.</p>
         </div>
-        <button type="button" class="hp-pillbtn" id="btnHampersOrder" aria-label="Input pesanan hampers">Hampers <span class="hp-badge" id="hpBadge" style="display:none"></span></button>
+        <button type="button" class="hp-pillbtn" id="btnHampersOrder" aria-label="Buka Hampers" style="display:none">Hampers <span class="hp-badge" id="hpBadge" style="display:none"></span></button>
       </div>
 
       <div class="edit-banner" id="editBanner" style="display:none;">
@@ -932,9 +933,10 @@
 
   <div class="modal-overlay hidden" id="hpPerM" onclick="if(event.target===this) kembaliLayar()"><div class="modal-sheet">
     <div class="hp-sheet-h"><h3 id="hpPerT">Periode baru</h3><button type="button" class="hp-x" onclick="kembaliLayar()" aria-label="Tutup">&times;</button></div>
-    <p>Contoh: Natal 2026, Lebaran 2027. Tanggal hanya sebagai keterangan, tidak menutup periode otomatis.</p>
+    <p>Contoh: Natal 2026, Lebaran 2027. Tanggal tidak menutup periode otomatis. PO tutup jadi tanggal kirim bawaan saat input pesanan.</p>
     <div class="hp-fld"><label>Nama periode</label><input type="text" id="hpPerNama" maxlength="60" placeholder="Lebaran 2027"></div>
-    <div class="hp-two"><div class="hp-fld"><label>PO buka (opsional)</label><input type="date" id="hpPerBuka"></div><div class="hp-fld"><label>PO tutup (opsional)</label><input type="date" id="hpPerTutup"></div></div>
+    <div class="hp-fld"><label>PO buka</label><input type="date" id="hpPerBuka"></div>
+    <div class="hp-fld"><label>PO tutup</label><input type="date" id="hpPerTutup"></div>
     <button type="button" class="primary" id="hpPerSave">Simpan periode</button>
   </div></div>
 
@@ -7035,7 +7037,8 @@ const running = () => H.periode.filter(p => !p.closed);
 const runningPaketCount = () => running().reduce((s, p) => s + p.pakets.length, 0);
 
 function updateBadge(){
-  const n = runningPaketCount(), b = $('hpBadge'), c = $('hpMenuChip');
+  const n = runningPaketCount(), b = $('hpBadge'), c = $('hpMenuChip'), pill = $('btnHampersOrder');
+  if(pill) pill.style.display = running().length ? '' : 'none'; // pill di tab Order hilang kalau tidak ada periode berjalan
   if(b){ b.textContent = n; b.style.display = n ? '' : 'none'; }
   if(c){ const r = running().length; c.textContent = r + ' periode'; c.style.display = r ? '' : 'none'; }
 }
@@ -7059,13 +7062,16 @@ async function load(silent){
 function openL(id, undo){ $(id).classList.remove('hidden'); pushLayar(undo || (() => $(id).classList.add('hidden'))); }
 function closeL(id){ $(id).classList.add('hidden'); }
 
-function openHampers(){
+let hpOrigin = null; // tab asal kalau layar dibuka dari pill tab Order; Back/tombol kembali -> balik ke tab itu
+const addDays = (iso, n) => { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+function openHampers(origin){
+  hpOrigin = origin || null;
   tab = 'pesanan'; perF = 'all'; showPast = false;
   render();
-  openL('hpM');
+  openL('hpM', () => { $('hpM').classList.add('hidden'); const o = hpOrigin; hpOrigin = null; if(o) switchTab(o); });
   load(false);
 }
-window.openHampers = openHampers;
+window.openHampers = () => openHampers(null);
 
 function setTab(t){ tab = t; render(); }
 
@@ -7164,12 +7170,15 @@ let editPer = null;
 function openPer(p){
   editPer = p || null;
   $('hpPerT').textContent = p ? 'Ubah periode' : 'Periode baru';
-  $('hpPerNama').value = p ? p.nama : ''; $('hpPerBuka').value = p ? p.buka : ''; $('hpPerTutup').value = p ? p.tutup : '';
+  $('hpPerNama').value = p ? p.nama : '';
+  $('hpPerBuka').value = p ? p.buka : todayISO();                // baru: PO buka = hari ini
+  $('hpPerTutup').value = p ? p.tutup : addDays(todayISO(), 7);  // baru: PO tutup = hari ini + 7
   openL('hpPerM');
 }
 $('hpPerSave').addEventListener('click', async () => {
   if(saving) return;
   const nama = $('hpPerNama').value.trim(); if(!nama){ showToast('Nama periode wajib diisi.'); return; }
+  if($('hpPerBuka').value && $('hpPerTutup').value && $('hpPerTutup').value < $('hpPerBuka').value){ showToast('PO tutup tidak boleh lebih awal dari PO buka.'); return; }
   saving = true; $('hpPerSave').disabled = true;
   try{
     await apiPost('save_hampers_periode', { id: editPer ? editPer.id : '', nama, buka: $('hpPerBuka').value, tutup: $('hpPerTutup').value });
@@ -7237,17 +7246,24 @@ function openOrd(o){
     if(!hadData){ showToast('Memuat paket hampers… coba lagi sebentar.'); load(false); return; }
     showToast(isOwnerH() ? 'Belum ada paket berjalan. Buat dulu di Menu > Hampers > Paket.' : 'Belum ada paket hampers berjalan. Minta owner membuatnya.'); return;
   }
-  ord = { id: o ? o.id : '', clientId: uid(), qty: {}, extra: [], per: 'all' };
+  const per0 = (perF !== 'all' && running().some(p => p.id === perF)) ? perF : 'all';
+  ord = { id: o ? o.id : '', clientId: uid(), qty: {}, extra: [], per: per0, tglTouched: !!o };
   if(o){
     const live = new Set(); running().forEach(p => p.pakets.forEach(k => live.add(k.id)));
     o.lines.forEach(l => { if(l.paket_id && live.has(l.paket_id)) ord.qty[l.paket_id] = l.qty; else ord.extra.push(Object.assign({}, l)); });
   }
   $('hpOrdT').textContent = o ? 'Edit pesanan hampers' : 'Pesanan hampers';
-  $('hpOrdNama').value = o ? o.nama : ''; $('hpOrdTgl').value = o ? o.tgl : ''; $('hpOrdNote').value = o ? o.note : '';
+  $('hpOrdNama').value = o ? o.nama : ''; $('hpOrdTgl').value = o ? o.tgl : defaultTgl(ord.per); $('hpOrdNote').value = o ? o.note : '';
   renderOrd(); openL('hpOrdM');
   if($('hpM').classList.contains('hidden')) load(true); // dibuka dari tab Order: segarkan paket di belakang
 }
 window.openHampersOrder = () => openOrd(null);
+// tanggal kirim bawaan = PO tutup periode (kalau terisi dan belum lewat). Banyak periode berjalan + filter "Semua" -> PO tutup terdekat.
+function defaultTgl(perId){
+  const t = todayISO();
+  const c = running().filter(p => (perId === 'all' || p.id === perId) && p.tutup && p.tutup >= t).map(p => p.tutup).sort();
+  return c.length ? c[0] : '';
+}
 function renderOrd(){
   const pers = running();
   $('hpOrdPills').innerHTML = pers.length > 1 ? `<button type="button" class="hp-pill ${ord.per === 'all' ? 'on' : ''}" data-p="all">Semua</button>` + pers.map(p => `<button type="button" class="hp-pill ${ord.per === p.id ? 'on' : ''}" data-p="${esc(p.id)}">${esc(p.nama)}</button>`).join('') : '';
@@ -7267,7 +7283,8 @@ function renderOrd(){
   $('hpOrdTot').textContent = rupiah(tot);
   $('hpOrdSave').disabled = saving || tot === 0;
 }
-$('hpOrdPills').addEventListener('click', e => { const b = e.target.closest('.hp-pill'); if(b){ ord.per = b.dataset.p; renderOrd(); } });
+$('hpOrdPills').addEventListener('click', e => { const b = e.target.closest('.hp-pill'); if(b){ ord.per = b.dataset.p; if(!ord.tglTouched) $('hpOrdTgl').value = defaultTgl(ord.per); renderOrd(); } });
+$('hpOrdTgl').addEventListener('input', () => { if(ord) ord.tglTouched = true; });
 $('hpOrdList').addEventListener('click', e => {
   const b = e.target.closest('button[data-d]'); if(!b) return;
   const d = +b.dataset.d;
@@ -7297,8 +7314,13 @@ $('hpOrdSave').addEventListener('click', async () => {
 });
 
 // ---------- tombol masuk ----------
-$('btnHampers').addEventListener('click', openHampers);
-$('btnHampersOrder').addEventListener('click', () => openOrd(null));
+$('btnHampers').addEventListener('click', () => openHampers(null));
+// pill di tab Order = shortcut: pindah ke tab Menu (animasi tab), lalu kertas Hampers naik. Back -> balik ke tab Order.
+$('btnHampersOrder').addEventListener('click', () => {
+  if(!$('hpM').classList.contains('hidden')) return;
+  switchTab('menu');
+  setTimeout(() => openHampers('order'), 220);
+});
 updateBadge();
 if(staffSession) load(true); // badge + cache segar saat app dibuka
 window.hampersState = () => ({ H, tab, perF }); // dipakai tes headless
