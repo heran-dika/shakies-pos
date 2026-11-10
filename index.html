@@ -3688,7 +3688,7 @@ function renderMenuPicker(){
   let html = cats.map(cat=>{
     let items = menuItems.filter(i=>i.kategori===cat);
     items = items.filter(i=> i.aktif !== false); // FIX 16 Sep 2026 (v9): item yang di-nonaktifin gak muncul di Order tab
-    if(search) items = items.filter(i=>i.nama.toLowerCase().includes(search));
+    if(search) items = items.filter(i=>i.nama.toLowerCase().includes(search) && !tempActivated[i.item_id]); // item sementara dikunci di blok bawah biar barisnya gak loncat
     if(items.length===0) return '';
     anyMatch = true;
     return `
@@ -3698,40 +3698,60 @@ function renderMenuPicker(){
       </div>`;
   }).join('');
   if(search){
-    const inactive = menuItems.filter(i=> i.aktif === false && i.nama.toLowerCase().includes(search));
+    const inactive = menuItems.filter(i=> (i.aktif === false || tempActivated[i.item_id]) && i.nama.toLowerCase().includes(search));
     if(inactive.length){
       anyMatch = true;
-      html += `<div class="cat-block inactive-block"><h3>Nonaktif · tap + buat aktifin</h3>${inactive.map(inactiveRowHtml).join('')}</div>`;
+      html += `<div class="cat-block inactive-block"><h3>Nonaktif · tap + buat aktifin</h3>${inactive.map(i=> tempActivated[i.item_id] ? pickerRowHtml(i) : inactiveRowHtml(i)).join('')}</div>`;
     }
   }
   area.innerHTML = anyMatch ? html : `<div class="empty-state"><div class="glyph">🔍</div>Nggak ada menu yang cocok.</div>`;
   updateOrderTotal();
 }
-// BARU: tap + di item nonaktif (hasil search tab Order) -> aktifin tanpa konfirmasi + langsung masuk order.
-// Dicatat di tempActivated; kalau order akhirnya gak disimpan (batal/hapus/ganti isi), settleTempActivated() balikin nonaktif.
-async function addInactiveFromSearch(row, itemId){
-  if(!staffSession){ showToast('Sign in dulu buat ngaktifin menu'); return; }
+// BARU: tap + di item nonaktif (hasil search tab Order) -> LANGSUNG keliatan available + masuk order, tapi cuma LOKAL.
+// Server baru ditulis pas order beneran disimpan (settleTempActivated). Order gak jadi = gak ada yang pernah ditulis ke server.
+function addInactiveFromSearch(row, itemId){
   const it = menuItems.find(m=>m.row===row);
   if(!it) return;
+  it.aktif = true;
   tempActivated[itemId] = { row, nama: it.nama };
+  const y = window.scrollY;
   changeQty(it.nama, it.harga, 1);
-  const ok = await toggleMenuAktif(row, itemId, false); // false -> true; re-render optimistic, rollback sendiri kalau gagal sync
-  if(!ok){ delete tempActivated[itemId]; delete orderSelections[it.nama]; renderMenuPicker(); }
+  renderMenuPicker();
+  renderMenuManage();
+  window.scrollTo(0, y); // posisi layar dikunci, baris yang dipencet gak boleh geser
 }
-// keepNames = nama item yang MASIH ada di order yang disimpan (tetap aktif). Sisanya dinonaktifin lagi.
+// Balikin item sementara ke nonaktif (lokal doang, server gak pernah tahu).
+function revertTempActivated(itemId){
+  const t = tempActivated[itemId]; if(!t) return;
+  delete tempActivated[itemId];
+  const m = menuItems.find(x=>x.item_id===itemId);
+  if(m) m.aktif = false;
+}
+// Dipanggil pas order disimpan / dibatalin / draft diganti. keepNames = item yang ada di order yang DISIMPAN
+// -> baru sekarang ditulis aktif ke server. Sisanya balik nonaktif (lokal).
 function settleTempActivated(keepNames){
   const keep = new Set(keepNames || []);
-  const list = Object.keys(tempActivated).map(id=>({ id, ...tempActivated[id] }));
-  tempActivated = {};
-  list.filter(t=> !keep.has(t.nama)).forEach(t=>{
-    const m = menuItems.find(x=>x.item_id===t.id);
-    if(m && m.aktif !== false) toggleMenuAktif(m.row, m.item_id, true); // true -> false; toggleMenuAktif nge-toast sendiri kalau gagal
+  const ids = Object.keys(tempActivated);
+  if(!ids.length) return;
+  ids.forEach(id=>{
+    const t = tempActivated[id];
+    if(keep.has(t.nama)){
+      delete tempActivated[id];
+      const m = menuItems.find(x=>x.item_id===id);
+      if(m) apiPost('update_menu_aktif', { row: m.row, item_id: id, aktif: true, device_label: deviceLabel })
+        .catch(e=>{ m.aktif = false; renderMenuManage(); renderMenuPicker(); showToast('Gagal aktifin ' + m.nama + ': ' + e.message); });
+    } else revertTempActivated(id);
   });
+  renderMenuPicker(); renderMenuManage();
 }
 function changeQty(name, price, delta){
   const cur = orderSelections[name] ? orderSelections[name].qty : 0;
   const next = Math.max(0, cur + delta);
   if(next===0) delete orderSelections[name]; else orderSelections[name] = { qty: next, price };
+  if(next===0){ // item yang diaktifin sementara dari search & dihapus lagi dari order -> balik nonaktif
+    const tid = Object.keys(tempActivated).find(id=>tempActivated[id].nama===name);
+    if(tid){ const y = window.scrollY; revertTempActivated(tid); renderMenuPicker(); renderMenuManage(); window.scrollTo(0, y); return; }
+  }
   const el = document.getElementById('qty-'+name);
   if(el){
     el.textContent = next;
