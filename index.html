@@ -94,6 +94,11 @@
   .cat-block h3{font-family:'Fraunces',serif;font-size:14px;font-weight:600;color:var(--chili);margin:0 0 8px;text-transform:uppercase;letter-spacing:.05em;}
   .item-row{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:8px;}
   .item-row .info{flex:1;min-width:0;}
+  /* BARU: item nonaktif yang nongol di bawah hasil search tab Order (tap + = aktifin otomatis) */
+  .item-row.inactive{opacity:.6;background:var(--bg,#f4f4f4);border-style:dashed;}
+  .item-row.inactive .name{color:var(--ink-soft);}
+  .item-row.inactive .stepper button:disabled{opacity:.35;cursor:default;}
+  .cat-block.inactive-block h3{color:var(--ink-soft);}
   .item-row .info .name{font-weight:600;font-size:14.5px;}
   .item-row .info .price{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink-soft);}
   .stepper{display:flex;align-items:center;border:1.5px solid var(--border);border-radius:20px;overflow:hidden;flex-shrink:0;}
@@ -1467,6 +1472,7 @@ const STAFF_SESSION_KEY = 'staff-session-v1';
 const SESSION_EXPIRED_KEY = 'session-expired-v1'; // di-set pas server nolak sesi (not_registered), dihapus pas login ulang / logout manual
 const SESSION_TTL_DAYS_CLIENT = 30, SESSION_WARN_DAYS = 29;
 let orderSelections = {}; // nama_item -> qty
+let tempActivated = {}; // item_id -> {row,nama}: item nonaktif yang diaktifin otomatis dari search tab Order; balik nonaktif kalau order gak jadi disimpan
 let editingOrderId = null;
 let editOriginTab = null; // FIX 16 Sep 2026 (v6): inget tab asal sebelum masuk mode edit, biar "Batal" balik ke situ lagi
 let isSubmittingOrder = false; // dipake updateOrderTotal() biar gak diem-diem nge-enable tombol Simpan pas masih ada request nyangkut
@@ -3434,11 +3440,13 @@ async function toggleMenuAktif(row, itemId, currentAktif){
   renderMenuPicker(); // Order tab ikut ke-update seketika
   try{
     await apiPost('update_menu_aktif', { row, item_id: itemId, aktif: newVal, device_label: deviceLabel });
+    return true;
   } catch(e){
     if(it) it.aktif = currentAktif; // gagal sync -> rollback, jangan nyimpen state yang cuma ada di klien
     renderMenuManage();
     renderMenuPicker();
     showToast('Gagal update ketersediaan: ' + e.message);
+    return false;
   }
 }
 // FIX 16 Sep 2026 (v13): shortcut dari centang read-only (mode biasa) — bukan langsung masuk Stock
@@ -3645,16 +3653,8 @@ function renderMenuPicker(){
   // Sama kayak perhitungan Available di tab Menu: Real - total Prep window 7 hari, ngikutin mother/child & unlimited.
   const menuByIdPicker = buildMenuById();
   const demandPicker = computeDemandByStockKey(prepWindowDates());
-  const html = cats.map(cat=>{
-    let items = menuItems.filter(i=>i.kategori===cat);
-    items = items.filter(i=> i.aktif !== false); // FIX 16 Sep 2026 (v9): item yang di-nonaktifin gak muncul di Order tab
-    if(search) items = items.filter(i=>i.nama.toLowerCase().includes(search));
-    if(items.length===0) return '';
-    anyMatch = true;
-    return `
-      <div class="cat-block">
-        <h3>${escapeHtml(cat)}</h3>
-        ${items.map(it=>{
+  // Baris item (aktif). Dipisah jadi fungsi biar bisa dipakai ulang tanpa nulis template dua kali.
+  const pickerRowHtml = (it)=>{
           const key = it.nama;
           const qty = orderSelections[key] ? orderSelections[key].qty : 0;
           const induk = String(it.stok_induk||'').trim();
@@ -3674,11 +3674,59 @@ function renderMenuPicker(){
               <button onclick="changeQty('${escapeHtml(key).replace(/'/g,"\\'")}', ${it.harga}, 1)">+</button>
             </div>
           </div>`;
-        }).join('')}
+  };
+  // BARU: item nonaktif — cuma muncul kalau lagi search, di paling bawah, abu-abu. Tap + = aktifin + langsung masuk order.
+  const inactiveRowHtml = (it)=>`
+          <div class="item-row inactive">
+            <div class="info"><div class="name">${escapeHtml(it.nama)}</div><div class="price">${rupiah(it.harga)} · ${escapeHtml(it.kategori)}</div><div class="price">Nonaktif</div></div>
+            <div class="stepper">
+              <button disabled>−</button>
+              <span class="qty">0</span>
+              <button onclick="addInactiveFromSearch(${it.row}, '${it.item_id}')">+</button>
+            </div>
+          </div>`;
+  let html = cats.map(cat=>{
+    let items = menuItems.filter(i=>i.kategori===cat);
+    items = items.filter(i=> i.aktif !== false); // FIX 16 Sep 2026 (v9): item yang di-nonaktifin gak muncul di Order tab
+    if(search) items = items.filter(i=>i.nama.toLowerCase().includes(search));
+    if(items.length===0) return '';
+    anyMatch = true;
+    return `
+      <div class="cat-block">
+        <h3>${escapeHtml(cat)}</h3>
+        ${items.map(pickerRowHtml).join('')}
       </div>`;
   }).join('');
+  if(search){
+    const inactive = menuItems.filter(i=> i.aktif === false && i.nama.toLowerCase().includes(search));
+    if(inactive.length){
+      anyMatch = true;
+      html += `<div class="cat-block inactive-block"><h3>Nonaktif · tap + buat aktifin</h3>${inactive.map(inactiveRowHtml).join('')}</div>`;
+    }
+  }
   area.innerHTML = anyMatch ? html : `<div class="empty-state"><div class="glyph">🔍</div>Nggak ada menu yang cocok.</div>`;
   updateOrderTotal();
+}
+// BARU: tap + di item nonaktif (hasil search tab Order) -> aktifin tanpa konfirmasi + langsung masuk order.
+// Dicatat di tempActivated; kalau order akhirnya gak disimpan (batal/hapus/ganti isi), settleTempActivated() balikin nonaktif.
+async function addInactiveFromSearch(row, itemId){
+  if(!staffSession){ showToast('Sign in dulu buat ngaktifin menu'); return; }
+  const it = menuItems.find(m=>m.row===row);
+  if(!it) return;
+  tempActivated[itemId] = { row, nama: it.nama };
+  changeQty(it.nama, it.harga, 1);
+  const ok = await toggleMenuAktif(row, itemId, false); // false -> true; re-render optimistic, rollback sendiri kalau gagal sync
+  if(!ok){ delete tempActivated[itemId]; delete orderSelections[it.nama]; renderMenuPicker(); }
+}
+// keepNames = nama item yang MASIH ada di order yang disimpan (tetap aktif). Sisanya dinonaktifin lagi.
+function settleTempActivated(keepNames){
+  const keep = new Set(keepNames || []);
+  const list = Object.keys(tempActivated).map(id=>({ id, ...tempActivated[id] }));
+  tempActivated = {};
+  list.filter(t=> !keep.has(t.nama)).forEach(t=>{
+    const m = menuItems.find(x=>x.item_id===t.id);
+    if(m && m.aktif !== false) toggleMenuAktif(m.row, m.item_id, true); // true -> false; toggleMenuAktif nge-toast sendiri kalau gagal
+  });
 }
 function changeQty(name, price, delta){
   const cur = orderSelections[name] ? orderSelections[name].qty : 0;
@@ -4115,6 +4163,7 @@ async function submitOrder(){
 
   if(isSubmittingOrder) return; // dobel-pencet cepet -> diabaikan diam-diam, gak ada tampilan loading lagi
   isSubmittingOrder = true;
+  settleTempActivated(items.map(i=>i.name)); // item yang diaktifin dari search & masuk order -> tetap aktif; sisanya balik nonaktif
 
   const wasEditing = !!editingOrderId;
   const editedOrderId = editingOrderId;
@@ -4446,6 +4495,7 @@ function renderWaParsePreview(){
 // Tanggal Kirim, Catatan dll TIDAK ikut disentuh, cuma orderSelections yang diganti.
 function applyWaParseToForm(){
   if(!waParseResult || waParseResult.matched.length===0) return;
+  settleTempActivated(waParseResult.matched.map(it=>it.name));
   orderSelections = {};
   waParseResult.matched.forEach(it=>{ orderSelections[it.name] = { qty: it.qty, price: it.price }; });
   renderMenuPicker();
@@ -4454,6 +4504,7 @@ function applyWaParseToForm(){
 }
 
 function resetOrderForm(){
+  settleTempActivated([]); // jalur simpan sudah di-settle di submitOrder (map kosong); yang tersisa = batal/hapus -> balik nonaktif
   editingOrderId = null; editingOrderPrepared = false; editingOrderPaid = false;
   editOriginTab = null; // FIX 16 Sep 2026 (v6): dibersihin di sini juga biar gak nyangkut stale buat sesi order berikutnya
   pendingOrderClientId = null; // sesi isi order ini beres/dibatalin — key berikutnya digenerate baru
@@ -4515,6 +4566,7 @@ function openEditOrder(orderId){
   document.getElementById('discountPanel').classList.toggle('open', !!order.discount_type);
   const clearBtn = document.getElementById('btnClearDiscountValue');
   if(clearBtn) clearBtn.style.display = order.discount_value ? 'flex' : 'none';
+  settleTempActivated([]); // draft sebelumnya dibuang
   orderSelections = {};
   (order.items || []).forEach(i=>{ orderSelections[i.name] = { qty: i.qty, price: i.price }; });
   // FIX 16 Sep 2026 (v6): rekam lagi di tab mana sebelum lompat ke Order (misal dipencet dari
