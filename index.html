@@ -214,6 +214,10 @@
   .order-card .pc-ic{position:relative;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:10px;border:none;padding:0;background:var(--jade-tint);color:var(--jade-dark);cursor:pointer;}
   .order-card .pc-ic::before{content:'';position:absolute;inset:-6px;}
   .order-card .pc-ic svg{width:12px;height:12px;}
+  .order-card .pc-ic{-webkit-touch-callout:none;touch-action:manipulation;transition:transform .15s;}
+  .order-card .pc-ic.armed{transform:scale(1.25);}
+  /* Preview alamat (tahan lama tombol rumah di card Prep) — muncul di atas tombol, hilang pas jari dilepas */
+  .pc-preview{position:fixed;z-index:10000;max-width:260px;padding:8px 11px;border-radius:10px;background:var(--ink);color:#fff;font-size:12.5px;line-height:1.4;box-shadow:0 4px 14px rgba(0,0,0,.25);pointer-events:none;white-space:pre-wrap;word-break:break-word;}
   .order-card .items-list{font-size:13px;color:var(--ink-soft);margin:6px 0;}
   .order-card .bottom-row{display:flex;justify-content:space-between;align-items:center;margin-top:8px;}
   .order-card .price{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:14px;color:var(--jade-dark);}
@@ -4835,15 +4839,52 @@ function prepContactIconsHtml(o){
   const c = contactForOrder(o);
   if(!c.wa && !c.alamat) return '';
   const id = escapeHtml(o.order_id).replace(/'/g, "\\'");
-  return `<span class="pc-ics">${c.wa ? `<button type="button" class="pc-ic" onclick="prepContactTap(event,'${id}','wa')" aria-label="Buka WhatsApp">${PC_WA_SVG}</button>` : ''}${c.alamat ? `<button type="button" class="pc-ic" onclick="prepContactTap(event,'${id}','home')" aria-label="Salin alamat">${PC_HOME_SVG}</button>` : ''}</span>`;
+  return `<span class="pc-ics">${c.wa ? `<button type="button" class="pc-ic" onpointerdown="prepContactDown(event,'${id}','wa')" onclick="event.stopPropagation()" aria-label="Salin nomor (tahan = buka WhatsApp)">${PC_WA_SVG}</button>` : ''}${c.alamat ? `<button type="button" class="pc-ic" onpointerdown="prepContactDown(event,'${id}','home')" onclick="event.stopPropagation()" aria-label="Salin alamat (tahan = lihat alamat)">${PC_HOME_SVG}</button>` : ''}</span>`;
 }
-function prepContactTap(ev, orderId, kind){
+// Tombol nomor: tap = salin nomor, tahan (>=500ms) lalu lepas = buka wa.me. Tombol alamat: tap = salin, tahan = preview alamat
+// di atas tombol selama jari menempel (hilang pas dilepas, tanpa salin). Aksi dieksekusi di pointerup (bukan click) biar
+// gak bergantung ke perilaku click-after-longpress tiap browser.
+let pcPress = null, pcPreviewEl = null;
+function pcHidePreview(){ if(pcPreviewEl){ pcPreviewEl.remove(); pcPreviewEl = null; } }
+function prepContactDown(ev, orderId, kind){
   ev.stopPropagation(); // jangan ikut buka edit order
+  pcEnd(true);
+  const btn = ev.currentTarget;
   const o = allOrders.find(x => x.order_id === orderId); if(!o) return;
   const c = contactForOrder(o);
-  if(kind === 'wa'){ if(c.wa) window.open('https://wa.me/' + c.wa, '_blank', 'noopener'); return; }
-  if(c.alamat) ltCopyText(c.alamat).then(ok => showToast(ok ? 'Alamat disalin' : 'Gagal menyalin alamat'));
+  const press = pcPress = { kind, c, btn, long: false };
+  press.timer = setTimeout(()=>{
+    press.long = true;
+    btn.classList.add('armed');
+    if(navigator.vibrate) try{ navigator.vibrate(15); }catch(e){}
+    if(kind === 'home' && c.alamat){
+      pcHidePreview();
+      const el = pcPreviewEl = document.createElement('div');
+      el.className = 'pc-preview'; el.textContent = c.alamat;
+      document.body.appendChild(el);
+      const r = btn.getBoundingClientRect(), w = Math.min(260, window.innerWidth - 16);
+      el.style.width = 'max-content'; el.style.maxWidth = w + 'px';
+      el.style.left = Math.max(8, Math.min(r.left + r.width/2 - el.offsetWidth/2, window.innerWidth - el.offsetWidth - 8)) + 'px';
+      el.style.bottom = (window.innerHeight - r.top + 8) + 'px';
+    }
+  }, 500);
 }
+// cancelled=true: jari digeser/scroll (pointercancel) -> batalin tanpa aksi
+function pcEnd(cancelled){
+  const p = pcPress; if(!p) return;
+  pcPress = null;
+  clearTimeout(p.timer); p.btn.classList.remove('armed'); pcHidePreview();
+  if(cancelled) return;
+  if(p.kind === 'wa'){
+    if(!p.c.wa) return;
+    if(p.long) window.open('https://wa.me/' + p.c.wa, '_blank', 'noopener');
+    else ltCopyText(p.c.wa).then(ok => showToast(ok ? 'Nomor disalin' : 'Gagal menyalin nomor'));
+  } else if(!p.long && p.c.alamat){
+    ltCopyText(p.c.alamat).then(ok => showToast(ok ? 'Alamat disalin' : 'Gagal menyalin alamat'));
+  }
+}
+document.addEventListener('pointerup', ()=>pcEnd(false), true);
+document.addEventListener('pointercancel', ()=>pcEnd(true), true);
 function renderBesokList(){
   const area = document.getElementById('besokContent');
   const target = selectedBesokDate;
