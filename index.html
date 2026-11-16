@@ -216,6 +216,8 @@
   .order-card .pc-ic svg{width:12px;height:12px;}
   .order-card .pc-ic{-webkit-touch-callout:none;touch-action:manipulation;transition:transform .15s;}
   .order-card .pc-ic.armed{transform:scale(1.25);}
+  .order-card .pc-ic{-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;}
+  body.pc-pressing, body.pc-pressing *{-webkit-user-select:none !important;user-select:none !important;-webkit-touch-callout:none !important;}
   /* Preview alamat (tahan lama tombol rumah di card Prep) — muncul di atas tombol, hilang pas jari dilepas */
   .pc-preview{position:fixed;z-index:10000;max-width:260px;padding:8px 11px;border-radius:10px;background:var(--ink);color:#fff;font-size:12.5px;line-height:1.4;box-shadow:0 4px 14px rgba(0,0,0,.25);pointer-events:none;white-space:pre-wrap;word-break:break-word;}
   .order-card .items-list{font-size:13px;color:var(--ink-soft);margin:6px 0;}
@@ -737,7 +739,7 @@
         <label class="field-label">Nama Customer</label>
         <div style="display:flex;gap:8px;align-items:center;">
           <input type="text" id="custName" list="customerList" autocomplete="off" autocapitalize="words" placeholder="Nama pemesan (kosongin = pakai nama HP)" style="flex:1;">
-          <button type="button" class="saldo-icon-btn" onclick="openSaldoPanel()" aria-label="Saldo customer">
+          <button type="button" class="saldo-icon-btn" onclick="openCustomerFromOrder()" aria-label="Saldo customer">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           </button>
         </div>
@@ -2380,6 +2382,15 @@ async function loadCustomerSaldoMap(){
   try{ await saldoFetchPromise; } finally { saldoFetchPromise = null; }
 }
 
+// Ikon customer di tab Order: kalau nama di kolom sudah ada di daftar customer -> langsung ke profilnya.
+// Kosong / belum terdaftar -> buka daftar customer seperti biasa.
+function openCustomerFromOrder(){
+  const typed = (document.getElementById('custName').value || '').trim().toLowerCase();
+  openSaldoPanel();
+  if(!typed || !staffSession) return; // belum sign in: panel nampilin gembok, gak usah lanjut
+  const opt = [...document.querySelectorAll('#customerList option')].find(o => String(o.value).trim().toLowerCase() === typed);
+  if(opt) openProfileByName(opt.value);
+}
 function openSaldoPanel(){
   document.getElementById('saldoModal').classList.remove('hidden');
   document.body.style.overflow = 'hidden'; // kunci scroll background selama panel kebuka
@@ -4853,9 +4864,11 @@ function prepContactDown(ev, orderId, kind){
   const o = allOrders.find(x => x.order_id === orderId); if(!o) return;
   const c = contactForOrder(o);
   const press = pcPress = { kind, c, btn, long: false };
+  document.body.classList.add('pc-pressing');
   press.timer = setTimeout(()=>{
     press.long = true;
     btn.classList.add('armed');
+    try{ window.getSelection().removeAllRanges(); }catch(e){} // buang seleksi teks yang sempat kebentuk (blok biru)
     if(navigator.vibrate) try{ navigator.vibrate(15); }catch(e){}
     if(kind === 'home' && c.alamat){
       pcHidePreview();
@@ -4865,7 +4878,7 @@ function prepContactDown(ev, orderId, kind){
       const r = btn.getBoundingClientRect(), w = Math.min(260, window.innerWidth - 16);
       el.style.width = 'max-content'; el.style.maxWidth = w + 'px';
       el.style.left = Math.max(8, Math.min(r.left + r.width/2 - el.offsetWidth/2, window.innerWidth - el.offsetWidth - 8)) + 'px';
-      el.style.bottom = (window.innerHeight - r.top + 8) + 'px';
+      el.style.bottom = (window.innerHeight - r.top + 46) + 'px'; // 46px: lewat tinggi jempol biar gak ketutup jari
     }
   }, 500);
 }
@@ -4874,6 +4887,8 @@ function pcEnd(cancelled){
   const p = pcPress; if(!p) return;
   pcPress = null;
   clearTimeout(p.timer); p.btn.classList.remove('armed'); pcHidePreview();
+  document.body.classList.remove('pc-pressing');
+  try{ window.getSelection().removeAllRanges(); }catch(e){}
   if(cancelled) return;
   if(p.kind === 'wa'){
     if(!p.c.wa) return;
@@ -4883,6 +4898,7 @@ function pcEnd(cancelled){
     ltCopyText(p.c.alamat).then(ok => showToast(ok ? 'Alamat disalin' : 'Gagal menyalin alamat'));
   }
 }
+document.addEventListener('selectstart', e=>{ if(pcPress) e.preventDefault(); }, true);
 document.addEventListener('pointerup', ()=>pcEnd(false), true);
 document.addEventListener('pointercancel', ()=>pcEnd(true), true);
 function renderBesokList(){
