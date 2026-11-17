@@ -197,6 +197,7 @@
   .day-chip.active .dcount{color:var(--gold-tint);}
   .summary-grid{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0;}
   .summary-pill{background:var(--gold-tint);border:1px solid var(--border);border-radius:20px;padding:6px 12px;font-size:12.5px;font-weight:600;color:var(--gold);}
+  .order-card, .order-card *{-webkit-tap-highlight-color:transparent;}
   .order-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;cursor:pointer;}
   .order-card.unpaid{background:linear-gradient(135deg,#FFFFFF 60%,var(--chili-tint) 130%);}
   .order-card.paid{background:linear-gradient(135deg,#FFFFFF 60%,var(--jade-tint) 130%);}
@@ -4149,7 +4150,6 @@ async function loadOrders(){
   ordersFetchPromise = (async () => {
     const mySeq = ++ordersFetchSeq; // tandain request ini nomor berapa
     const demoOrders = allOrders.filter(o=>o._demo);
-    const previousReal = allOrders.filter(o=>!o._demo);
     try{
       const fresh = await apiGet('get_orders');
       if(mySeq !== ordersFetchSeq) return false; // ada loadOrders() lain yg lebih baru nyusul — hasil ini basi, buang
@@ -4162,7 +4162,7 @@ async function loadOrders(){
       // not_registered = belum login (device coba-coba / sesi expired), BUKAN error server —
       // gak usah toast tiap kali app dibuka di device yang emang belum sign in.
       if(e.status !== 'not_registered') showToast('Gagal ambil orderan: ' + e.message);
-      allOrders = mergeLocalPendingOrders(previousReal); // gagal fetch — tetep pake data lama drpd kosong; order _demo/_pending/_failed yang dibuat SELAMA fetch ini jalan ikut dipertahankan
+      allOrders = mergeLocalPendingOrders(allOrders.filter(o=>!o._demo)); // FIX 17 Nov 2026: snapshot data lama diambil SEKARANG (bukan pas fetch mulai) — kalau Prep baru muat cache selama fetch prefetch init jalan, cache itu gak ikut kebuang. Gagal fetch — tetep pake data lama drpd kosong; order _demo/_pending/_failed yang dibuat SELAMA fetch ini jalan ikut dipertahankan
       return false;
     }
   })();
@@ -4824,9 +4824,9 @@ async function renderBesok(){
   }
   const syncIcon = document.getElementById('prepSyncIcon');
   syncIcon.style.display = 'block';
-  await loadOrders();
+  const fetchedOk = await loadOrders();
   await loadCustomerSaldoMap(); // refresh fresh (cooldown otomatis ngerem kalau lagi gagal terus)
-  savePrepCache(allOrders);
+  if(fetchedOk) savePrepCache(allOrders); // FIX 17 Nov 2026: fetch gagal -> jangan timpa cache bagus pakai data kosong/lama
   syncIcon.style.display = 'none';
   renderDayStrip();
   renderBesokList();
