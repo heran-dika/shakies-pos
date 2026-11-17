@@ -215,7 +215,7 @@
   .order-card .pc-ic{position:relative;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:10px;border:none;padding:0;background:var(--jade-tint);color:var(--jade-dark);cursor:pointer;}
   .order-card .pc-ic::before{content:'';position:absolute;inset:-6px;}
   .order-card .pc-ic svg{width:12px;height:12px;}
-  .order-card .pc-ic{-webkit-touch-callout:none;touch-action:manipulation;transition:transform .15s;}
+  .order-card .pc-ic{-webkit-touch-callout:none;touch-action:none;transition:transform .15s;} /* none: drag jempol dari ikon gak scroll layar, preview alamat tetap muncul sampai dilepas */
   .order-card .pc-ic.armed{transform:scale(1.25);}
   .order-card .pc-ic{-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;}
   body.pc-pressing, body.pc-pressing *{-webkit-user-select:none !important;user-select:none !important;-webkit-touch-callout:none !important;}
@@ -4898,6 +4898,7 @@ function pcEnd(cancelled){
     ltCopyText(p.c.alamat).then(ok => showToast(ok ? 'Alamat disalin' : 'Gagal menyalin alamat'));
   }
 }
+document.addEventListener('touchmove', e=>{ if(pcPress) e.preventDefault(); }, { passive:false }); // cadangan: layar gak ikut geser selama ikon ditahan
 document.addEventListener('selectstart', e=>{ if(pcPress) e.preventDefault(); }, true);
 document.addEventListener('pointerup', ()=>pcEnd(false), true);
 document.addEventListener('pointercancel', ()=>pcEnd(true), true);
